@@ -1,0 +1,94 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useUserData } from '@/hooks/useUserData';
+import { User } from '@/types';
+import SecretReveal from './ui/SecretReveal';
+
+interface EditUserFormProps {
+  user: User;
+  onEdit: () => void;
+  onCancel: () => void;
+}
+
+const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
+  const { t } = useTranslation();
+  const { updateUser } = useUserData();
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [remark, setRemark] = useState(user.remark || '');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const result = await updateUser(user.username, { remark });
+      if (result?.success) {
+        onEdit();
+      } else {
+        setError(result?.message || t('users.updateError'));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('users.updateError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="ylune-dialog-backdrop">
+      <div className="ylune-dialog">
+        <form onSubmit={handleSubmit}>
+          <div className="ylune-dialog-head">
+            <h2 className="ylune-dialog-title">
+              {t('users.edit')} · {user.username}
+            </h2>
+          </div>
+
+          <div className="ylune-dialog-body">
+            {error && <div className="ylune-error">{error}</div>}
+
+            <div>
+              <label className="ylune-label">{t('users.username')}</label>
+              <input className="hub-input" value={user.username} disabled />
+            </div>
+
+            <div>
+              <label htmlFor="remark" className="ylune-label">
+                {t('users.remark')}
+              </label>
+              <input
+                type="text"
+                id="remark"
+                name="remark"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder={t('users.remarkPlaceholder')}
+                className="hub-input"
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div>
+              <label className="ylune-label">{t('users.token')}</label>
+              <SecretReveal value={user.token} emptyLabel={t('users.tokenMissing')} />
+              <p className="ylune-help">{t('users.tokenHint')}</p>
+            </div>
+          </div>
+
+          <div className="ylune-dialog-foot">
+            <button type="button" onClick={onCancel} className="hub-btn" disabled={isSubmitting}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="hub-btn primary" disabled={isSubmitting}>
+              {isSubmitting ? t('common.updating') : t('users.update')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EditUserForm;

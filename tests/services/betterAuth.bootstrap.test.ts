@@ -1,0 +1,281 @@
+const betterAuthMock = jest.fn(() => ({ handler: jest.fn() }));
+const genericOAuthMock = jest.fn((options: unknown) => ({ id: 'generic-oauth', options }));
+const poolMock = jest.fn();
+const postgresDialectMock = jest.fn();
+const loadSettingsMock = jest.fn();
+const resolveBetterAuthRuntimeConfigMock = jest.fn();
+const resolveBetterAuthBaseUrlMock = jest.fn();
+
+const runtimeConfig = {
+  enabled: true,
+  basePath: '/api/auth/better',
+  trustedOrigins: ['https://mcp.imdevinc.home'],
+  providers: {
+    google: { enabled: false },
+    github: { enabled: false },
+    oidc: {
+      enabled: true,
+      providerId: 'local-oidc',
+      discoveryUrl: 'https://auth.example.com/.well-known/openid-configuration',
+      scopes: ['openid', 'profile', 'email'],
+      pkce: true,
+      prompt: 'login',
+      trustEmail: true,
+    },
+  },
+};
+
+const disabledRuntimeConfig = {
+  enabled: false,
+  basePath: '/api/auth/better',
+  trustedOrigins: [],
+  providers: {
+    google: { enabled: false },
+    github: { enabled: false },
+    oidc: {
+      enabled: false,
+      providerId: 'oidc',
+      scopes: ['openid', 'profile', 'email'],
+      pkce: true,
+      trustEmail: false,
+    },
+  },
+};
+
+jest.mock('better-auth', () => ({
+  betterAuth: betterAuthMock,
+}));
+
+jest.mock('better-auth/plugins', () => ({
+  genericOAuth: genericOAuthMock,
+}));
+
+jest.mock('pg', () => ({
+  Pool: poolMock,
+}));
+
+jest.mock('kysely', () => ({
+  PostgresDialect: postgresDialectMock,
+}));
+
+jest.mock('../../src/config/index.js', () => ({
+  __esModule: true,
+  default: {
+    port: 3000,
+    basePath: '',
+  },
+  loadSettings: loadSettingsMock,
+}));
+
+jest.mock('../../src/services/betterAuthConfig.js', () => ({
+  __esModule: true,
+  betterAuthRuntimeConfig: disabledRuntimeConfig,
+  getBetterAuthRuntimeConfig: jest.fn(() => runtimeConfig),
+  resolveBetterAuthRuntimeConfig: resolveBetterAuthRuntimeConfigMock,
+  resolveBetterAuthBaseUrl: resolveBetterAuthBaseUrlMock,
+}));
+
+describe('betterAuth bootstrap', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    betterAuthMock.mockClear();
+    genericOAuthMock.mockClear();
+    poolMock.mockClear();
+    postgresDialectMock.mockClear();
+    loadSettingsMock.mockReset();
+    resolveBetterAuthRuntimeConfigMock.mockReset();
+    resolveBetterAuthRuntimeConfigMock.mockReturnValue(runtimeConfig);
+    loadSettingsMock.mockReturnValue({
+      systemConfig: {},
+    });
+    process.env.DB_URL = 'postgresql://mcphub:password@localhost:5432/mcphub';
+    process.env.BETTER_AUTH_URL = 'http://localhost:5173';
+    process.env.OIDC_CLIENT_ID = 'oidc-client-id';
+    process.env.OIDC_CLIENT_SECRET = 'oidc-client-secret';
+    process.env.USE_DB = 'true';
+    resolveBetterAuthBaseUrlMock.mockReturnValue('http://localhost:5173');
+  });
+
+  it('registers the generic OAuth plugin when the OIDC provider is enabled', async () => {
+    await import('../../src/betterAuth.js');
+
+    expect(genericOAuthMock).toHaveBeenCalledWith({
+      config: [
+        {
+          providerId: 'local-oidc',
+          discoveryUrl: 'https://auth.example.com/.well-known/openid-configuration',
+          clientId: 'oidc-client-id',
+          clientSecret: 'oidc-client-secret',
+          scopes: ['openid', 'profile', 'email'],
+          pkce: true,
+          prompt: 'login',
+        },
+      ],
+    });
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        socialProviders: {},
+        trustedOrigins: ['https://mcp.imdevinc.home'],
+        account: {
+          accountLinking: {
+            enabled: true,
+            trustedProviders: ['local-oidc'],
+          },
+        },
+        plugins: [
+          {
+            id: 'generic-oauth',
+            options: {
+              config: [
+                {
+                  providerId: 'local-oidc',
+                  discoveryUrl: 'https://auth.example.com/.well-known/openid-configuration',
+                  clientId: 'oidc-client-id',
+                  clientSecret: 'oidc-client-secret',
+                  scopes: ['openid', 'profile', 'email'],
+                  pkce: true,
+                  prompt: 'login',
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+  });
+
+  it('prefers BETTER_AUTH_URL over install.baseUrl when deriving the Better Auth base URL', async () => {
+    process.env.USE_DB = 'false';
+    loadSettingsMock.mockReturnValue({
+      systemConfig: {
+        install: {
+          baseUrl: 'https://mcp.imdevinc.home/mcphub',
+        },
+      },
+    });
+    resolveBetterAuthBaseUrlMock.mockReturnValue('http://localhost:5173');
+
+    await import('../../src/betterAuth.js');
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseURL: 'http://localhost:5173/api/auth/better',
+      }),
+    );
+  });
+
+  it('uses betterAuth.baseUrl when BETTER_AUTH_URL is not set', async () => {
+    resolveBetterAuthBaseUrlMock.mockReturnValue('https://settings.example.com/mcphub');
+
+    await import('../../src/betterAuth.js');
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseURL: 'https://settings.example.com/mcphub/api/auth/better',
+      }),
+    );
+  });
+
+  it('falls back to the default localhost URL when no base URL is configured', async () => {
+    resolveBetterAuthBaseUrlMock.mockReturnValue(undefined);
+
+    await import('../../src/betterAuth.js');
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseURL: 'http://localhost:3000/api/auth/better',
+      }),
+    );
+  });
+
+  it('builds the auth instance from the current resolved runtime config instead of the stale exported snapshot', async () => {
+    await import('../../src/betterAuth.js');
+
+    expect(resolveBetterAuthRuntimeConfigMock).toHaveBeenCalled();
+    expect(genericOAuthMock).toHaveBeenCalledWith({
+      config: [
+        {
+          providerId: 'local-oidc',
+          discoveryUrl: 'https://auth.example.com/.well-known/openid-configuration',
+          clientId: 'oidc-client-id',
+          clientSecret: 'oidc-client-secret',
+          scopes: ['openid', 'profile', 'email'],
+          pkce: true,
+          prompt: 'login',
+        },
+      ],
+    });
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plugins: [
+          expect.objectContaining({
+            id: 'generic-oauth',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('includes the OIDC provider in trustedProviders when OIDC is enabled and trustEmail is true', async () => {
+    await import('../../src/betterAuth.js');
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: {
+          accountLinking: {
+            enabled: true,
+            trustedProviders: ['local-oidc'],
+          },
+        },
+      }),
+    );
+  });
+
+  it('uses an empty trustedProviders when OIDC is enabled but trustEmail is false', async () => {
+    resolveBetterAuthRuntimeConfigMock.mockReturnValue({
+      ...runtimeConfig,
+      providers: {
+        ...runtimeConfig.providers,
+        oidc: { ...runtimeConfig.providers.oidc, trustEmail: false },
+      },
+    });
+
+    await import('../../src/betterAuth.js');
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: {
+          accountLinking: {
+            enabled: true,
+            trustedProviders: [],
+          },
+        },
+      }),
+    );
+  });
+
+  it('uses an empty trustedProviders when OIDC is disabled', async () => {
+    resolveBetterAuthRuntimeConfigMock.mockReturnValue({
+      ...disabledRuntimeConfig,
+      providers: {
+        ...disabledRuntimeConfig.providers,
+        oidc: { ...disabledRuntimeConfig.providers.oidc, enabled: false },
+      },
+    });
+
+    await import('../../src/betterAuth.js');
+
+    expect(betterAuthMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: {
+          accountLinking: {
+            enabled: true,
+            trustedProviders: [],
+          },
+        },
+      }),
+    );
+  });
+});

@@ -1,0 +1,340 @@
+import { Request, Response } from 'express';
+import { validationResult } from 'express-validator';
+import crypto from 'crypto';
+import {
+  getOAuthClients,
+  findOAuthClientById,
+  createOAuthClient,
+  updateOAuthClient,
+  deleteOAuthClient,
+} from '../models/OAuth.js';
+import { IOAuthClient } from '../types/index.js';
+import { logger } from '../utils/logger.js';
+
+const canAccessClient = (req: Request, client: IOAuthClient): boolean => {
+  const user = (req as any).user as { username?: string; isAdmin?: boolean } | undefined;
+  return Boolean(user?.isAdmin || (user?.username && client.owner === user.username));
+};
+
+/**
+ * GET /api/oauth/clients
+ * Get all OAuth clients
+ */
+export const getAllClients = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const clients = await getOAuthClients();
+    const user = (req as any).user as { username?: string; isAdmin?: boolean } | undefined;
+    const visibleClients = user?.isAdmin
+      ? clients
+      : clients.filter((client) => client.owner === user?.username);
+
+    // Don't expose client secrets in the list
+    const sanitizedClients = visibleClients.map((client) => ({
+      clientId: client.clientId,
+      name: client.name,
+      redirectUris: client.redirectUris,
+      grants: client.grants,
+      scopes: client.scopes,
+      owner: client.owner,
+    }));
+
+    res.json({
+      success: true,
+      clients: sanitizedClients,
+    });
+  } catch (error) {
+    logger.error('Get OAuth clients error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve OAuth clients',
+    });
+  }
+};
+
+/**
+ * GET /api/oauth/clients/:clientId
+ * Get a specific OAuth client
+ */
+export const getClient = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { clientId } = req.params;
+    const client = await findOAuthClientById(clientId);
+
+    if (!client) {
+      res.status(404).json({
+        success: false,
+        message: 'OAuth client not found',
+      });
+      return;
+    }
+
+    if (!canAccessClient(req, client)) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden',
+      });
+      return;
+    }
+
+    // Don't expose client secret
+    const sanitizedClient = {
+      clientId: client.clientId,
+      name: client.name,
+      redirectUris: client.redirectUris,
+      grants: client.grants,
+      scopes: client.scopes,
+      owner: client.owner,
+    };
+
+    res.json({
+      success: true,
+      client: sanitizedClient,
+    });
+  } catch (error) {
+    logger.error('Get OAuth client error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve OAuth client',
+    });
+  }
+};
+
+/**
+ * POST /api/oauth/clients
+ * Create a new OAuth client
+ */
+export const createClient = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validate request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array(),
+      });
+      return;
+    }
+
+    const { name, redirectUris, grants, scopes, requireSecret } = req.body;
+    const user = (req as any).user;
+
+    // Generate client ID
+    const clientId = crypto.randomBytes(16).toString('hex');
+
+    // Generate client secret if required
+    const clientSecret =
+      requireSecret !== false ? crypto.randomBytes(32).toString('hex') : undefined;
+
+    // Create client
+    const client: IOAuthClient = {
+      clientId,
+      clientSecret,
+      name,
+      redirectUris: Array.isArray(redirectUris) ? redirectUris : [redirectUris],
+      grants: grants || ['authorization_code', 'refresh_token'],
+      scopes: scopes || ['read', 'write'],
+      owner: user?.username || 'admin',
+    };
+
+    const createdClient = await createOAuthClient(client);
+
+    // Return client with secret (only shown once)
+    res.status(201).json({
+      success: true,
+      message: 'OAuth client created successfully',
+      client: {
+        clientId: createdClient.clientId,
+        clientSecret: createdClient.clientSecret,
+        name: createdClient.name,
+        redirectUris: createdClient.redirectUris,
+        grants: createdClient.grants,
+        scopes: createdClient.scopes,
+        owner: createdClient.owner,
+      },
+      warning: clientSecret
+        ? 'Client secret is only shown once. Please save it securely.'
+        : undefined,
+    });
+  } catch (error) {
+    logger.error('Create OAuth client error:', error);
+
+    if (error instanceof Error && error.message.includes('already exists')) {
+      res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create OAuth client',
+      });
+    }
+  }
+};
+
+/**
+ * PUT /api/oauth/clients/:clientId
+ * Update an OAuth client
+ */
+export const updateClient = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { clientId } = req.params;
+    const existingClient = await findOAuthClientById(clientId);
+
+    if (!existingClient) {
+      res.status(404).json({
+        success: false,
+        message: 'OAuth client not found',
+      });
+      return;
+    }
+
+    if (!canAccessClient(req, existingClient)) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden',
+      });
+      return;
+    }
+
+    const { name, redirectUris, grants, scopes } = req.body;
+
+    const updates: Partial<IOAuthClient> = {};
+    if (name) updates.name = name;
+    if (redirectUris)
+      updates.redirectUris = Array.isArray(redirectUris) ? redirectUris : [redirectUris];
+    if (grants) updates.grants = grants;
+    if (scopes) updates.scopes = scopes;
+
+    const updatedClient = await updateOAuthClient(clientId, updates);
+
+    if (!updatedClient) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update OAuth client',
+      });
+      return;
+    }
+
+    // Don't expose client secret
+    res.json({
+      success: true,
+      message: 'OAuth client updated successfully',
+      client: {
+        clientId: updatedClient.clientId,
+        name: updatedClient.name,
+        redirectUris: updatedClient.redirectUris,
+        grants: updatedClient.grants,
+        scopes: updatedClient.scopes,
+        owner: updatedClient.owner,
+      },
+    });
+  } catch (error) {
+    logger.error('Update OAuth client error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update OAuth client',
+    });
+  }
+};
+
+/**
+ * DELETE /api/oauth/clients/:clientId
+ * Delete an OAuth client
+ */
+export const deleteClient = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { clientId } = req.params;
+    const client = await findOAuthClientById(clientId);
+
+    if (!client) {
+      res.status(404).json({
+        success: false,
+        message: 'OAuth client not found',
+      });
+      return;
+    }
+
+    if (!canAccessClient(req, client)) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden',
+      });
+      return;
+    }
+
+    const deleted = await deleteOAuthClient(clientId);
+
+    if (!deleted) {
+      res.status(404).json({
+        success: false,
+        message: 'OAuth client not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'OAuth client deleted successfully',
+    });
+  } catch (error) {
+    logger.error('Delete OAuth client error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete OAuth client',
+    });
+  }
+};
+
+/**
+ * POST /api/oauth/clients/:clientId/regenerate-secret
+ * Regenerate client secret
+ */
+export const regenerateSecret = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { clientId } = req.params;
+    const client = await findOAuthClientById(clientId);
+
+    if (!client) {
+      res.status(404).json({
+        success: false,
+        message: 'OAuth client not found',
+      });
+      return;
+    }
+
+    if (!canAccessClient(req, client)) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden',
+      });
+      return;
+    }
+
+    // Generate new secret
+    const newSecret = crypto.randomBytes(32).toString('hex');
+    const updatedClient = await updateOAuthClient(clientId, { clientSecret: newSecret });
+
+    if (!updatedClient) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to regenerate client secret',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'Client secret regenerated successfully',
+      clientSecret: newSecret,
+      warning: 'Client secret is only shown once. Please save it securely.',
+    });
+  } catch (error) {
+    logger.error('Regenerate secret error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to regenerate client secret',
+    });
+  }
+};

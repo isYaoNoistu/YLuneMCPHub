@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="05NxQjGtIkF2EJBJBfq88a">
+<head data-page-node-id="OAVbRzcjO46CBoFiRtdux2">
+  <meta charset="UTF-8" data-page-node-id="NXPVWmQNdAKnc0e6DjR39m">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="231FY4qRYB9JfwiP60BWTl">
+  <meta name="description" content="月弦 — MCP 统一网关控制台。" data-page-node-id="7SEXd2MWtWD4HN2lkxwrbl">
+  <meta name="color-scheme" content="dark" data-page-node-id="y67zvN0oClFyiVPmKVlqq3">
+  <title>月弦 — 控制台</title>
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="1HCqyc7rTNERyOLIw8HsGj">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-page-node-id="GqDGIfgzgMMIsyMkBROCG5">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" data-page-node-id="Y2CvZRAorQe1LtEEWs0FLB">
+
+  <link rel="stylesheet" href="styles/tokens.css" data-page-node-id="CpltRq7I3cttWoAp3T0TdI">
+  <link rel="stylesheet" href="styles/base.css" data-page-node-id="dzE82UzHWLTJ1P3zZ8j1mC">
+  <link rel="stylesheet" href="styles/components.css" data-page-node-id="wQEie9RIuJ3QcSAOVJDFlc">
+</head>
+<body data-page-node-id="VBAUYVrR6agFc8UKNUVFiK">
+  <a class="skip-link" href="#mainView" data-page-node-id="TqxBXqUUwAK7ieU2j4wzse">跳到主内容</a>
+
+  <!-- 氛围层 -->
+  <div class="fx-scanlines" aria-hidden="true" data-page-node-id="1OxacqNj4gddW0UYBVzgKC"></div>
+  <div class="fx-noise" aria-hidden="true" data-page-node-id="7XFYAG6bsy9IWXt3z5bvHX"></div>
+
+  <div class="app" data-page-node-id="0t44bC4Kdh8wC20ZBS7tCY">
+    <!-- ══════════ 侧边导航 ══════════ -->
+    <aside class="side" aria-label="主导航" data-page-node-id="9bqBEHLHMLav1XdpCKuk3Z">
+      <a class="side-brand" href="#dashboard" data-nav="dashboard" data-page-node-id="sJc5HOWhQ6rFR91Vrn8pUZ">
+        <img src="../login/assets/logo-mark.png" alt="" width="28" height="28">
+        <span class="side-name" data-page-node-id="TbmdaiKID4WeuEBW1tKlQo">Y<b data-page-node-id="yWaX25wgzFUQZtfKl76Y3w">LUNE</b></span>
+        <span class="side-badge mono" data-page-node-id="7WHsxqdY56D3vmA3aOt7FQ">HUB</span>
+      </a>
+
+      <nav class="side-nav" data-page-node-id="KuC3vs6opw7pwL33ldKtbD">
+        <p class="side-group mono" data-page-node-id="BR3mX7oG8zvbFhqF8jO0ok">WORKSPACE</p>
+        <a href="#dashboard" class="side-link is-active" data-nav="dashboard" data-page-node-id="ZnIN7CJAaJRmpMyy7YbOcZ">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="9e0V4G0RfF6Ayfm0lmNyTo">◈</span>Dashboard
+        </a>
+        <a href="#groups" class="side-link" data-nav="groups" data-page-node-id="L4f8nrNLNTjkGmqtEx4Meb">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="ZJAAbY2s1aO7m4e0fCIsm2">⬡</span>Groups
+          <span class="side-count mono" id="navGroupCount" data-page-node-id="NQzDbQQCtJ7CZqk7nQF2RC"></span>
+        </a>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="DvfJ0vt255dj6IfqkZcWkr">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="J6wqWsNm7e5Ov5dRNxIjZU">▤</span>Servers
+          <span class="side-soon mono" data-page-node-id="1D9Mr5HBW1Bp57NOBr5vs5">SOON</span>
+        </a>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="L9HDOa0HNl6isKRfyhID47">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="Sq8LAdqCfetcEUKOUSxxa4">⌘</span>Prompts
+          <span class="side-soon mono" data-page-node-id="KwJiRxQeaN0L3XWqTQgl4l">SOON</span>
+        </a>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="Fq1oI1yPurE37hXK4vV2qz">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="zs5j0QMxEothEG5ygyVeJ9">▦</span>Resources
+          <span class="side-soon mono" data-page-node-id="K2eV6olYm1HZvVPKBXWZDH">SOON</span>
+        </a>
+
+        <p class="side-group mono" data-page-node-id="WGSs7S5nAbLFFe3SVvDTc4">SYSTEM</p>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="NCOe8Cg2zxKG3QEhpEcFoR">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="LiPR2VnhQL6l0KZ48xuIkh">✦</span>Market
+          <span class="side-soon mono" data-page-node-id="QWFAOYo6N90iJw2ed1xOg5">SOON</span>
+        </a>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="i5WBusz7SGge5zTdWmhraa">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="8My4yMmZrudMazYQhLyjsp">◉</span>Users
+          <span class="side-soon mono" data-page-node-id="5I8MS5tsaW929ipatqUjls">SOON</span>
+        </a>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="WVg2swQ7CTM7R89vXW0MWJ">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="N74FLABw5PypvHyU60srrn">≣</span>Logs
+          <span class="side-soon mono" data-page-node-id="AwO9UHamzVnUZ5ierP1lab">SOON</span>
+        </a>
+        <a href="#" class="side-link is-soon" aria-disabled="true" title="即将上线" data-page-node-id="5TerVXOGtDa0qaEh1bWQQ7">
+          <span class="side-ico" aria-hidden="true" data-page-node-id="pbJrzVb0YiKPeXb6gcbrTi">⚙</span>Settings
+          <span class="side-soon mono" data-page-node-id="EffaOinbffPwRlAoDaagVp">SOON</span>
+        </a>
+      </nav>
+
+      <div class="side-user" data-page-node-id="1Y8dyaLPmj4ZLQfpI3jUEB">
+        <span class="dot" aria-hidden="true" data-page-node-id="PC2JcCLmiBrTEwtDXzXFBb"></span>
+        <span class="side-user-name" id="sideUser" data-page-node-id="XUWplnDbAGQDYHQ9Q1BQQ3">guest</span>
+        <a class="side-logout mono" href="../login/index.html" title="退出登录" data-page-node-id="w157sSemUROhJapjSiduJu">LOGOUT</a>
+      </div>
+    </aside>
+
+    <!-- ══════════ 主区 ══════════ -->
+    <div class="main" data-page-node-id="SCBxj8leCjBBHowE8lEaBf">
+      <!-- 顶栏 -->
+      <header class="topbar" data-page-node-id="hvQE3y3azI4jLqTl3EKRw8">
+        <p class="crumb mono" id="crumb" data-page-node-id="EN5JgMOjDY4LCgiLu2j3eh">MCPHub Dashboard / <b id="crumbHere" data-page-node-id="QvhjRzp8C9gCIgQoIvzE4W">Dashboard</b></p>
+        <div class="topbar-right" data-page-node-id="UdJt9972bXav13cEBHLm6o">
+          <span class="mono topbar-clock" id="clock" data-page-node-id="WhDk3orYdUrRp6eBUuITYG">--:--:--</span>
+          <span class="dot" aria-hidden="true" data-page-node-id="tsmfyqHzuGXqdlagiXz2vi"></span>
+          <span class="mono" data-page-node-id="7DQZDKglyA8exSsSOIYYMN">ONLINE</span>
+        </div>
+      </header>
+
+      <main id="mainView" class="view-wrap" data-page-node-id="yDppxKxvEa0ZcJl3jmxAC4">
+        <!-- ────── 视图：Dashboard 概览 ────── -->
+        <section class="view is-active" id="view-dashboard" aria-labelledby="dashboardTitle" data-page-node-id="Ot08R0RDRziKvjRkDsrVOW">
+          <div class="view-head" data-page-node-id="UKoJQEcyZLGKl8BwCDA9g8">
+            <div data-page-node-id="zO3ZNPErDWyPW8Kn70GmAL">
+              <h1 id="dashboardTitle" data-page-node-id="6zQ5uRcuuPzA9hOVDmH8Cb">网关概览</h1>
+              <p class="view-sub" data-page-node-id="cseowjERYZr5gA1CGs7nUz">MCP 服务统一入口的实时状态。</p>
+            </div>
+            <span class="mono view-tag" data-page-node-id="FClAt6pJ3rN3XpcVpoqyny">LIVE</span>
+          </div>
+
+          <div class="stat-grid" id="statGrid" data-page-node-id="UCRoiGh2A0L99cFIWAW9mz"><!-- JS 渲染 --></div>
+
+          <h2 class="block-title mono" data-page-node-id="EFhActS9aTaNsxZ8x5e49G">// 分组速览</h2>
+          <div class="group-grid" id="dashGroups" data-page-node-id="5aHF0aHr3w5HYWqeupGWsy"><!-- JS 渲染精简卡片 --></div>
+        </section>
+
+        <!-- ────── 视图：Groups 管理 ────── -->
+        <section class="view" id="view-groups" aria-labelledby="groupsTitle" data-page-node-id="mWZtTt2O55KNZTJqk6WH0C">
+          <div class="view-head" data-page-node-id="ugV6T3bO5BL97X5dFED9nS">
+            <div data-page-node-id="yhH1CXp0mi6Y3VcS59T4wc">
+              <h1 id="groupsTitle" data-page-node-id="gSS8Uewv9RJ7Cbxv4UkeMc">分组管理</h1>
+              <p class="view-sub" id="groupsSub" data-page-node-id="IQ7yuRZtlqUXpYFo8NeuDS"></p>
+            </div>
+            <div class="view-actions" data-page-node-id="gfChtn4TRECufMIGOE29N6">
+              <button class="btn btn-ghost" type="button" id="btnImport" data-page-node-id="nnbkjiOwl3J60oqcVSBXc2">⇩ Import</button>
+              <button class="btn btn-ghost" type="button" id="btnExportTpl" data-page-node-id="YuGKrwtsPLOJoBLoz4nDhZ">⇧ Export Template</button>
+              <button class="btn btn-primary" type="button" id="btnAdd" data-page-node-id="50Rh0Chx0AC6kH3h0ubvG7">＋ Add</button>
+            </div>
+          </div>
+
+          <div class="group-grid" id="groupGrid" data-page-node-id="kYrgFwcPvy4SITCClfOaA5"><!-- JS 渲染完整卡片 --></div>
+
+          <!-- 新增分组占位卡 -->
+          <button class="group-add" type="button" id="btnAddCard" data-page-node-id="zUT0RIwzdGUKUd89G24Q0J">
+            <span class="group-add-plus" aria-hidden="true" data-page-node-id="xrHN7OHS7GJHS04sE8ZgCc">＋</span>
+            <b data-page-node-id="VLnYfgGTtdqlaUlWd1POon">Add</b>
+            <span class="mono" data-page-node-id="514X2eGCMQljMUcro8a5Bl">ADD NEW GROUP</span>
+          </button>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- 复制成功提示 -->
+  <div class="toast mono" id="toast" role="status" aria-live="polite" data-page-node-id="KIAmeahqigPswYESDyH5M4"></div>
+
+  <script src="scripts/data.js"></script>
+  <script src="scripts/main.js"></script>
+</body>
+</html>

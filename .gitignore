@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+/.pnp
+.pnp.js
+package-lock.json
+
+# local agent / editor scratch (do not push)
+.agents/
+.claude
+.claude/
+
+# production
+dist/
+frontend/dist/
+
+# env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# misc
+.DS_Store
+.idea/
+.vscode/
+*.log
+coverage/
+
+data/
+temp-test-config/
+mcp_settings.local.json
+*.local.json
+
+# GitGuardian cache
+.cache_ggshield
+
+# leftover Go rewrite binaries
+.bin/
+ylune-hub
+ylune-hub.exe

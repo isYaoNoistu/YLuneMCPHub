@@ -1,0 +1,13 @@
+月弦（YLune）
+Copyright 2026 YLune contributors
+
+This product includes software developed as a derivative work
+under the Apache License 2.0. Upstream copyright belongs to the
+original authors. See LICENSE.
+
+The login visual in login/ and the console visual ruler in hub/
+(and their React ports) are original to YLune.
+
+DevOpsMCP (https://github.com/isYaoNoistu/DevOpsMCP) is a separate
+repository that provides optional upstream MCP servers.
+This gateway does not vendor those binaries.

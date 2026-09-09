@@ -1,0 +1,12 @@
+# 月弦文档
+
+本目录只放月弦自己的说明。原 MCPHub / Mintlify 文案已经清掉，不要再往这里拷上游文档。
+
+| 文档 | 内容 |
+| --- | --- |
+| [使用教程.md](使用教程.md) | 控制台每一项怎么填：登录、服务器、分组、用户、设置 |
+| [配置与数据.md](配置与数据.md) | 配置进 PostgreSQL，迁库就迁走；JSON 不是运行时存储 |
+| [仓库 README](../README.md) | 月弦是什么、和 DevOpsMCP 怎么配合、本机怎么启动 |
+| [Docker 部署](../deploy/README.md) | Compose、环境变量、验收、反代。English：[deploy/README.en.md](../deploy/README.en.md) |
+
+新文档用 Markdown，写月弦的真实行为（组成员授权、私有化部署、不写真实凭据）。部署步骤写在 `deploy/`，不要在本目录再复制一份过期的 Docker 说明。

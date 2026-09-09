@@ -1,0 +1,914 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { RequestOptions } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import { SmartRoutingConfig } from '../utils/smartRouting.js';
+
+// User interface
+export interface IUser {
+  username: string;
+  password: string;
+  isAdmin?: boolean;
+  email?: string | null;
+  ssoUserId?: string | null;
+  remark?: string | null;
+}
+
+// Group interface for server grouping
+export interface IGroup {
+  id: string; // Unique UUID for the group
+  name: string; // Display name of the group
+  description?: string; // Optional description of the group
+  servers: string[] | IGroupServerConfig[]; // Array of server names or server configurations that belong to this group
+  owner?: string; // Owner of the group, defaults to 'admin' user
+  members?: string[]; // Local usernames granted this group's tools
+}
+
+// Server configuration within a group - supports tool selection
+export interface IGroupServerConfig {
+  name: string; // Server name
+  alias?: string; // Optional exposed name for this server within the group
+  tools?: string[] | 'all'; // Array of specific tool names to include, or 'all' for all tools (default: 'all')
+  prompts?: string[] | 'all'; // Array of specific prompt names to include, or 'all' for all prompts (default: 'all')
+  resources?: string[] | 'all'; // Array of specific resource URIs to include, or 'all' for all resources (default: 'all')
+}
+
+export interface EffectiveGroupAccess {
+  unrestricted: boolean;
+  groups: IGroup[];
+  serversByName: Map<string, IGroupServerConfig>;
+}
+
+// Market server types
+export interface MarketServerRepository {
+  type: string;
+  url: string;
+}
+
+export interface MarketServerAuthor {
+  name: string;
+}
+
+export interface MarketServerInstallation {
+  type: string;
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
+export interface MarketServerArgument {
+  description: string;
+  required: boolean;
+  example: string;
+}
+
+export interface MarketServerExample {
+  title: string;
+  description: string;
+  prompt: string;
+}
+
+export interface MarketServerTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, any>;
+}
+
+export interface MarketServer {
+  name: string;
+  display_name: string;
+  description: string;
+  repository: MarketServerRepository;
+  homepage: string;
+  author: MarketServerAuthor;
+  license: string;
+  categories: string[];
+  tags: string[];
+  examples: MarketServerExample[];
+  installations: {
+    [key: string]: MarketServerInstallation;
+  };
+  arguments: Record<string, MarketServerArgument>;
+  tools: MarketServerTool[];
+  is_official?: boolean;
+}
+
+export type ChangelogCategory = 'feature' | 'fix' | 'breaking' | 'security';
+
+export interface ChangelogEntry {
+  product: 'mcphub';
+  version: string;
+  tagName: string;
+  publishedAt: string;
+  url: string;
+  changelogUrl: string;
+  title: string;
+  summary: string;
+  highlights: string[];
+  fixes: string[];
+  breakingChanges: string[];
+  upgradeNotes: string[];
+  categories: ChangelogCategory[];
+  locale: 'en' | 'zh';
+  bodyMarkdown: string;
+  isStructured: boolean;
+}
+
+export interface ChangelogUpdateInfo {
+  latestVersion: string | null;
+  hasUpdate: boolean;
+  entries: ChangelogEntry[];
+  totalUpdateCount: number;
+  changelogUrl: string;
+  allChangelogUrl: string;
+  source: 'mcphub-web' | 'npm-fallback' | 'disabled';
+}
+
+// Cloud Market Server types (for MCPRouter API)
+export interface CloudServer {
+  created_at: string;
+  updated_at: string;
+  name: string;
+  author_name: string;
+  title: string;
+  description: string;
+  content: string;
+  server_key: string;
+  config_name: string;
+  tools?: CloudTool[];
+}
+
+export interface CloudTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, any>;
+}
+
+// MCPRouter API Response types
+export interface MCPRouterResponse<T = any> {
+  code: number;
+  message: string;
+  data: T;
+}
+
+export interface MCPRouterListServersResponse {
+  servers: CloudServer[];
+}
+
+export interface MCPRouterListToolsResponse {
+  tools: CloudTool[];
+}
+
+export interface MCPRouterCallToolResponse {
+  content: Array<{
+    type: string;
+    text: string;
+  }>;
+  isError: boolean;
+}
+
+// OAuth Provider Configuration for MCP Authorization Server
+export interface OAuthProviderConfig {
+  enabled?: boolean; // Enable/disable OAuth provider
+  issuerUrl: string; // Authorization server's issuer identifier (e.g., 'http://auth.external.com')
+  baseUrl?: string; // Base URL for the authorization server metadata endpoints (defaults to issuerUrl)
+  serviceDocumentationUrl?: string; // URL for human-readable OAuth documentation
+  scopesSupported?: string[]; // List of OAuth scopes supported
+  endpoints: {
+    authorizationUrl: string; // External OAuth authorization endpoint
+    tokenUrl: string; // External OAuth token endpoint
+    revocationUrl?: string; // External OAuth revocation endpoint (optional)
+  };
+  // Token verification function details
+  verifyAccessToken?: {
+    endpoint?: string; // Optional: External endpoint to verify access tokens
+    headers?: Record<string, string>; // Optional: Headers for token verification requests
+  };
+  // Client management
+  clients?: Array<{
+    client_id: string; // Client identifier
+    redirect_uris: string[]; // Allowed redirect URIs for this client
+    scopes?: string[]; // Scopes this client can request
+  }>;
+}
+
+export interface BetterAuthProviderToggle {
+  enabled?: boolean; // Enable/disable the provider
+}
+
+export interface BetterAuthOidcProviderConfig extends BetterAuthProviderToggle {
+  providerId?: string; // Provider identifier used by Better Auth generic OAuth plugin
+  discoveryUrl?: string; // OIDC discovery URL for a local issuer
+  scopes?: string[]; // Requested scopes for login
+  pkce?: boolean; // Enable/disable PKCE for the provider
+  prompt?:
+    | 'none'
+    | 'login'
+    | 'create'
+    | 'consent'
+    | 'select_account'
+    | 'select_account consent'
+    | 'login consent';
+}
+
+export interface BetterAuthConfig {
+  enabled?: boolean; // Enable/disable Better Auth integration
+  baseUrl?: string; // Public base URL used to build Better Auth redirect URIs
+  basePath?: string; // Base path to mount Better Auth handler
+  trustedOrigins?: string[]; // Explicitly trusted origins for social/OIDC login requests
+  disableAutoCreate?: boolean; // When true, SSO login will not auto-create new users
+  providers?: {
+    google?: BetterAuthProviderToggle;
+    github?: BetterAuthProviderToggle;
+    oidc?: BetterAuthOidcProviderConfig;
+  };
+}
+
+export type ToolResultCompressionStrategy = 'auto' | 'json' | 'log' | 'search' | 'diff' | 'text';
+
+export interface ToolResultCompressionConfig {
+  enabled?: boolean;
+  minTokens?: number;
+  maxOutputTokens?: number;
+  strategy?: ToolResultCompressionStrategy;
+}
+
+export interface SystemConfig {
+  routing?: {
+    enableGlobalRoute?: boolean; // Controls whether the /sse endpoint without group is enabled
+    enableGroupNameRoute?: boolean; // Controls whether group routing by name is allowed
+    enableBearerAuth?: boolean; // Controls whether MCP endpoints require bearer authentication
+    bearerAuthKey?: string; // Legacy bearer auth key (used for one-time migration)
+    bearerAuthHeaderName?: string; // Header name used to receive bearer credentials for MCP/API requests (default: 'Authorization')
+    jsonBodyLimit?: string; // JSON request body size limit used by Express parser (default: '1mb'), including OpenAPI schema uploads
+    skipAuth?: boolean; // Controls whether the dashboard requires login
+  };
+  install?: {
+    pythonIndexUrl?: string; // Python package repository URL (UV_DEFAULT_INDEX)
+    npmRegistry?: string; // NPM registry URL (npm_config_registry)
+    baseUrl?: string; // Base URL for group card copy operations
+  };
+  smartRouting?: SmartRoutingConfig;
+  toolResultCompression?: ToolResultCompressionConfig;
+  mcpRouter?: {
+    apiKey?: string; // MCPRouter API key for authentication
+    referer?: string; // Referer header for MCPRouter API requests
+    title?: string; // Title header for MCPRouter API requests
+    baseUrl?: string; // Base URL for MCPRouter API (default: https://api.mcprouter.to/v1)
+  };
+  nameSeparator?: string; // Separator used between server name and tool/prompt name (default: '-')
+  oauth?: OAuthProviderConfig; // OAuth provider configuration for upstream MCP servers
+  oauthServer?: OAuthServerConfig; // OAuth authorization server configuration for MCPHub itself
+  enableSessionRebuild?: boolean; // Controls whether server session rebuild is enabled
+  auth?: {
+    betterAuth?: BetterAuthConfig; // Better Auth integration configuration
+  };
+  discovery?: {
+    // Public unauthenticated read-only discovery API for the local market catalog.
+    // When enabled, exposes /discovery/servers and /.well-known/mcp-marketplace so
+    // external MCP clients (e.g. OpenClaw, Claude Desktop installers) can find and
+    // install servers programmatically. Off by default to avoid leaking catalog data.
+    enabled?: boolean;
+  };
+  activityLog?: {
+    // Whether to persist the full tool call input/output payload in activity logs.
+    // Tool payloads are stored verbatim (no field-level redaction); deployments that
+    // treat tool arguments as sensitive can turn this off to store metadata only.
+    // Defaults to true.
+    storeToolPayload?: boolean;
+  };
+}
+
+export interface UserConfig {
+  routing?: Record<string, any>; // User-specific routing configuration
+  [key: string]: any; // Allow additional dynamic properties
+}
+
+// OAuth Client for MCPHub's own authorization server
+export interface IOAuthClient {
+  clientId: string; // OAuth client ID
+  clientSecret?: string; // OAuth client secret (optional for public clients with PKCE)
+  name: string; // Human-readable client name
+  redirectUris: string[]; // Allowed redirect URIs
+  grants: string[]; // Allowed grant types (e.g., ['authorization_code', 'refresh_token'])
+  scopes?: string[]; // Allowed scopes for this client
+  owner?: string; // Owner of the OAuth client, defaults to 'admin' user
+  metadata?: {
+    // RFC 7591 Client Metadata
+    application_type?: 'web' | 'native'; // Application type
+    response_types?: string[]; // OAuth response types
+    token_endpoint_auth_method?: string; // Token endpoint authentication method
+    contacts?: string[]; // Array of contact emails
+    logo_uri?: string; // URL of the client logo
+    client_uri?: string; // URL of the client's homepage
+    policy_uri?: string; // URL of the client's policy document
+    tos_uri?: string; // URL of the client's terms of service
+    jwks_uri?: string; // URL of the client's JSON Web Key Set
+    jwks?: object; // Client's JSON Web Key Set
+  };
+}
+
+// OAuth Authorization Code (for MCPHub's authorization server)
+export interface IOAuthAuthorizationCode {
+  code: string; // Authorization code
+  expiresAt: Date; // Expiration time
+  redirectUri: string; // Redirect URI used in the authorization request
+  scope?: string; // Granted scopes
+  clientId: string; // Client ID
+  username: string; // User who authorized
+  codeChallenge?: string; // PKCE code challenge
+  codeChallengeMethod?: string; // PKCE code challenge method
+}
+
+// OAuth Token (for MCPHub's authorization server)
+export interface IOAuthToken {
+  accessToken: string; // Access token
+  accessTokenExpiresAt: Date; // Access token expiration
+  refreshToken?: string; // Refresh token (optional)
+  refreshTokenExpiresAt?: Date; // Refresh token expiration
+  scope?: string; // Granted scopes
+  clientId: string; // Client ID
+  username: string; // Username
+}
+
+// OAuth Server Configuration
+export interface OAuthServerConfig {
+  enabled?: boolean; // Enable/disable OAuth authorization server
+  accessTokenLifetime?: number; // Access token lifetime in seconds (default: 3600)
+  refreshTokenLifetime?: number; // Refresh token lifetime in seconds (default: 1209600 = 14 days)
+  authorizationCodeLifetime?: number; // Authorization code lifetime in seconds (default: 300 = 5 minutes)
+  requireClientSecret?: boolean; // Whether client secret is required (default: false for PKCE support)
+  allowedScopes?: string[]; // List of allowed OAuth scopes (default: ['read', 'write'])
+  requireState?: boolean; // Whether the state parameter is required during authorization (default: false)
+  dynamicRegistration?: {
+    enabled?: boolean; // Enable/disable RFC 7591 dynamic client registration
+    allowedGrantTypes?: string[]; // Allowed grant types for dynamic registration (default: ['authorization_code', 'refresh_token'])
+    requiresAuthentication?: boolean; // Whether initial registration requires authentication (default: false for public registration)
+  };
+  clientIdMetadata?: {
+    // Client ID Metadata Documents (CIMD, draft-ietf-oauth-client-id-metadata-document):
+    // accept HTTPS-URL-shaped client_ids whose metadata is fetched from the URL itself.
+    // Opt-in (default false) because it makes the authorize endpoint fetch attacker-chosen URLs.
+    enabled?: boolean;
+    cacheTtlMs?: number; // Metadata document cache TTL in milliseconds (default: 3600000)
+  };
+}
+
+// Bearer authentication key configuration
+export type BearerKeyAccessType = 'all' | 'groups' | 'servers' | 'custom';
+export type BearerKeyKind = 'system' | 'user';
+
+export interface BearerKey {
+  id: string; // Unique identifier for the key
+  name: string; // Human readable key name
+  token: string; // Bearer token value
+  enabled: boolean; // Whether this key is enabled
+  kind?: BearerKeyKind; // Defaults to 'system' for keys created before user-level keys existed
+  owner?: string; // Required for user-level keys
+  accessType: BearerKeyAccessType; // Access scope type
+  allowedGroups?: string[]; // Allowed group names when accessType === 'groups' or 'custom'
+  allowedServers?: string[]; // Allowed server names when accessType === 'servers' or 'custom'
+}
+
+// Represents the settings for MCP servers
+export interface McpSettings {
+  users?: IUser[]; // Array of user credentials and permissions
+  mcpServers: {
+    [key: string]: ServerConfig; // Key-value pairs of server names and their configurations
+  };
+  groups?: IGroup[]; // Array of server groups
+  systemConfig?: SystemConfig; // System-wide configuration settings
+  userConfigs?: Record<string, UserConfig>; // User-specific configurations
+  oauthClients?: IOAuthClient[]; // OAuth clients for MCPHub's authorization server
+  oauthTokens?: IOAuthToken[]; // Persisted OAuth tokens (access + refresh) for authorization server
+  bearerKeys?: BearerKey[]; // Bearer authentication keys (multi-key configuration)
+  prompts?: BuiltinPrompt[]; // Built-in configuration-driven prompt templates
+  resources?: BuiltinResource[]; // Built-in configuration-driven static resources
+}
+
+// Proxychains4 configuration for STDIO servers (Linux/macOS only)
+export interface ProxychainsConfig {
+  enabled?: boolean; // Enable/disable proxychains4 proxy routing
+  type?: 'socks4' | 'socks5' | 'http'; // Proxy protocol type
+  host?: string; // Proxy server hostname or IP address
+  port?: number; // Proxy server port
+  username?: string; // Proxy authentication username (optional)
+  password?: string; // Proxy authentication password (optional)
+  configPath?: string; // Path to custom proxychains4 configuration file (optional, overrides above settings)
+}
+
+// Visibility level for a server, used by non-admin filtering. See issue #817.
+// 'group' is restricted sharing for explicitly selected users. Group membership
+// can extend the same scope in a future change.
+export type ServerVisibility = 'private' | 'group' | 'public';
+
+// Configuration details for an individual server
+export interface ServerConfig {
+  type?: 'stdio' | 'sse' | 'streamable-http' | 'openapi'; // Type of server
+  description?: string; // Optional server note/description for management UI
+  url?: string; // URL for SSE or streamable HTTP servers
+  command?: string; // Command to execute for stdio-based servers
+  args?: string[]; // Arguments for the command
+  env?: Record<string, string>; // Environment variables
+  headers?: Record<string, string>; // HTTP headers for SSE/streamable-http/openapi servers
+  passthroughHeaders?: string[]; // Header names to pass through from MCP requests to upstream SSE/streamable-http servers
+  enabled?: boolean; // Flag to enable/disable the server
+  owner?: string; // Owner of the server, defaults to 'admin' user
+  // Per-server visibility for non-admin users.
+  //   'private' — only the owner (or admins) can see this server. Default.
+  //   'public'  — every authenticated user can see this server.
+  //   'group'   — explicitly selected users can see this server.
+  // See issues #817 and #1037.
+  visibility?: ServerVisibility;
+  sharedWithUsers?: string[]; // Local MCPHub usernames allowed when visibility is 'group'.
+  enableKeepAlive?: boolean; // Enable remote health checks and automatic reconnect attempts
+  keepAliveInterval?: number; // Health check and reconnect interval in milliseconds (default: 60000ms for SSE servers)
+  tools?: Record<string, { enabled: boolean; description?: string }>; // Tool-specific configurations with enable/disable state and custom descriptions
+  prompts?: Record<string, { enabled: boolean; description?: string }>; // Prompt-specific configurations with enable/disable state and custom descriptions
+  resources?: Record<string, { enabled: boolean; description?: string }>; // Resource-specific configurations with enable/disable state and custom descriptions
+  options?: Partial<Pick<RequestOptions, 'timeout' | 'resetTimeoutOnProgress' | 'maxTotalTimeout'>> & {
+    // Internal persistence carriers for startOnDemand/idleTimeoutMs (see below). The
+    // database-backed ServerDao has no dedicated columns for those two fields, so
+    // serverConfigPersistence.ts piggybacks them onto this schema-less JSON blob
+    // and ServerDaoDbImpl unpacks them back to the top-level fields on read.
+    // Application code should read/write config.startOnDemand / config.idleTimeoutMs
+    // directly rather than these mirrored keys.
+    startOnDemand?: boolean;
+    idleTimeoutMs?: number;
+  }; // MCP request options configuration
+  // Proxychains4 proxy configuration for STDIO servers (Linux/macOS only, Windows not supported)
+  proxy?: ProxychainsConfig;
+  // OAuth authentication for upstream MCP servers
+  oauth?: {
+    // Static client configuration (traditional OAuth flow)
+    clientId?: string; // OAuth client ID
+    clientSecret?: string; // OAuth client secret
+    redirectUri?: string; // Preferred redirect URI for authorization requests and registration
+    scopes?: string[]; // Required OAuth scopes
+    accessToken?: string; // Pre-obtained access token (if available)
+    refreshToken?: string; // Refresh token for renewing access
+
+    // Dynamic client registration (RFC7591)
+    // If not explicitly configured, will auto-detect via WWW-Authenticate header on 401 responses
+    dynamicRegistration?: {
+      enabled?: boolean; // Enable/disable dynamic registration (default: auto-detect on 401)
+      issuer?: string; // OAuth issuer URL for discovery (e.g., 'https://auth.example.com')
+      registrationEndpoint?: string; // Direct registration endpoint URL (if discovery is not used)
+      metadata?: {
+        // Client metadata for registration (RFC7591 section 2)
+        client_name?: string; // Human-readable client name
+        client_uri?: string; // URL of client's home page
+        logo_uri?: string; // URL of client's logo
+        scope?: string; // Space-separated list of scope values
+        redirect_uris?: string[]; // Array of redirect URIs
+        grant_types?: string[]; // Array of OAuth 2.0 grant types (e.g., ['authorization_code', 'refresh_token'])
+        response_types?: string[]; // Array of OAuth 2.0 response types (e.g., ['code'])
+        token_endpoint_auth_method?: string; // Token endpoint authentication method (e.g., 'client_secret_basic', 'none')
+        contacts?: string[]; // Array of contact email addresses
+        software_id?: string; // Unique identifier for the client software
+        software_version?: string; // Version of the client software
+        [key: string]: any; // Additional metadata fields
+      };
+      // Optional: Initial access token for protected registration endpoints
+      initialAccessToken?: string;
+    };
+
+    // MCP resource parameter (RFC8707) - the canonical URI of the MCP server
+    resource?: string; // e.g., 'https://mcp.example.com/mcp'
+
+    // Authorization endpoint for user authorization (for authorization code flow)
+    authorizationEndpoint?: string;
+    // Token endpoint for exchanging authorization codes for tokens
+    tokenEndpoint?: string;
+    // Token revocation endpoint for upstream OAuth providers (RFC 7009)
+    revocationEndpoint?: string;
+    // Pending OAuth session metadata for PKCE/state recovery between restarts
+    pendingAuthorization?: {
+      authorizationUrl?: string;
+      state?: string;
+      codeVerifier?: string;
+      createdAt?: number;
+    };
+  };
+  perSessionClient?: boolean; // When true, creates a dedicated upstream client per downstream session (session isolation for stateful servers like Playwright)
+  // On-demand spawning: start the stdio process only when a tool call arrives,
+  // and shut it down automatically after a period of inactivity.
+  // This reduces persistent memory usage for rarely-used servers.
+  // Only effective for stdio-type servers; HTTP/SSE servers are unaffected.
+  startOnDemand?: boolean; // When true, skip startup connect and spawn lazily on first tool call
+  idleTimeoutMs?: number; // Milliseconds of inactivity before shutting down (default: 300_000 = 5 min)
+  // OpenAPI specific configuration
+  openapi?: {
+    url?: string; // OpenAPI specification URL
+    schema?: Record<string, any>; // Complete OpenAPI JSON schema
+    version?: string; // OpenAPI version (default: '3.1.0')
+    security?: OpenAPISecurityConfig; // Security configuration for API calls
+    // Optional credential used ONLY to download the specification document when
+    // the spec endpoint authenticates differently from the API (#1079), e.g.
+    // Basic-protected /v3/api-docs behind a Bearer-protected API. Falls back to
+    // `security` when absent. oauth2/openIdConnect here require a pre-obtained
+    // static token; the dynamic client-credentials flow only exists for
+    // `security`.
+    specSecurity?: OpenAPISecurityConfig;
+    passthroughHeaders?: string[]; // Header names to pass through from tool call requests to upstream OpenAPI endpoints
+    cookieSession?: boolean; // Opt-in: capture upstream Set-Cookie and replay on later calls, isolated per downstream MCP session
+  };
+}
+
+// OpenAPI Security Configuration
+export interface OpenAPISecurityConfig {
+  type: 'none' | 'apiKey' | 'http' | 'oauth2' | 'openIdConnect';
+  // API Key authentication
+  apiKey?: {
+    name: string; // Header/query/cookie name
+    in: 'header' | 'query' | 'cookie';
+    value?: string; // The API key value (may be empty until the user supplies it)
+  };
+  // HTTP authentication (Basic, Bearer, etc.)
+  http?: {
+    scheme: 'basic' | 'bearer' | 'digest'; // HTTP auth scheme
+    bearerFormat?: string; // Bearer token format (e.g., JWT)
+    credentials?: string; // Base64 encoded credentials for basic auth or bearer token
+  };
+  // OAuth2 (simplified - mainly for bearer tokens)
+  oauth2?: {
+    tokenUrl?: string; // Token endpoint for client credentials flow
+    clientId?: string;
+    clientSecret?: string;
+    scopes?: string[]; // Required scopes
+    token?: string; // Pre-obtained access token
+    expiresAt?: number; // Access token expiration timestamp in milliseconds
+  };
+  // OpenID Connect
+  openIdConnect?: {
+    url: string; // OpenID Connect discovery URL
+    clientId?: string;
+    clientSecret?: string;
+    token?: string; // Pre-obtained ID token
+  };
+}
+
+// Information about a server's status and tools
+export interface ServerInfo {
+  name: string; // Unique name of the server
+  version?: string; // Upstream server version reported during MCP initialization
+  instructions?: string; // Upstream server instructions reported during MCP initialization
+  owner?: string; // Owner of the server, defaults to 'admin' user
+  visibility?: ServerVisibility; // Carried over from ServerConfig so dataService.filterData can apply #817 visibility rules at runtime.
+  sharedWithUsers?: string[]; // Carried over for restricted user-sharing authorization.
+  status: 'connected' | 'connecting' | 'disconnected' | 'oauth_required'; // Current connection status
+  error: string | null; // Error message if any
+  tools: Tool[]; // List of tools available on the server
+  prompts: Prompt[]; // List of prompts available on the server
+  resources: Resource[]; // List of resources available on the server
+  client?: Client; // Client instance for communication (MCP clients)
+  transport?: SSEClientTransport | StdioClientTransport | StreamableHTTPClientTransport; // Transport mechanism used
+  openApiClient?: any; // OpenAPI client instance for openapi type servers
+  options?: RequestOptions; // Options for requests
+  createTime: number; // Timestamp of when the server was created
+  enabled?: boolean; // Flag to indicate if the server is enabled
+  keepAliveIntervalId?: NodeJS.Timeout; // Timer ID for keep-alive ping interval
+  config?: ServerConfig; // Reference to the original server configuration for OpenAPI passthrough headers
+  // On-demand spawning runtime state
+  spawningPromise?: Promise<void>; // Singleton promise: concurrent callers await this instead of double-spawning
+  idleTimeoutId?: NodeJS.Timeout; // Timer ID for idle-shutdown (cleared/reset on each tool call)
+  lastUsedAt?: number; // Timestamp of last tool call (ms since epoch)
+  oauth?: {
+    // OAuth authorization state
+    authorizationUrl?: string; // OAuth authorization URL for user to visit
+    state?: string; // OAuth state parameter for CSRF protection
+    connected?: boolean; // True when stored upstream OAuth tokens exist
+    clientIdConfigured?: boolean; // True when a static oauth.clientId is set (dynamic registration is suppressed).
+    // When set, a preconfigured client's redirect-URI allow-list may not include this hub's callback,
+    // causing the upstream authorize endpoint to reject with "invalid redirect_uri". Surfaced so the UI
+    // can hint the user to remove clientId and let MCPHub self-register (DCR).
+  };
+}
+
+// Details about a tool available on the server
+export interface Tool {
+  name: string; // Name of the tool
+  title?: string; // Human-readable title
+  description: string; // Brief description of the tool
+  defaultDescription?: string; // Upstream tool description before any MCPHub override is applied
+  hasDescriptionOverride?: boolean; // Whether MCPHub is currently overriding the upstream description
+  inputSchema: Record<string, unknown>; // Input schema for the tool
+  outputSchema?: Record<string, unknown>; // Optional schema for structured output
+  annotations?: Record<string, unknown>; // Standard MCP tool annotations
+  execution?: Record<string, unknown>; // Standard MCP execution metadata
+  icons?: Array<Record<string, unknown>>; // Standard MCP icons
+  _meta?: Record<string, unknown>; // Extension metadata, including MCP Apps metadata
+  enabled?: boolean; // Whether the tool is enabled (optional, defaults to true)
+}
+
+export interface Prompt {
+  name: string; // Name of the prompt
+  title?: string; // Title of the prompt
+  description?: string; // Brief description of the prompt
+  arguments?: PromptArgument[]; // Input schema for the prompt
+}
+
+export interface PromptArgument {
+  name: string; // Name of the argument
+  title?: string; // Title of the argument
+  description?: string; // Brief description of the argument
+  required?: boolean; // Whether the argument is required
+}
+
+// Resource exposed by a connected MCP server
+export interface Resource {
+  uri: string; // Unique URI of the resource (e.g., 'file:///path' or custom scheme)
+  name?: string; // Human-readable name
+  title?: string; // Human-readable title
+  description?: string; // Brief description of the resource
+  mimeType?: string; // MIME type of the resource content
+  size?: number; // Resource size in bytes
+  annotations?: Record<string, unknown>; // Standard MCP resource annotations
+  icons?: Array<Record<string, unknown>>; // Standard MCP icons
+  _meta?: Record<string, unknown>; // Extension metadata, including MCP Apps metadata
+}
+
+// Built-in prompt defined via configuration
+export interface BuiltinPrompt {
+  id: string; // Unique identifier (UUID)
+  name: string; // Prompt name used in MCP protocol
+  title?: string; // Human-readable title
+  description?: string; // Brief description
+  template: string; // Template body with {{parameter}} placeholders
+  arguments?: PromptArgument[]; // Argument definitions matching placeholders
+  enabled?: boolean; // Whether this prompt is active (default: true)
+}
+
+// Built-in resource defined via configuration
+export interface BuiltinResource {
+  id: string; // Unique identifier (UUID)
+  uri: string; // Resource URI (e.g., 'resource://docs/guide')
+  name?: string; // Human-readable name
+  description?: string; // Brief description
+  mimeType?: string; // MIME type (default: 'text/plain')
+  content: string; // Static content of the resource
+  enabled?: boolean; // Whether this resource is active (default: true)
+}
+
+// Standardized API response structure
+export interface ApiResponse<T = unknown> {
+  success: boolean; // Indicates if the operation was successful
+  message?: string; // Optional message providing additional details
+  data?: T; // Optional data payload
+}
+
+// Request payload for adding a new server
+export interface AddServerRequest {
+  name: string; // Name of the server to add
+  config: ServerConfig; // Configuration details for the server
+}
+
+// Request payload for batch creating servers
+export interface BatchCreateServersRequest {
+  servers: AddServerRequest[]; // Array of servers to create
+}
+
+// Result for a single server in batch operation
+export interface BatchServerResult {
+  name: string; // Server name
+  success: boolean; // Whether the operation succeeded
+  message?: string; // Error message if failed
+}
+
+// Response for batch create servers operation
+export interface BatchCreateServersResponse {
+  success: boolean; // Overall operation success (true if at least one server succeeded)
+  successCount: number; // Number of servers successfully created
+  failureCount: number; // Number of servers that failed
+  results: BatchServerResult[]; // Detailed results for each server
+}
+
+// Request payload for adding a new group
+export interface AddGroupRequest {
+  name: string; // Name of the group to add
+  description?: string; // Optional description of the group
+  servers?: string[] | IGroupServerConfig[]; // Array of server names or server configurations
+  members?: string[]; // Local usernames granted this group's tools
+}
+
+// Request payload for batch creating groups
+export interface BatchCreateGroupsRequest {
+  groups: AddGroupRequest[]; // Array of groups to create
+}
+
+// Result for a single group in batch operation
+export interface BatchGroupResult {
+  name: string; // Group name
+  success: boolean; // Whether the operation succeeded
+  message?: string; // Error message if failed
+}
+
+// Response for batch create groups operation
+export interface BatchCreateGroupsResponse {
+  success: boolean; // Overall operation success (true if at least one group succeeded)
+  successCount: number; // Number of groups successfully created
+  failureCount: number; // Number of groups that failed
+  results: BatchGroupResult[]; // Detailed results for each group
+}
+
+// Activity status types
+export type ActivityStatus = 'success' | 'error';
+
+// Activity interface for tracking tool calls
+export interface IActivity {
+  id?: string; // Unique identifier (auto-generated for DB)
+  timestamp: Date; // When the tool was called
+  server: string; // Server name that handled the call
+  tool: string; // Tool name that was called
+  duration: number; // Duration in milliseconds
+  status: ActivityStatus; // Call status
+  input?: string; // JSON stringified input arguments
+  output?: string; // JSON stringified output result
+  group?: string; // Group name if called via group route
+  username?: string; // Username associated with the request
+  keyId?: string; // Bearer key ID if authenticated with bearer token
+  keyName?: string; // Bearer key name for display purposes
+  sourceIp?: string; // Source IP address of the caller
+  errorMessage?: string; // Error message if status is 'error'
+}
+
+// Activity statistics interface
+export interface IActivityStats {
+  totalCalls: number;
+  successCount: number;
+  errorCount: number;
+  avgDuration: number; // Average duration in milliseconds
+}
+
+export interface IActivityUsageBucket {
+  name: string;
+  count: number;
+  errors: number;
+}
+
+export interface IActivityUsageDay {
+  date: string;
+  count: number;
+  errors: number;
+}
+
+export interface IActivityUsageError {
+  id: string;
+  timestamp: Date;
+  tool: string;
+  username?: string;
+  errorMessage?: string;
+}
+
+export interface IActivityUsage {
+  since: Date;
+  days: IActivityUsageDay[];
+  tools: IActivityUsageBucket[];
+  users: IActivityUsageBucket[];
+  recentErrors: IActivityUsageError[];
+}
+
+// Activity search/filter parameters
+export interface IActivityFilter {
+  server?: string;
+  tool?: string;
+  status?: ActivityStatus;
+  group?: string;
+  username?: string;
+  keyId?: string;
+  keyName?: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+// Configuration template for team sharing
+export interface ConfigTemplate {
+  version: string; // Template format version
+  name: string; // Template name
+  description?: string; // Template description
+  createdAt: string; // ISO date string
+  servers: Record<string, TemplateServerConfig>; // Server definitions with secrets stripped
+  groups: TemplateGroup[]; // Group definitions
+  requiredEnvVars: string[]; // List of environment variable placeholders that need user values
+}
+
+// Server config within a template - secrets replaced with placeholders
+export interface TemplateServerConfig extends Omit<ServerConfig, 'owner' | 'oauth'> {
+  env?: Record<string, string>; // Values are either literal or ${PLACEHOLDER}
+  headers?: Record<string, string>;
+  oauth?: Omit<NonNullable<ServerConfig['oauth']>, 'pendingAuthorization'>;
+}
+
+// Group within a template
+export interface TemplateGroup {
+  name: string;
+  description?: string;
+  servers: IGroupServerConfig[];
+}
+
+// Options for exporting a template
+export interface TemplateExportOptions {
+  name: string; // Template name
+  description?: string; // Template description
+  groupIds?: string[]; // Specific group IDs to export (empty = all)
+  includeDisabledServers?: boolean; // Include disabled servers (default: false)
+  requestingUser?: IUser; // Caller identity; non-admins only export what they can see
+}
+
+// Result of importing a template
+export interface TemplateImportResult {
+  success: boolean;
+  serversCreated: number;
+  serversSkipped: number; // Already exist
+  groupsCreated: number;
+  groupsSkipped: number; // Already exist
+  requiredEnvVars: string[]; // Env vars that need to be supplied
+  details: TemplateImportDetail[];
+}
+
+// Detail for a single import item
+export interface TemplateImportDetail {
+  type: 'server' | 'group';
+  name: string;
+  action: 'created' | 'skipped' | 'failed';
+  message?: string;
+}
+
+// ─── Context Footprint (token cost) feature ───────────────────────────────
+export interface ItemCost {
+  kind: 'tool' | 'prompt' | 'resource';
+  name: string;
+  cost: number;
+  enabled: boolean;
+}
+
+export interface ServerCost {
+  name: string;
+  connected: boolean;
+  exposed: number;
+  gross: number;
+  items: ItemCost[];
+}
+
+export interface SmartRoutingCost {
+  base: number;
+  progressiveDisclosure: number;
+}
+
+export interface GroupCost {
+  id: string;
+  name: string;
+  connectedCount: number;
+  totalCount: number;
+  direct: { exposed: number; gross: number };
+  smartRouting: SmartRoutingCost | null;
+}
+
+/**
+ * The effective security requirement a parsed OpenAPI spec declares (#1077).
+ *
+ * Resolved per OpenAPI 3.x: an operation-level `security` overrides the
+ * root-level one for that operation; `security: []` explicitly disables auth.
+ * A requirement is an OR-list of named schemes from
+ * `components.securitySchemes`; the first alternative MCPHub can represent is
+ * returned as `prefill` with structural fields only — a spec can never supply
+ * the secret itself, so value / credentials / token are left empty for the
+ * user to fill in on the import form.
+ */
+export interface OpenAPIDeclaredSecurity {
+  /** True when the spec declares a resolvable security requirement. */
+  declared: boolean;
+  /** True when the declared scheme maps onto MCPHub's security model. */
+  supported: boolean;
+  /** Prefill-able security config (structure only, never secrets). */
+  prefill?: OpenAPISecurityConfig;
+  /** Human-readable description of the resolved scheme (e.g. "HTTP bearer (JWT)"). */
+  summary: string;
+  /** Number of OR-alternatives in the resolved requirement (1 = single scheme). */
+  alternatives: number;
+  /** True when a secret the spec cannot supply is required to call tools. */
+  requiresCredentials: boolean;
+  /** Why the declared scheme cannot be represented by MCPHub. */
+  unsupportedReason?: string;
+  /** True when the effective apiKey scheme uses `in: 'cookie'` (cookieSession hint). */
+  cookieHint?: boolean;
+}
+
+/**
+ * Pre-save OpenAPI import preview (#1082): what the generated tool list would
+ * look like if this spec were imported, before anything is persisted.
+ */
+export interface OpenApiToolStats {
+  /** Number of tools extractTools() would generate for the spec. */
+  toolCount: number;
+  /**
+   * Byte length of the JSON array of generated tool definitions — a proxy for
+   * the tools/list payload size clients receive.
+   */
+  definitionsBytes: number;
+  /** cl100k token estimate across all generated tool definitions. */
+  estimatedTokens: number;
+  /** Effective security requirement the spec declares, for form prefill (#1077). */
+  declaredSecurity?: OpenAPIDeclaredSecurity;
+}

@@ -1,0 +1,69 @@
+# syntax=docker/dockerfile:1.7
+
+FROM python:3.13-slim-trixie AS base
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# procps provides `ps`, which tree-kill needs to walk stdio process trees
+# (missing it caused spawn ps ENOENT crashes — issue #1072)
+RUN apt-get update && apt-get install -y curl gnupg git build-essential procps \
+  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+  && apt-get install -y nodejs \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+  CARGO_HOME=/usr/local/cargo \
+  PATH=/usr/local/cargo/bin:$PATH
+
+ARG INSTALL_EXT=false
+RUN if [ "$INSTALL_EXT" = "true" ]; then \
+  ARCH=$(uname -m); \
+  if [ "$ARCH" = "x86_64" ]; then \
+  npx -y playwright install --with-deps chrome firefox; \
+  else \
+  echo "Skipping Chrome and Firefox installation on non-amd64 architecture: $ARCH"; \
+  fi; \
+  # Install Rust toolchain and Docker Engine (includes CLI and daemon) \
+  apt-get update && \
+  apt-get install -y ca-certificates curl iptables && \
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal && \
+  cargo --version && rustc --version && \
+  install -m 0755 -d /etc/apt/keyrings && \
+  curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
+  chmod a+r /etc/apt/keyrings/docker.asc && \
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+  apt-get update && \
+  apt-get install -y docker-ce docker-ce-cli containerd.io && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*; \
+  fi
+
+RUN uv tool install mcp-server-fetch
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile --offline
+
+COPY . .
+
+# Download the latest servers.json from mcpm.sh and replace the existing file
+RUN curl -s -f --connect-timeout 10 https://mcpm.sh/api/servers.json -o servers.json || echo "Failed to download servers.json, using bundled version"
+
+RUN pnpm build
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 3000
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Launch node directly instead of `pnpm start`: the pnpm shim resolves via
+# Corepack, which re-downloads pnpm into the runtime user's HOME cache when the
+# image runs as a non-root user, breaking startup in egress-restricted
+# environments (#1105).
+CMD ["node", "dist/index.js"]

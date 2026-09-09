@@ -1,0 +1,490 @@
+// Mock dependencies before importing mcpService
+jest.mock('../../src/services/oauthService.js', () => ({
+  initializeAllOAuthClients: jest.fn(),
+}));
+
+jest.mock('../../src/services/oauthClientRegistration.js', () => ({
+  registerOAuthClient: jest.fn(),
+}));
+
+jest.mock('../../src/services/mcpOAuthProvider.js', () => ({
+  createOAuthProvider: jest.fn(),
+}));
+
+jest.mock('../../src/services/groupService.js', () => ({
+  getServersInGroup: jest.fn((groupId: string) => {
+    if (groupId === 'test-group') {
+      return ['server1', 'server2'];
+    }
+    if (groupId === 'empty-group') {
+      return [];
+    }
+    return undefined;
+  }),
+  getServerConfigInGroup: jest.fn(),
+}));
+
+jest.mock('../../src/services/sseService.js', () => ({
+  getGroup: jest.fn((sessionId: string) => {
+    if (sessionId === 'session-smart') return '$smart';
+    if (sessionId === 'session-smart-group') return '$smart/test-group';
+    if (sessionId === 'session-smart-empty') return '$smart/empty-group';
+    return '';
+  }),
+}));
+
+jest.mock('../../src/dao/index.js', () => ({
+  getGroupDao: jest.fn(() => ({
+    findByName: jest.fn(() => Promise.resolve(null)),
+    findById: jest.fn(() => Promise.resolve(null)),
+  })),
+  getServerDao: jest.fn(() => ({
+    findById: jest.fn(),
+    findAll: jest.fn(() => Promise.resolve([])),
+  })),
+  getBuiltinPromptDao: jest.fn(() => ({
+    findByName: jest.fn(() => Promise.resolve(null)),
+    findEnabled: jest.fn(() => Promise.resolve([])),
+  })),
+  getBuiltinResourceDao: jest.fn(() => ({
+    findByUri: jest.fn(() => Promise.resolve(null)),
+    findEnabled: jest.fn(() => Promise.resolve([])),
+  })),
+}));
+
+jest.mock('../../src/services/services.js', () => ({
+  getDataService: jest.fn(() => ({
+    filterData: (data: any) => data,
+  })),
+}));
+
+// Mock smartRoutingService to initialize with test functions
+const mockHandleSearchToolsRequest = jest.fn();
+jest.mock('../../src/services/smartRoutingService.js', () => ({
+  initSmartRoutingService: jest.fn(),
+  handleSearchToolsRequest: mockHandleSearchToolsRequest,
+  handleDescribeToolRequest: jest.fn(),
+  isSmartRoutingGroup: jest.fn((group: string) => group?.startsWith('$smart')),
+  getSmartRoutingTools: jest.fn(async (group: string) => {
+    const targetGroup = group?.startsWith('$smart/') ? group.substring(7) : undefined;
+    const scopeDescription = targetGroup
+      ? `servers in the "${targetGroup}" group`
+      : 'all available servers';
+
+    return {
+      tools: [
+        {
+          name: 'search_tools',
+          description: `Search for relevant tools across ${scopeDescription}.`,
+          inputSchema: {
+            type: 'object',
+            properties: { query: { type: 'string' }, limit: { type: 'integer' } },
+            required: ['query'],
+          },
+        },
+        {
+          name: 'call_tool',
+          description: 'Execute a tool by name',
+          inputSchema: {
+            type: 'object',
+            properties: { toolName: { type: 'string' } },
+            required: ['toolName'],
+          },
+        },
+      ],
+    };
+  }),
+}));
+
+jest.mock('../../src/services/vectorSearchService.js', () => ({
+  searchToolsByVector: jest.fn(),
+  saveToolsAsVectorEmbeddings: jest.fn(),
+}));
+
+jest.mock('../../src/config/index.js', () => ({
+  loadSettings: jest.fn(),
+  expandEnvVars: jest.fn((val: string) => val),
+  replaceEnvVars: jest.fn((val: any) => val),
+  getNameSeparator: jest.fn(() => '::'),
+  default: {
+    mcpHubName: 'test-hub',
+    mcpHubVersion: '1.0.0',
+  },
+}));
+
+// Import after mocks are set up
+import * as mcpService from '../../src/services/mcpService.js';
+import { getGroup } from '../../src/services/sseService.js';
+import { handleSearchToolsRequest } from '../../src/services/smartRoutingService.js';
+
+describe('MCP Service - Smart Routing with Group Support', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mcpService.setServerInfosForTest([]);
+    // Setup mock return for handleSearchToolsRequest
+    mockHandleSearchToolsRequest.mockResolvedValue({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ tools: [], guideline: 'test', nextSteps: 'test' }),
+        },
+      ],
+    });
+  });
+
+  describe('handleListToolsRequest', () => {
+    it('should return search_tools and call_tool for $smart group', async () => {
+      const result = await mcpService.handleListToolsRequest({}, { sessionId: 'session-smart' });
+
+      expect(result.tools).toHaveLength(2);
+      expect(result.tools[0].name).toBe('search_tools');
+      expect(result.tools[1].name).toBe('call_tool');
+      expect(result.tools[0].description).toContain('all available servers');
+    });
+
+    it('should return filtered tools for $smart/{group} pattern', async () => {
+      const result = await mcpService.handleListToolsRequest(
+        {},
+        { sessionId: 'session-smart-group' },
+      );
+
+      expect(getGroup).toHaveBeenCalledWith('session-smart-group');
+      // Note: getServersInGroup is now called inside the mocked getSmartRoutingTools
+
+      expect(result.tools).toHaveLength(2);
+      expect(result.tools[0].name).toBe('search_tools');
+      expect(result.tools[1].name).toBe('call_tool');
+      expect(result.tools[0].description).toContain('servers in the "test-group" group');
+    });
+
+    it('should handle $smart with empty group', async () => {
+      const result = await mcpService.handleListToolsRequest(
+        {},
+        { sessionId: 'session-smart-empty' },
+      );
+
+      expect(getGroup).toHaveBeenCalledWith('session-smart-empty');
+      // Note: getServersInGroup is now called inside the mocked getSmartRoutingTools
+
+      expect(result.tools).toHaveLength(2);
+      expect(result.tools[0].name).toBe('search_tools');
+      expect(result.tools[1].name).toBe('call_tool');
+      // Should still show group-scoped message even if group is empty
+      expect(result.tools[0].description).toContain('servers in the "empty-group" group');
+    });
+  });
+
+  describe('handleCallToolRequest - search_tools', () => {
+    it('should search across all servers when using $smart', async () => {
+      const request = {
+        params: {
+          name: 'search_tools',
+          arguments: {
+            query: 'test query',
+            limit: 10,
+          },
+        },
+      };
+
+      await mcpService.handleCallToolRequest(request, { sessionId: 'session-smart' });
+
+      // handleSearchToolsRequest should be called with the query, limit, and sessionId
+      expect(handleSearchToolsRequest).toHaveBeenCalledWith('test query', 10, 'session-smart');
+    });
+
+    it('should filter servers when using $smart/{group}', async () => {
+      const request = {
+        params: {
+          name: 'search_tools',
+          arguments: {
+            query: 'test query',
+            limit: 10,
+          },
+        },
+      };
+
+      await mcpService.handleCallToolRequest(request, { sessionId: 'session-smart-group' });
+
+      // handleSearchToolsRequest should be called with the sessionId that contains group info
+      // The group filtering happens inside handleSearchToolsRequest, not in handleCallToolRequest
+      expect(handleSearchToolsRequest).toHaveBeenCalledWith(
+        'test query',
+        10,
+        'session-smart-group',
+      );
+    });
+
+    it('should handle empty group in $smart/{group}', async () => {
+      const request = {
+        params: {
+          name: 'search_tools',
+          arguments: {
+            query: 'test query',
+            limit: 10,
+          },
+        },
+      };
+
+      await mcpService.handleCallToolRequest(request, { sessionId: 'session-smart-empty' });
+
+      expect(handleSearchToolsRequest).toHaveBeenCalledWith(
+        'test query',
+        10,
+        'session-smart-empty',
+      );
+    });
+
+    it('should validate query parameter', async () => {
+      // Mock handleSearchToolsRequest to return an error result when query is missing
+      mockHandleSearchToolsRequest.mockImplementationOnce(() => {
+        return Promise.reject(new Error('Query parameter is required and must be a string'));
+      });
+
+      const request = {
+        params: {
+          name: 'search_tools',
+          arguments: {
+            limit: 10,
+          },
+        },
+      };
+
+      const result = await mcpService.handleCallToolRequest(request, {
+        sessionId: 'session-smart',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Query parameter is required');
+    });
+  });
+
+  describe('handleCallToolRequest - call_tool', () => {
+    it('should route direct tool calls across all servers when using $smart', async () => {
+      const callTool = jest.fn().mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+      const serverInfo = {
+        name: 'server1',
+        status: 'connected',
+        enabled: true,
+        tools: [{ name: 'server1::direct-tool', description: 'Direct', inputSchema: {} }],
+        client: { callTool },
+        options: {},
+      } as any;
+
+      mcpService.setServerInfosForTest([serverInfo]);
+
+      const result = await mcpService.handleCallToolRequest(
+        {
+          params: {
+            name: 'server1::direct-tool',
+            arguments: { input: 'value' },
+          },
+        },
+        { sessionId: 'session-smart' },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(callTool).toHaveBeenCalledTimes(1);
+      expect(callTool.mock.calls[0][0]).toEqual({
+        name: 'direct-tool',
+        arguments: { input: 'value' },
+      });
+    });
+
+    it('should route call_tool across all servers when using $smart', async () => {
+      const callTool = jest.fn().mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+      const serverInfo = {
+        name: 'server1',
+        status: 'connected',
+        enabled: true,
+        tools: [{ name: 'server1::pal-version', description: 'Version', inputSchema: {} }],
+        client: { callTool },
+        options: {},
+      } as any;
+
+      mcpService.setServerInfosForTest([serverInfo]);
+
+      const request = {
+        params: {
+          name: 'call_tool',
+          arguments: {
+            toolName: 'server1::pal-version',
+            arguments: {},
+          },
+        },
+      };
+
+      const result = await mcpService.handleCallToolRequest(request, {
+        sessionId: 'session-smart',
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(callTool).toHaveBeenCalledTimes(1);
+      expect(callTool.mock.calls[0][0]).toEqual({ name: 'pal-version', arguments: {} });
+    });
+
+    it('should not leak wrapper fields when tool arguments are empty', async () => {
+      const callTool = jest.fn().mockResolvedValue({ content: [] });
+      const serverInfo = {
+        name: 'server1',
+        status: 'connected',
+        enabled: true,
+        tools: [{ name: 'server1::pal-version' }],
+        client: { callTool },
+        options: {},
+      } as any;
+
+      mcpService.setServerInfosForTest([serverInfo]);
+
+      const request = {
+        params: {
+          name: 'call_tool',
+          arguments: {
+            toolName: 'server1::pal-version',
+            arguments: {},
+          },
+        },
+      };
+
+      await mcpService.handleCallToolRequest(request, {
+        sessionId: 'session-smart',
+        server: 'server1',
+      });
+
+      expect(callTool).toHaveBeenCalledTimes(1);
+      const toolParams = callTool.mock.calls[0][0];
+      expect(toolParams).toEqual({ name: 'pal-version', arguments: {} });
+      expect(toolParams.arguments).not.toHaveProperty('toolName');
+    });
+  });
+
+  describe('prompt and resource handling for $smart', () => {
+    it('should get prompts across all servers when using $smart', async () => {
+      const getPrompt = jest.fn().mockResolvedValue({
+        messages: [{ role: 'user', content: { type: 'text', text: 'summary' } }],
+      });
+      const serverInfo = {
+        name: 'server1',
+        status: 'connected',
+        enabled: true,
+        prompts: [{ name: 'server1::summarize', description: 'Summarize', arguments: [] }],
+        client: { getPrompt },
+      } as any;
+
+      mcpService.setServerInfosForTest([serverInfo]);
+
+      const result = await mcpService.handleGetPromptRequest(
+        { params: { name: 'server1::summarize', arguments: { topic: 'docs' } } },
+        { sessionId: 'session-smart' },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.messages[0].content.text).toBe('summary');
+      expect(getPrompt).toHaveBeenCalledWith({
+        name: 'summarize',
+        arguments: { topic: 'docs' },
+      });
+    });
+
+    it('should list prompts and resources across all servers when using $smart', async () => {
+      const listResourceTemplates = jest.fn().mockResolvedValue({
+        resourceTemplates: [{ uriTemplate: 'resource://docs/{slug}', name: 'Docs by slug' }],
+      });
+      const serverInfo = {
+        name: 'server1',
+        status: 'connected',
+        enabled: true,
+        prompts: [{ name: 'server1::summarize', description: 'Summarize', arguments: [] }],
+        resources: [{ uri: 'resource://docs/guide', name: 'Guide' }],
+        client: { listResourceTemplates },
+        options: {},
+      } as any;
+
+      mcpService.setServerInfosForTest([serverInfo]);
+
+      const prompts = await mcpService.handleListPromptsRequest({}, { sessionId: 'session-smart' });
+      const resources = await mcpService.handleListResourcesRequest(
+        {},
+        { sessionId: 'session-smart' },
+      );
+      const templates = await mcpService.handleListResourceTemplatesRequest(
+        {},
+        { sessionId: 'session-smart' },
+      );
+
+      expect(prompts.prompts.map((prompt: any) => prompt.name)).toEqual(['server1::summarize']);
+      expect(resources.resources.map((resource: any) => resource.uri)).toEqual([
+        'resource://docs/guide',
+      ]);
+      expect(templates.resourceTemplates).toEqual([
+        { uriTemplate: 'resource://docs/{slug}', name: 'Docs by slug' },
+      ]);
+    });
+
+    it('should read resources across all servers when using $smart', async () => {
+      const readResource = jest.fn().mockResolvedValue({
+        contents: [{ uri: 'resource://docs/guide', mimeType: 'text/plain', text: 'guide' }],
+      });
+      const serverInfo = {
+        name: 'server1',
+        status: 'connected',
+        enabled: true,
+        resources: [{ uri: 'resource://docs/guide', name: 'Guide' }],
+        client: { readResource },
+      } as any;
+
+      mcpService.setServerInfosForTest([serverInfo]);
+
+      const result = await mcpService.handleReadResourceRequest(
+        { params: { uri: 'resource://docs/guide' } },
+        { sessionId: 'session-smart' },
+      );
+
+      expect(result.isError).not.toBe(true);
+      expect(result.contents[0].text).toBe('guide');
+      expect(readResource).toHaveBeenCalledWith({ uri: 'resource://docs/guide' });
+    });
+  });
+
+  describe('safe logging summaries', () => {
+    it('summarizeArgumentsForLogging keeps only shape information', () => {
+      const summary = mcpService.summarizeArgumentsForLogging({
+        access_token: 'secret-value',
+        nested: { refreshToken: 'secret-refresh' },
+        count: 1,
+        enabled: true,
+      });
+
+      const serialized = JSON.stringify(summary);
+      expect(serialized).not.toContain('secret-value');
+      expect(serialized).not.toContain('secret-refresh');
+      expect(summary).toEqual(
+        expect.objectContaining({
+          present: true,
+          type: 'object',
+          keyCount: 4,
+        }),
+      );
+    });
+
+    it('summarizeToolResultForLogging keeps metadata without leaking content text', () => {
+      const summary = mcpService.summarizeToolResultForLogging({
+        isError: true,
+        content: [
+          {
+            type: 'text',
+            text: '{"access_token":"secret-token"}',
+          },
+        ],
+      });
+
+      const serialized = JSON.stringify(summary);
+      expect(serialized).not.toContain('secret-token');
+      expect(summary).toEqual(
+        expect.objectContaining({
+          isError: true,
+          contentCount: 1,
+        }),
+      );
+    });
+  });
+});

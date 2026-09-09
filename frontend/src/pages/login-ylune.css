@@ -1,0 +1,663 @@
+/* 月弦登录页：只作用在 .ylune-login 内，不污染控制台 */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+
+.ylune-login {
+  --color-bg: #0a0a0b;
+  --color-surface: #121214;
+  --color-surface-2: #1a1a1e;
+  --color-text: #f2f0ea;
+  --color-muted: #a6a099;
+  --color-accent: #5eead4;
+  --color-accent-2: #2dd4bf;
+  --color-accent-deep: #0b6e64;
+  --color-accent-dim: #2a7a6b;
+  --color-ink: #04211c;
+  --color-danger: #ff7a7a;
+  --color-border: rgba(242, 240, 234, 0.14);
+  --color-border-strong: rgba(94, 234, 212, 0.45);
+  --font-display: 'Bebas Neue', 'Chakra Petch', 'Noto Sans SC', sans-serif;
+  --font-body: 'Noto Sans SC', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Noto Sans SC', monospace;
+  --fs-hero: clamp(72px, 11vw, 180px);
+  --fs-lede: clamp(16px, 1.4vw, 19px);
+  --fs-body: 16px;
+  --fs-small: 13px;
+  --fs-micro: 11px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+  --space-7: 96px;
+  --gutter: clamp(20px, 4vw, 64px);
+  --radius-pill: 999px;
+  --radius-md: 12px;
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --glow-accent: 0 0 40px rgba(94, 234, 212, 0.18);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-base: 320ms;
+  --dur-slow: 640ms;
+
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.ylune-login *,
+.ylune-login *::before,
+.ylune-login *::after {
+  box-sizing: border-box;
+}
+
+.ylune-login img {
+  display: block;
+  max-width: 100%;
+}
+
+.ylune-login a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ylune-login button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ylune-login input {
+  font: inherit;
+  color: inherit;
+}
+
+.ylune-login .mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ylune-login :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.ylune-login ::selection {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.ylune-login .skip-link {
+  position: fixed;
+  top: -60px;
+  left: 16px;
+  z-index: 100;
+  padding: 10px 18px;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 14px;
+  transition: top var(--dur-fast) ease;
+}
+
+.ylune-login .skip-link:focus {
+  top: 12px;
+}
+
+.ylune-login .fx-scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    rgba(0, 0, 0, 0.12) 3px 4px
+  );
+  opacity: 0.5;
+}
+
+.ylune-login .fx-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.ylune-login .nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px var(--gutter);
+}
+
+.ylune-login .nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ylune-login .nav-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.ylune-login .nav-name {
+  font-family: var(--font-display);
+  font-size: 21px;
+  letter-spacing: 0.06em;
+}
+
+.ylune-login .nav-name b {
+  color: var(--color-accent);
+  font-weight: 400;
+}
+
+.ylune-login .nav-badge {
+  color: var(--color-accent);
+  border: 1px solid var(--color-border-strong);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+}
+
+.ylune-login .nav-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+}
+
+.ylune-login .nav-status .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: ylune-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ylune-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.ylune-login .nav-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ylune-login .nav-tool {
+  min-height: 32px;
+  padding: 0 8px;
+  color: var(--color-muted);
+  letter-spacing: 0.08em;
+}
+
+.ylune-login .nav-tool:hover {
+  color: var(--color-accent);
+}
+
+.ylune-login .stage {
+  position: relative;
+  z-index: 1;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ylune-login .stage-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 58%;
+  background: linear-gradient(155deg, var(--color-accent-2) 0%, #0d9488 58%, var(--color-accent-deep) 100%);
+  clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
+  z-index: 1;
+}
+
+.ylune-login .stage-panel-mark {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 112%;
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  opacity: 0.88;
+}
+
+.ylune-login .stage-panel-mark img {
+  width: 58%;
+  max-width: 420px;
+  height: auto;
+}
+
+.ylune-login .stage-panel-tag {
+  position: absolute;
+  top: 20%;
+  right: 11%;
+  transform: rotate(-4deg);
+  background: var(--color-text);
+  color: var(--color-ink);
+  padding: 12px 20px;
+  border-radius: 6px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ylune-login .stage-panel-tag b {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.ylune-login .stage-panel-tag .mono {
+  font-size: 9px;
+  opacity: 0.72;
+}
+
+.ylune-login .stage-inner {
+  position: relative;
+  z-index: 2;
+  padding: 120px var(--gutter) 96px;
+}
+
+.ylune-login .login {
+  max-width: 460px;
+}
+
+.ylune-login .login-eyebrow {
+  color: var(--color-accent);
+  margin-bottom: var(--space-3);
+}
+
+.ylune-login .login-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-hero);
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+}
+
+.ylune-login .login-title .tick {
+  color: var(--color-accent);
+}
+
+.ylune-login .login-sub {
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--fs-lede);
+  max-width: 22em;
+}
+
+.ylune-login .login-sub em {
+  font-style: normal;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-accent-dim);
+}
+
+.ylune-login .login-form {
+  margin-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ylune-login .field {
+  position: relative;
+}
+
+.ylune-login .field label {
+  display: block;
+  color: var(--color-muted);
+  margin-bottom: var(--space-2);
+  transition: color var(--dur-fast) ease;
+}
+
+.ylune-login .field:focus-within label {
+  color: var(--color-accent);
+}
+
+.ylune-login .field input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 2px 12px;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  caret-color: var(--color-accent);
+  transition: border-color var(--dur-fast) ease;
+}
+
+.ylune-login .field input::placeholder {
+  color: rgba(166, 160, 153, 0.5);
+}
+
+.ylune-login .field input:focus {
+  outline: none;
+}
+
+.ylune-login .field-line {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.ylune-login .field:focus-within .field-line {
+  transform: scaleX(1);
+}
+
+.ylune-login .field-pw {
+  position: relative;
+}
+
+.ylune-login .field-pw input {
+  padding-right: 64px;
+}
+
+.ylune-login .pw-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 44px;
+  min-width: 56px;
+  color: var(--color-muted);
+  transition: color var(--dur-fast) ease;
+}
+
+.ylune-login .pw-toggle:hover,
+.ylune-login .pw-toggle[aria-pressed='true'] {
+  color: var(--color-accent);
+}
+
+.ylune-login .form-msg {
+  min-height: 18px;
+  color: var(--color-danger);
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-size: 12px;
+}
+
+.ylune-login .form-msg.is-info {
+  color: var(--color-accent);
+}
+
+.ylune-login .login-form.shake {
+  animation: ylune-shake 420ms ease;
+}
+
+@keyframes ylune-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(7px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.ylune-login .btn-login {
+  position: relative;
+  margin-top: var(--space-2);
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  box-shadow: var(--shadow-1);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) ease,
+    opacity var(--dur-fast) ease;
+}
+
+.ylune-login .btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glow-accent), var(--shadow-2);
+}
+
+.ylune-login .btn-login:active {
+  transform: translateY(0);
+}
+
+.ylune-login .btn-login:disabled {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.ylune-login .btn-login .btn-auth {
+  display: none;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+}
+
+.ylune-login .btn-login.is-busy .btn-label {
+  display: none;
+}
+
+.ylune-login .btn-login.is-busy .btn-auth {
+  display: inline;
+}
+
+.ylune-login .btn-login.is-busy .btn-auth i {
+  animation: ylune-blink 1s infinite;
+  font-style: normal;
+}
+
+.ylune-login .btn-login.is-busy .btn-auth i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ylune-login .btn-login.is-busy .btn-auth i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes ylune-blink {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ylune-login .login-hint {
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+.ylune-login .social-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ylune-login .btn-social {
+  min-height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  letter-spacing: 0.08em;
+}
+
+.ylune-login .btn-social:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-accent);
+}
+
+.ylune-login .btn-social:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.ylune-login .meta-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 12px var(--gutter);
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+  background: rgba(10, 10, 11, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.ylune-login .boot-in {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.ylune-login.is-loaded .boot-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+}
+
+.ylune-login .stage-panel.boot-in {
+  transform: translateX(60px);
+  opacity: 0;
+}
+
+.ylune-login.is-loaded .stage-panel.boot-in {
+  transform: none;
+  opacity: 1;
+}
+
+.ylune-login.is-loaded .nav {
+  transition-delay: 60ms;
+}
+.ylune-login.is-loaded .stage-panel {
+  transition-delay: 180ms;
+}
+.ylune-login.is-loaded .login-eyebrow {
+  transition-delay: 300ms;
+}
+.ylune-login.is-loaded .login-title {
+  transition-delay: 400ms;
+}
+.ylune-login.is-loaded .login-sub {
+  transition-delay: 520ms;
+}
+.ylune-login.is-loaded .login-form {
+  transition-delay: 640ms;
+}
+.ylune-login.is-loaded .login-hint {
+  transition-delay: 760ms;
+}
+.ylune-login.is-loaded .meta-bar {
+  transition-delay: 880ms;
+}
+
+@media (max-width: 1100px) {
+  .ylune-login .stage-panel-tag {
+    top: 16%;
+    right: 7%;
+  }
+}
+
+@media (max-width: 860px) {
+  .ylune-login .stage-panel {
+    width: 100%;
+    clip-path: none;
+    opacity: 0.22;
+  }
+  .ylune-login .stage-panel-tag {
+    display: none;
+  }
+  .ylune-login .stage-inner {
+    padding-top: 104px;
+  }
+  .ylune-login .login {
+    max-width: none;
+  }
+  .ylune-login .login-title {
+    font-size: clamp(64px, 16vw, 120px);
+  }
+}
+
+@media (max-width: 560px) {
+  .ylune-login .nav-badge {
+    display: none;
+  }
+  .ylune-login .login-title {
+    font-size: clamp(56px, 19vw, 84px);
+  }
+  .ylune-login .meta-bar span:nth-child(2) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ylune-login *,
+  .ylune-login *::before,
+  .ylune-login *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ylune-login .boot-in {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

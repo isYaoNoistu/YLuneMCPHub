@@ -1,0 +1,124 @@
+{
+  "mcpServers": {
+    "example-sse-server": {
+      "type": "sse",
+      "url": "${MCP_SERVER_URL}",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}",
+        "X-Custom-Header": "${CUSTOM_HEADER_VALUE}"
+      },
+      "enabled": true
+    },
+    "example-streamable-http": {
+      "type": "streamable-http",
+      "url": "https://${SERVER_HOST}/mcp",
+      "headers": {
+        "API-Key": "${API_KEY}"
+      }
+    },
+    "example-stdio-server": {
+      "type": "stdio",
+      "command": "${PYTHON_PATH}",
+      "args": [
+        "-m",
+        "${MODULE_NAME}",
+        "--config",
+        "${CONFIG_PATH}"
+      ],
+      "env": {
+        "API_KEY": "${MY_API_KEY}",
+        "DEBUG": "${DEBUG_MODE}",
+        "DB_URL": "${DB_URL}"
+      }
+    },
+    "example-stdio-with-proxy": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "proxy": {
+        "enabled": true,
+        "type": "socks5",
+        "host": "${PROXY_HOST}",
+        "port": 1080
+      }
+    },
+    "example-stdio-with-auth-proxy": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@example/mcp-server"
+      ],
+      "proxy": {
+        "enabled": true,
+        "type": "http",
+        "host": "${HTTP_PROXY_HOST}",
+        "port": 8080,
+        "username": "${PROXY_USERNAME}",
+        "password": "${PROXY_PASSWORD}"
+      }
+    },
+    "example-stdio-with-custom-proxy-config": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "-m",
+        "custom_mcp_server"
+      ],
+      "proxy": {
+        "enabled": true,
+        "configPath": "/etc/proxychains4/custom.conf"
+      }
+    },
+    "example-openapi-server": {
+      "type": "openapi",
+      "openapi": {
+        "url": "${OPENAPI_SPEC_URL}",
+        "security": {
+          "type": "apiKey",
+          "apiKey": {
+            "name": "X-API-Key",
+            "in": "header",
+            "value": "${OPENAPI_API_KEY}"
+          }
+        }
+      },
+      "headers": {
+        "User-Agent": "MCPHub/${VERSION}"
+      }
+    },
+    "example-oauth-server": {
+      "type": "sse",
+      "url": "${OAUTH_SERVER_URL}",
+      "oauth": {
+        "clientId": "${OAUTH_CLIENT_ID}",
+        "clientSecret": "${OAUTH_CLIENT_SECRET}",
+        "accessToken": "${OAUTH_ACCESS_TOKEN}",
+        "scopes": [
+          "read",
+          "write"
+        ]
+      }
+    }
+  },
+  "users": [
+    {
+      "username": "admin",
+      "password": "${ADMIN_PASSWORD_HASH}",
+      "isAdmin": true
+    }
+  ],
+  "systemConfig": {
+    "install": {
+      "pythonIndexUrl": "${PYTHON_INDEX_URL}",
+      "npmRegistry": "${NPM_REGISTRY}"
+    },
+    "mcpRouter": {
+      "apiKey": "${MCPROUTER_API_KEY}",
+      "referer": "${MCPROUTER_REFERER}",
+      "baseUrl": "${MCPROUTER_BASE_URL}"
+    }
+  }
+}

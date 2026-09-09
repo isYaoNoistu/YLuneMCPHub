@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════════════════
+   tokens.css — 设计令牌（与登录页同源）
+   黑底 + 单一月光青强调色；控制台走克制字阶
+   ═══════════════════════════════════════════════════════ */
+:root {
+  /* —— 颜色：60% 近黑表面 / 30% 中性灰阶 / 10% 月光青强调 —— */
+  --color-bg:        #0a0a0b;
+  --color-surface:   #121214;
+  --color-surface-2: #1a1a1e;
+  --color-text:      #f2f0ea;
+  --color-muted:     #a6a099;
+  --color-accent:    #5eead4;   /* 月光青 */
+  --color-accent-2:  #2dd4bf;
+  --color-accent-deep:#0b6e64;
+  --color-accent-dim:#2a7a6b;
+  --color-ink:       #04211c;
+  --color-danger:    #ff7a7a;
+  --color-border:    rgba(242, 240, 234, 0.14);
+  --color-border-strong: rgba(94, 234, 212, 0.45);
+
+  /* —— 字体 —— */
+  --font-display: "Chakra Petch", "Noto Sans SC", sans-serif;
+  --font-body:    "Noto Sans SC", sans-serif;
+  --font-mono:    "IBM Plex Mono", "Noto Sans SC", monospace;
+
+  /* —— 字阶：管理台克制尺度 —— */
+  --fs-view-title: 20px;
+  --fs-body:   14px;
+  --fs-small:  12px;
+  --fs-micro:  11px;
+
+  /* —— 间距梯度 —— */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 16px; --space-4: 24px;
+  --space-5: 40px; --space-6: 64px; --space-7: 96px;
+
+  /* —— 圆角 / 阴影 —— */
+  --radius-pill: 999px;
+  --radius-md:   12px;
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, .4);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, .5);
+  --shadow-3: 0 24px 64px rgba(0, 0, 0, .6);
+  --glow-accent: 0 0 40px rgba(94, 234, 212, .18);
+
+  /* —— 动效 —— */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-base: 320ms;
+  --dur-slow: 640ms;
+}

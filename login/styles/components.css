@@ -1,0 +1,246 @@
+/* ═══════════════════════════════════════════════════════
+   components.css — 组件与构成
+   结构：氛围层 / 顶栏 / 舞台（对角面板+登录）/ 表单 / 信息条 / 入场 / 响应式
+   ═══════════════════════════════════════════════════════ */
+
+/* ═══ 1. 氛围层 ═══ */
+.fx-scanlines {
+  position: fixed; inset: 0; z-index: 40; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent 0 3px, rgba(0, 0, 0, 0.12) 3px 4px);
+  opacity: .5;
+}
+.fx-noise {
+  position: fixed; inset: 0; z-index: 41; pointer-events: none;
+  opacity: .05; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ═══ 2. 顶栏 ═══ */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px var(--gutter);
+}
+.nav-brand { display: inline-flex; align-items: center; gap: 12px; }
+.nav-logo { width: 30px; height: 30px; border-radius: 50%; }
+.nav-name {
+  font-family: var(--font-display);
+  font-size: 21px; letter-spacing: 0.06em;
+}
+.nav-name b { color: var(--color-accent); font-weight: 400; }
+.nav-badge {
+  color: var(--color-accent);
+  border: 1px solid var(--color-border-strong);
+  padding: 4px 12px; border-radius: var(--radius-pill);
+}
+.nav-status { display: inline-flex; align-items: center; gap: 10px; color: var(--color-muted); }
+.nav-status .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ═══ 3. 舞台：左登录 / 右对角面板 ═══ */
+.stage {
+  position: relative; z-index: 1;
+  min-height: 100svh;
+  display: flex; flex-direction: column; justify-content: center;
+  overflow: hidden;
+}
+/* 月光青对角面板：右 58%，左缘斜切 */
+.stage-panel {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 58%;
+  background: linear-gradient(155deg, var(--color-accent-2) 0%, #0d9488 58%, var(--color-accent-deep) 100%);
+  clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
+  z-index: 1;
+}
+/* 巨型暗色 Logo 纹：预渲染 PNG，溢出被裁切 */
+.stage-panel-mark {
+  position: absolute;
+  left: 0; top: 50%;
+  width: 112%; aspect-ratio: 1;
+  transform: translateY(-50%);
+  background: url("../assets/logo-mark-dark.png") center / 58% no-repeat;
+  opacity: 0.8;
+}
+/* 斜贴小标签 */
+.stage-panel-tag {
+  position: absolute;
+  top: 20%; right: 11%;
+  transform: rotate(-4deg);
+  background: var(--color-text); color: var(--color-ink);
+  padding: 12px 20px;
+  border-radius: 6px;
+  box-shadow: var(--shadow-2);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.stage-panel-tag b { font-size: 14px; letter-spacing: 0.08em; }
+.stage-panel-tag .mono { font-size: 9px; opacity: .72; }
+
+/* ═══ 4. 登录区 ═══ */
+.stage-inner { position: relative; z-index: 2; padding: 120px var(--gutter) 96px; }
+.login { max-width: 460px; }
+.login-eyebrow { color: var(--color-accent); margin-bottom: var(--space-3); }
+.login-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-hero);
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+}
+.login-title .tick { color: var(--color-accent); }
+.login-sub {
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--fs-lede);
+  max-width: 22em;
+}
+.login-sub em {
+  font-style: normal; color: var(--color-text);
+  border-bottom: 1px solid var(--color-accent-dim);
+}
+
+/* ═══ 5. 表单：终端式字段 ═══ */
+.login-form { margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+.field { position: relative; }
+.field label {
+  display: block;
+  color: var(--color-muted);
+  margin-bottom: var(--space-2);
+  transition: color var(--dur-fast) ease;
+}
+.field:focus-within label { color: var(--color-accent); }
+.field input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 2px 12px;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  caret-color: var(--color-accent);
+  transition: border-color var(--dur-fast) ease;
+}
+.field input::placeholder { color: rgba(166, 160, 153, 0.5); }
+.field input:focus { outline: none; }
+/* 聚焦时月光青下划线扫入 */
+.field-line {
+  position: absolute; left: 0; bottom: 0;
+  width: 100%; height: 2px;
+  background: var(--color-accent);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.field:focus-within .field-line { transform: scaleX(1); }
+
+.field-pw { position: relative; }
+.field-pw input { padding-right: 64px; }
+.pw-toggle {
+  position: absolute; right: 0; top: 50%;
+  transform: translateY(-50%);
+  min-height: 44px; min-width: 56px;
+  color: var(--color-muted);
+  transition: color var(--dur-fast) ease;
+}
+.pw-toggle:hover, .pw-toggle[aria-pressed="true"] { color: var(--color-accent); }
+
+/* 错误/提示信息 */
+.form-msg {
+  min-height: 18px;
+  color: var(--color-danger);
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-size: 12px;
+}
+.form-msg.is-info { color: var(--color-accent); }
+/* 错误抖动 */
+.login-form.shake { animation: shake 420ms ease; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+
+/* 登录按钮：胶囊 + 认证态 */
+.btn-login {
+  position: relative;
+  margin-top: var(--space-2);
+  min-height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-weight: 700; font-size: 17px; letter-spacing: 0.3em;
+  text-indent: 0.3em; /* 视觉居中补偿字距 */
+  box-shadow: var(--shadow-1);
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) ease,
+              opacity var(--dur-fast) ease;
+}
+.btn-login:hover { transform: translateY(-2px); box-shadow: var(--glow-accent), var(--shadow-2); }
+.btn-login:active { transform: translateY(0); }
+.btn-login:disabled { cursor: wait; opacity: .85; }
+.btn-login .btn-auth { display: none; font-size: 13px; letter-spacing: 0.22em; }
+.btn-login.is-busy .btn-label { display: none; }
+.btn-login.is-busy .btn-auth { display: inline; }
+.btn-login.is-busy .btn-auth i { animation: blink 1s infinite; font-style: normal; }
+.btn-login.is-busy .btn-auth i:nth-child(2) { animation-delay: .2s; }
+.btn-login.is-busy .btn-auth i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+
+.login-hint { color: var(--color-muted); opacity: .7; }
+
+/* ═══ 6. 底部信息条 ═══ */
+.meta-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  display: flex; justify-content: space-between; gap: var(--space-3);
+  padding: 12px var(--gutter);
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+  background: rgba(10, 10, 11, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+/* ═══ 7. 入场编排：顶栏 → 面板 → 眉标 → 标题 → 副标 → 表单 → 提示 → 信息条 ═══ */
+.boot-in { opacity: 0; transform: translateY(20px); }
+body.loaded .boot-in {
+  opacity: 1; transform: none;
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+.stage-panel.boot-in { transform: translateX(60px); opacity: 0; }
+body.loaded .stage-panel.boot-in { transform: none; opacity: 1; }
+
+body.loaded .nav             { transition-delay: 60ms; }
+body.loaded .stage-panel     { transition-delay: 180ms; }
+body.loaded .login-eyebrow   { transition-delay: 300ms; }
+body.loaded .login-title     { transition-delay: 400ms; }
+body.loaded .login-sub       { transition-delay: 520ms; }
+body.loaded .login-form      { transition-delay: 640ms; }
+body.loaded .login-hint      { transition-delay: 760ms; }
+body.loaded .meta-bar        { transition-delay: 880ms; }
+
+/* ═══ 8. 响应式 ═══ */
+@media (max-width: 1100px) {
+  .stage-panel-tag { top: 16%; right: 7%; }
+}
+@media (max-width: 860px) {
+  .stage-panel {                        /* 面板退为全屏淡色衬底 */
+    width: 100%;
+    clip-path: none;
+    opacity: 0.22;
+  }
+  .stage-panel-tag { display: none; }
+  .stage-inner { padding-top: 104px; }
+  .login { max-width: none; }
+  .login-title { font-size: clamp(64px, 16vw, 120px); }
+}
+@media (max-width: 560px) {
+  .nav-badge { display: none; }
+  .login-title { font-size: clamp(56px, 19vw, 84px); }
+  .meta-bar span:nth-child(2) { display: none; }
+}

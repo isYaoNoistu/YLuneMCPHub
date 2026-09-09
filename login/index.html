@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="BEQAxoGWc1zAjQK7HFjxsi">
+<head data-page-node-id="AP8vBZpl2LXXittb4AzVup">
+  <meta charset="UTF-8" data-page-node-id="gmQvRBXU0vVQ1V7JFuB9mA">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="VXWQ3hvkN3sNF1Ggw8ArV3">
+  <meta name="description" content="月弦 — 内部登录入口。无公开注册通道，账号由管理员分配。" data-page-node-id="IfIBt4Hgi6uaACnF1EBG1V">
+  <meta name="color-scheme" content="dark" data-page-node-id="6XxzsoKbNKAwhCTVnyHDt3">
+  <title>月弦 — 登录</title>
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+
+  <!-- 字体：Bebas Neue 展示拉丁 / Chakra Petch / Noto Sans SC / IBM Plex Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="WhLyVEVFoYd2FmCvkt34FA">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-page-node-id="oiimSn4h2ElrKP0tEEW9D7">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" data-page-node-id="0gJSQ7LeE4sANVsSCyo7ad">
+
+  <link rel="stylesheet" href="styles/tokens.css" data-page-node-id="0vDF8g2qvmKPnlv4GQCexa">
+  <link rel="stylesheet" href="styles/base.css" data-page-node-id="V5yquDN0paZkxhQUHBlhHQ">
+  <link rel="stylesheet" href="styles/components.css" data-page-node-id="jEfHEh2jgkgWfUu5R6IyL2">
+</head>
+<body data-page-node-id="fZp0gfhoW34hQ94W2PFq1W">
+  <a class="skip-link" href="#loginForm" data-page-node-id="HsdUxBrkySQIKycT3fwWwT">跳到登录表单</a>
+
+  <!-- 氛围层：扫描线 + 噪点 -->
+  <div class="fx-scanlines" aria-hidden="true" data-page-node-id="8NWfPG6MokooT2tWFRH7VE"></div>
+  <div class="fx-noise" aria-hidden="true" data-page-node-id="2GzHBpEWrOBw15FUHfEGRb"></div>
+
+  <!-- 顶栏：品牌 + 状态 -->
+  <header class="nav boot-in" data-page-node-id="TZJihRNn7q9e0uncZzPFyY">
+    <a class="nav-brand" href="#" aria-label="YLune MCP Hub" data-page-node-id="vLaJ704SpMAngdH9hoMsHS">
+      <img class="nav-logo" src="assets/logo-mark.png" alt="" width="30" height="30">
+      <span class="nav-name" data-page-node-id="Lkq0ARrMk3g3GIwA3Uwd1c">Y<b data-page-node-id="Lpg3e7wpOvD0DgxMNesp6k">LUNE</b></span>
+      <span class="nav-badge mono" data-page-node-id="CC2jTuBL8H5ZhjbBov1i66">MCP&nbsp;HUB</span>
+    </a>
+    <div class="nav-status" aria-hidden="true" data-page-node-id="B6oNcbP3nPqGasl9kE60p4">
+      <span class="dot" data-page-node-id="nwlFzjcyEHeZKzDE8Ov35F"></span>
+      <span class="mono" id="clock" data-page-node-id="lPly2bzZrhNQ5uhDdlOsEF">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- ══════════ 登录主区 ══════════ -->
+  <main class="stage" aria-label="登录" data-page-node-id="7GwASOgrfPKjMBR4yRnKxG">
+
+    <!-- 右侧：月光青对角面板 + 巨型暗色 Logo 纹 -->
+    <div class="stage-panel boot-in" aria-hidden="true" data-page-node-id="ugCW6JLN4bxj02U8RkH4db">
+      <div class="stage-panel-mark" data-page-node-id="n5qxFPb4n6w0umVEwfrxnX"></div>
+      <div class="stage-panel-tag" data-page-node-id="eLTwFsn45d3SABymBeFetB">
+        <b data-page-node-id="KjSRSEGx8dj0GwySUAAv7u">MCP HUB · INTERNAL</b>
+        <span class="mono" data-page-node-id="pmvdC9Habb6bcarLlNFR06">YLUNE — GATEWAY v1.0</span>
+      </div>
+    </div>
+
+    <div class="stage-inner" data-page-node-id="jCJ3aBEZMrE4yBmem2GIlx">
+      <!-- 左侧：极简登录 -->
+      <section class="login" aria-labelledby="loginTitle" data-page-node-id="ztelb4N3ZSp7mjNm5X6H4i">
+        <p class="login-eyebrow boot-in mono" data-page-node-id="j1nqYDyYtszqFdU5J4nXGs">§ YLUNE — MCP HUB / GATEWAY</p>
+
+        <h1 class="login-title boot-in" id="loginTitle" data-page-node-id="I48QqMnKnzRVPqRL9l4DrB">YLUNE<span class="tick" data-page-node-id="gKkBhRGHK38b5n9rABvXJ1">.</span></h1>
+
+        <p class="login-sub boot-in" data-page-node-id="RxoRHdEmpZiAozQMKh93sl">MCP 服务的统一网关。<em data-page-node-id="i2fFFxSuzwMGG9Iqjl3ncT">内部入口</em>，无公开注册通道。</p>
+
+        <!--
+          表单对接说明：
+          - data-endpoint：后端登录接口地址。配置后以 POST JSON { username, password } 提交，
+            2xx 视为成功并跳转 data-redirect；非 2xx 读取响应 JSON 的 message 字段作为错误提示。
+          - 未配置 data-endpoint 时为静态演示模式：校验通过后经 900ms 模拟延迟提示“未接入后端”。
+        -->
+        <form class="login-form boot-in" id="loginForm" novalidate
+              data-endpoint="/api/login"
+              data-redirect="../hub/index.html" data-page-node-id="zjmhUhFmGokkQ3y95rF7UO">
+          <div class="field" data-page-node-id="0asdhKcW5fUByLfZnSAWWF">
+            <label class="mono" for="username" data-page-node-id="89uPgW8Kphx8TtLkGTYxzG">用户名 / USERNAME</label>
+            <input class="mono" type="text" id="username" name="username"
+                   autocomplete="username" spellcheck="false"
+                   placeholder="输入账号" required autofocus data-page-node-id="jiocxGKZdv1Bh1HiPeV5d2">
+            <span class="field-line" aria-hidden="true" data-page-node-id="wFdVSy1BJHUarwsPKFOwyr"></span>
+          </div>
+
+          <div class="field" data-page-node-id="EABlVxwWuc7H02DKY93wHn">
+            <label class="mono" for="password" data-page-node-id="E9mMEBuXLdtkSk31k5OaGD">密码 / PASSWORD</label>
+            <div class="field-pw" data-page-node-id="KssdHB0ZxPZJHzoZ6A1OQ2">
+              <input class="mono" type="password" id="password" name="password"
+                     autocomplete="current-password"
+                     placeholder="输入密码" required data-page-node-id="G26pNgj5NUqpE1vkqi6Lxe">
+              <button class="pw-toggle mono" type="button" id="pwToggle"
+                      aria-pressed="false" aria-label="显示密码" data-page-node-id="cOLm2vHVYLN0REN66WQKY4">SHOW</button>
+            </div>
+            <span class="field-line" aria-hidden="true" data-page-node-id="J8IR3RsfyjcY89EY6M1zeY"></span>
+          </div>
+
+          <p class="form-msg mono" id="formMsg" role="alert" aria-live="polite" data-page-node-id="YJpUAuZE7Q0AY7WtelfoiI"></p>
+
+          <button class="btn-login" type="submit" id="btnLogin" data-page-node-id="J537vHzY7bCUzlBTLyAEpW">
+            <span class="btn-label" data-page-node-id="A9oXFk36OdDCOoGwPoepww">登 录</span>
+            <span class="btn-auth mono" aria-hidden="true" data-page-node-id="E15UImmnHjWzcT6EraMQOx">AUTHENTICATING<i data-page-node-id="MbuWkG32guQcy88Vt6V0Iz">.</i><i data-page-node-id="MzCUsyqhhsvWRiclUAX3zt">.</i><i data-page-node-id="2r29DngwEY1rHEn4aAXlsp">.</i></span>
+          </button>
+
+          <p class="login-hint boot-in mono" data-page-node-id="2DYq5Xx7lScXQBHjltfawd">INTERNAL ACCESS ONLY · 账号由管理员分配</p>
+        </form>
+      </section>
+    </div>
+
+    <!-- 底部微型信息条 -->
+    <div class="meta-bar mono boot-in" aria-hidden="true" data-page-node-id="rzYqLzzJqC4OsgpBXXovfI">
+      <span data-page-node-id="BViN1nTKFpz4o5een3hbBw">EST. 2026 · 黑夜将至，你我不独行</span>
+      <span data-page-node-id="rvXw8zolInanhubhunR7E9">SECURE CHANNEL · TLS</span>
+      <span data-page-node-id="C6EfkNX4u0Gj3A4iPhZh2Z">YLUNE · MCP HUB</span>
+    </div>
+  </main>
+
+  <script src="scripts/main.js"></script>
+</body>
+</html>

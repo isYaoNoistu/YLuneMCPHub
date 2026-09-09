@@ -1,0 +1,87 @@
+import { migrateLegacySmartRoutingConfig, SystemConfigDao } from './SystemConfigDao.js';
+import { SystemConfig } from '../types/index.js';
+import { SystemConfigRepository } from '../db/repositories/SystemConfigRepository.js';
+
+/**
+ * Database-backed implementation of SystemConfigDao
+ */
+export class SystemConfigDaoDbImpl implements SystemConfigDao {
+  private repository: SystemConfigRepository;
+
+  constructor() {
+    this.repository = new SystemConfigRepository();
+  }
+
+  async get(): Promise<SystemConfig> {
+    let config = await this.repository.get();
+    const { smartRouting, migrated } = migrateLegacySmartRoutingConfig(
+      config.smartRouting as SystemConfig['smartRouting'],
+    );
+    if (migrated) {
+      config = await this.repository.update({ smartRouting: smartRouting as Record<string, any> });
+    }
+
+    return {
+      routing: config.routing as any,
+      install: config.install as any,
+      smartRouting: config.smartRouting as any,
+      toolResultCompression: config.toolResultCompression as any,
+      mcpRouter: config.mcpRouter as any,
+      nameSeparator: config.nameSeparator,
+      oauth: config.oauth as any,
+      oauthServer: config.oauthServer as any,
+      auth: config.auth as any,
+      enableSessionRebuild: config.enableSessionRebuild,
+      discovery: config.discovery as any,
+      activityLog: config.activityLog as any,
+    };
+  }
+
+  async update(config: Partial<SystemConfig>): Promise<SystemConfig> {
+    const updated = await this.repository.update(config as any);
+    return {
+      routing: updated.routing as any,
+      install: updated.install as any,
+      smartRouting: updated.smartRouting as any,
+      toolResultCompression: updated.toolResultCompression as any,
+      mcpRouter: updated.mcpRouter as any,
+      nameSeparator: updated.nameSeparator,
+      oauth: updated.oauth as any,
+      oauthServer: updated.oauthServer as any,
+      auth: updated.auth as any,
+      enableSessionRebuild: updated.enableSessionRebuild,
+      discovery: updated.discovery as any,
+      activityLog: updated.activityLog as any,
+    };
+  }
+
+  async reset(): Promise<SystemConfig> {
+    const config = await this.repository.reset();
+    return {
+      routing: config.routing as any,
+      install: config.install as any,
+      smartRouting: config.smartRouting as any,
+      toolResultCompression: config.toolResultCompression as any,
+      mcpRouter: config.mcpRouter as any,
+      nameSeparator: config.nameSeparator,
+      oauth: config.oauth as any,
+      oauthServer: config.oauthServer as any,
+      auth: config.auth as any,
+      enableSessionRebuild: config.enableSessionRebuild,
+      discovery: config.discovery as any,
+      activityLog: config.activityLog as any,
+    };
+  }
+
+  async getSection<K extends keyof SystemConfig>(section: K): Promise<SystemConfig[K]> {
+    return (await this.repository.getSection(section)) as any;
+  }
+
+  async updateSection<K extends keyof SystemConfig>(
+    section: K,
+    value: SystemConfig[K],
+  ): Promise<boolean> {
+    await this.repository.updateSection(section, value as any);
+    return true;
+  }
+}
