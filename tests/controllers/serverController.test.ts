@@ -20,10 +20,12 @@ const mockSystemConfigDao = {
 
 const mockUserDao = {
   findAll: jest.fn(),
+  findByUsername: jest.fn().mockResolvedValue(null),
 };
 
 const mockGroupDao = {
   findAll: jest.fn(),
+  findByMember: jest.fn().mockResolvedValue([]),
   updateServerName: jest.fn(),
 };
 

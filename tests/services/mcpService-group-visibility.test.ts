@@ -89,6 +89,9 @@ const realFilterData = (data: any[], user?: any) => {
 
 jest.mock('../../src/dao/index.js', () => ({
   getGroupDao: jest.fn(() => mockGroupDao),
+  getUserDao: jest.fn(() => ({
+    findByUsername: jest.fn(async () => null),
+  })),
   getServerDao: jest.fn(() => mockServerDao),
   getSystemConfigDao: jest.fn(() => ({
     get: jest.fn(() =>

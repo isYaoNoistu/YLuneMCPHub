@@ -49,11 +49,26 @@ chmod +x attach.sh
 
 ## 3. 之后在月弦里只做授权
 
-「服务器」应为已连接。然后：**分组**勾工具并加成员。智能体只连 `http://<机器>:3000/mcp` + 用户 Key。管理员不必入组。
+「服务器」应为已连接。然后：**用户**里勾工具并复制 `mcp.json`。智能体只连 `http://<机器>:3000/mcp` + 用户 Key。管理员不必单独授权。
 
 ---
 
-## 4. 常见失败
+## 4. 已有环境重新发版
+
+配置在 Postgres 卷里，重建月弦容器不会丢账号和服务器。必须带 `--build`，否则还是旧镜像。
+
+```bash
+cd /data/YLuneMCPHub
+git pull
+cd deploy
+docker compose up -d --build
+```
+
+本版起普通用户按「用户」页勾 MCP / 工具授权，不再靠分组。启动时若用户还没有 `grants` 字段，会从旧分组成员抄一次；已经是空清单的不会再覆盖。发版后打开 **用户** 核对授权，再复制 `mcp.json`（可反复复制）。智能体只连 `/mcp` + 该用户 Key。
+
+---
+
+## 5. 常见失败
 
 | 现象 | 原因 |
 | --- | --- |
@@ -63,6 +78,6 @@ chmod +x attach.sh
 | 日志没有 vector 扩展 | `postgres:16` 预期如此；`$smart` 才要 `pgvector/pgvector:pg16` |
 | `spawn … ENOENT` | 没跑 `attach.sh`，或 `command` 填了宿主机路径 |
 | 登录月弦 API 失败 | 控制台已改密，DevOpsMCP `.env` 没写 `YLUNE_PASSWORD` |
-| 普通用户 `/mcp` 没有工具 | 还没进组 |
+| 普通用户 `/mcp` 没有工具 | 还没在用户页勾服务器和工具；或 `git pull` 后没 `--build` |
 
 Compose 约定见 [../deploy/README.md](../deploy/README.md)。配置落库见 [配置与数据.md](配置与数据.md)。

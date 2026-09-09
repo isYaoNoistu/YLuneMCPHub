@@ -1,4 +1,7 @@
-import { AuthorizationService } from '../../src/services/authorizationService.js';
+import {
+  AuthorizationService,
+  isVisibilitySharedWith,
+} from '../../src/services/authorizationService.js';
 import { UserContextService } from '../../src/services/userContextService.js';
 import { getEffectiveAccess } from '../../src/services/groupAccessService.js';
 
@@ -140,6 +143,35 @@ describe('AuthorizationService (#1036 Phase 1)', () => {
       mockGetCurrentUser.mockReturnValue(admin);
       expect(
         service.can('server.config.read', { owner: 'bob', visibility: 'public' }, alice),
+      ).toBe(false);
+    });
+  });
+
+  describe('isVisibilitySharedWith', () => {
+    it('lets a regular user see a public server in the console without MCP grants', () => {
+      expect(
+        isVisibilitySharedWith({ owner: 'bob', visibility: 'public' }, alice),
+      ).toBe(true);
+    });
+
+    it('lets an explicitly shared group member see a safe view', () => {
+      expect(
+        isVisibilitySharedWith(
+          { owner: 'bob', visibility: 'group', sharedWithUsers: ['alice'] },
+          alice,
+        ),
+      ).toBe(true);
+      expect(
+        isVisibilitySharedWith(
+          { owner: 'bob', visibility: 'group', sharedWithUsers: ['alice'] },
+          bob,
+        ),
+      ).toBe(false);
+    });
+
+    it('does not treat private servers as shared', () => {
+      expect(
+        isVisibilitySharedWith({ owner: 'bob', visibility: 'private' }, alice),
       ).toBe(false);
     });
   });

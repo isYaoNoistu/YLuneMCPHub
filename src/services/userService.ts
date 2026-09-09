@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { IUser } from '../types/index.js';
+import { IGroupServerConfig, IUser } from '../types/index.js';
 import { getBearerKeyDao, getUserDao } from '../dao/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -58,7 +58,34 @@ export const toPublicUser = async (
   };
 };
 
-// Get all users
+export const normalizeUserGrants = (input: unknown): IGroupServerConfig[] => {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const grants: IGroupServerConfig[] = [];
+  for (const item of input) {
+    if (typeof item === 'string' && item.trim()) {
+      grants.push({ name: item.trim(), tools: 'all', prompts: 'all', resources: 'all' });
+      continue;
+    }
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+    const server = item as Partial<IGroupServerConfig>;
+    if (typeof server.name !== 'string' || !server.name.trim()) {
+      continue;
+    }
+    grants.push({
+      name: server.name.trim(),
+      ...(server.alias?.trim() ? { alias: server.alias.trim() } : {}),
+      tools: server.tools ?? 'all',
+      prompts: server.prompts ?? 'all',
+      resources: server.resources ?? 'all',
+    });
+  }
+  return grants;
+};
+
 export const getAllUsers = async (): Promise<IUser[]> => {
   const userDao = getUserDao();
   return await userDao.findAll();
@@ -93,6 +120,7 @@ export const createNewUser = async (
   isAdmin: boolean = false,
   email?: string,
   remark?: string,
+  grants?: IGroupServerConfig[],
 ): Promise<IUser | null> => {
   try {
     const reservedError = checkReservedUsername(username);
@@ -114,6 +142,7 @@ export const createNewUser = async (
       email || undefined,
       undefined,
       remark?.trim() || undefined,
+      grants ?? [],
     );
   } catch (error) {
     logger.error('Failed to create user:', error);
@@ -124,7 +153,13 @@ export const createNewUser = async (
 // Update user information
 export const updateUser = async (
   username: string,
-  data: { isAdmin?: boolean; newPassword?: string; email?: string; remark?: string },
+  data: {
+    isAdmin?: boolean;
+    newPassword?: string;
+    email?: string;
+    remark?: string;
+    grants?: IGroupServerConfig[];
+  },
 ): Promise<IUser | null> => {
   try {
     const userDao = getUserDao();
@@ -152,6 +187,13 @@ export const updateUser = async (
 
     if (data.remark !== undefined) {
       const result = await userDao.update(username, { remark: data.remark.trim() || null });
+      if (!result) {
+        return null;
+      }
+    }
+
+    if (data.grants !== undefined) {
+      const result = await userDao.update(username, { grants: data.grants });
       if (!result) {
         return null;
       }

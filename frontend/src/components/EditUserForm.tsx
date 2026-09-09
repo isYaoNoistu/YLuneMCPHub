@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '@/hooks/useUserData';
-import { User } from '@/types';
+import { useServerData } from '@/hooks/useServerData';
+import { useCostData } from '@/hooks/useCostData';
+import { IGroupServerConfig, User } from '@/types';
 import SecretReveal from './ui/SecretReveal';
+import { ServerToolConfig } from './ServerToolConfig';
+import McpJsonPanel from './McpJsonPanel';
 
 interface EditUserFormProps {
   user: User;
@@ -13,9 +17,19 @@ interface EditUserFormProps {
 const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
   const { t } = useTranslation();
   const { updateUser } = useUserData();
+  const { allServers } = useServerData();
+  const { serverCosts } = useCostData();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remark, setRemark] = useState(user.remark || '');
+  const [grants, setGrants] = useState<IGroupServerConfig[]>(user.grants || []);
+  const [availableServers, setAvailableServers] = useState(
+    allServers.filter((server) => server.enabled !== false),
+  );
+
+  useEffect(() => {
+    setAvailableServers(allServers.filter((server) => server.enabled !== false));
+  }, [allServers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +37,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
     setIsSubmitting(true);
 
     try {
-      const result = await updateUser(user.username, { remark });
+      const result = await updateUser(user.username, { remark, grants });
       if (result?.success) {
         onEdit();
       } else {
@@ -38,7 +52,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
 
   return (
     <div className="ylune-dialog-backdrop">
-      <div className="ylune-dialog">
+      <div className="ylune-dialog is-lg">
         <form onSubmit={handleSubmit}>
           <div className="ylune-dialog-head">
             <h2 className="ylune-dialog-title">
@@ -75,6 +89,22 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
               <SecretReveal value={user.token} emptyLabel={t('users.tokenMissing')} />
               <p className="ylune-help">{t('users.tokenHint')}</p>
             </div>
+
+            <McpJsonPanel username={user.username} token={user.token} />
+
+            {!user.isAdmin && (
+              <div>
+                <label className="ylune-label">{t('users.grants')}</label>
+                <p className="ylune-help">{t('users.grantsHint')}</p>
+                <ServerToolConfig
+                  servers={availableServers}
+                  value={grants}
+                  onChange={setGrants}
+                  serverCosts={serverCosts}
+                />
+              </div>
+            )}
+            {user.isAdmin && <p className="ylune-help">{t('users.adminUnrestricted')}</p>}
           </div>
 
           <div className="ylune-dialog-foot">

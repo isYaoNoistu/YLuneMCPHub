@@ -13,6 +13,8 @@ export interface IUser {
   email?: string | null;
   ssoUserId?: string | null;
   remark?: string | null;
+  /** Per-user MCP server/tool allowlist. null/undefined = not set yet (may fall back to groups). */
+  grants?: IGroupServerConfig[] | null;
 }
 
 // Group interface for server grouping

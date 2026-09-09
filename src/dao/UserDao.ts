@@ -1,4 +1,4 @@
-import { IUser } from '../types/index.js';
+import { IGroupServerConfig, IUser } from '../types/index.js';
 import { BaseDao } from './base/BaseDao.js';
 import { JsonFileBaseDao } from './base/JsonFileBaseDao.js';
 import bcrypt from 'bcryptjs';
@@ -37,6 +37,7 @@ export interface UserDao extends BaseDao<IUser, string> {
     email?: string,
     ssoUserId?: string,
     remark?: string,
+    grants?: IGroupServerConfig[],
   ): Promise<IUser>;
 
   /**
@@ -116,6 +117,7 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
     email?: string,
     ssoUserId?: string,
     remark?: string,
+    grants?: IGroupServerConfig[],
   ): Promise<IUser> {
     const users = await this.getAll();
 
@@ -132,6 +134,7 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
       email,
       ssoUserId,
       remark: remark || undefined,
+      grants: grants ?? [],
     };
 
     users.push(newUser);

@@ -36,6 +36,27 @@ const resolvePrincipal = (
 ): RequestPrincipal | null | undefined =>
   principal === undefined ? UserContextService.getInstance().getCurrentUser() : principal;
 
+/** Console sharing (public / sharedWithUsers). MCP invoke still uses user grants. */
+export const isVisibilitySharedWith = (
+  server: AuthorizableServer,
+  principal?: RequestPrincipal | null,
+): boolean => {
+  const user = resolvePrincipal(principal);
+  if (!user?.username) {
+    return false;
+  }
+  if (user.isAdmin) {
+    return true;
+  }
+  if (server.visibility === 'public') {
+    return true;
+  }
+  if (server.visibility === 'group') {
+    return (server.sharedWithUsers || []).includes(user.username);
+  }
+  return false;
+};
+
 export class AuthorizationService {
   can(
     action: ServerAuthorizationAction,

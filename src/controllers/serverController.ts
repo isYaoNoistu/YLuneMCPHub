@@ -46,7 +46,10 @@ import {
 } from '../dao/DaoFactory.js';
 import { migrateLegacySmartRoutingConfig } from '../dao/SystemConfigDao.js';
 import { UserContextService } from '../services/userContextService.js';
-import { authorizationService } from '../services/authorizationService.js';
+import {
+  authorizationService,
+  isVisibilitySharedWith,
+} from '../services/authorizationService.js';
 import {
   presentServerForPrincipal,
   presentServerInfoForPrincipal,
@@ -1160,6 +1163,7 @@ export const getServerConfig = async (req: Request, res: Response): Promise<void
     );
     if (
       !canReadFullConfig &&
+      !isVisibilitySharedWith(serverRecord, principal) &&
       !(await authorizationService.canInvoke({ ...serverRecord, name }, principal))
     ) {
       res.status(403).json({

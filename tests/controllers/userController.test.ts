@@ -84,6 +84,7 @@ describe('userController', () => {
         false,
         'new@example.com',
         undefined,
+        [],
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(
@@ -113,6 +114,7 @@ describe('userController', () => {
         false,
         undefined,
         undefined,
+        [],
       );
     });
 
@@ -136,6 +138,7 @@ describe('userController', () => {
         false,
         undefined,
         '值班账号',
+        [],
       );
       expect(mockEnsureUserAccessToken).toHaveBeenCalledWith('ops', undefined);
       expect(res.status).toHaveBeenCalledWith(201);

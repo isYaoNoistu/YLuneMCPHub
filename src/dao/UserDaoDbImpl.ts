@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { UserDao } from './index.js';
-import { IUser } from '../types/index.js';
+import { IGroupServerConfig, IUser } from '../types/index.js';
 import { UserRepository } from '../db/repositories/UserRepository.js';
 import { User } from '../db/entities/User.js';
 
@@ -22,6 +22,7 @@ export class UserDaoDbImpl implements UserDao {
       email: u.email ?? undefined,
       ssoUserId: u.ssoUserId ?? undefined,
       remark: u.remark ?? undefined,
+      grants: Array.isArray(u.grants) ? u.grants : undefined,
     };
   }
 
@@ -60,6 +61,7 @@ export class UserDaoDbImpl implements UserDao {
       email: entity.email ?? null,
       ssoUserId: entity.ssoUserId ?? null,
       remark: entity.remark ?? null,
+      grants: entity.grants ?? [],
     });
     return this.toIUser(user);
   }
@@ -71,6 +73,7 @@ export class UserDaoDbImpl implements UserDao {
     email?: string,
     ssoUserId?: string,
     remark?: string,
+    grants?: IGroupServerConfig[],
   ): Promise<IUser> {
     const hashedPassword = await bcrypt.hash(password, 10);
     return await this.create({
@@ -80,6 +83,7 @@ export class UserDaoDbImpl implements UserDao {
       email,
       ssoUserId,
       remark,
+      grants: grants ?? [],
     });
   }
 
@@ -90,6 +94,7 @@ export class UserDaoDbImpl implements UserDao {
     if (entity.email !== undefined) updateData.email = entity.email ?? null;
     if (entity.ssoUserId !== undefined) updateData.ssoUserId = entity.ssoUserId ?? null;
     if (entity.remark !== undefined) updateData.remark = entity.remark ?? null;
+    if (entity.grants !== undefined) updateData.grants = entity.grants ?? [];
 
     const user = await this.repository.update(username, updateData);
     if (!user) return null;

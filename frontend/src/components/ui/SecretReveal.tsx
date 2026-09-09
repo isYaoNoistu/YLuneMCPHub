@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Copy, Eye, EyeOff } from 'lucide-react';
+import { copyToClipboard } from '@/utils/clipboard';
 
 interface SecretRevealProps {
   value?: string | null;
@@ -25,13 +26,13 @@ const SecretReveal = ({ value, emptyLabel = '—', className, variant = 'field' 
   }
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    } catch {
+    const ok = await copyToClipboard(value);
+    if (!ok) {
       setCopied(false);
+      return;
     }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
   };
 
   return (

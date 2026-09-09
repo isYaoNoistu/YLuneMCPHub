@@ -242,6 +242,7 @@ describe('resolveBetterAuthUser', () => {
         false,
         'new@example.com',
         'ba-new',
+        undefined,
       );
     });
 

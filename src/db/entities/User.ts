@@ -32,6 +32,15 @@ export class User {
   @Column({ type: 'varchar', length: 512, nullable: true })
   remark?: string | null;
 
+  @Column({ type: 'simple-json', nullable: true })
+  grants?: Array<{
+    name: string;
+    alias?: string;
+    tools?: string[] | 'all';
+    prompts?: string[] | 'all';
+    resources?: string[] | 'all';
+  }> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 

@@ -4,7 +4,7 @@ import {
   IGroupServerConfig,
   IUser,
 } from '../types/index.js';
-import { getGroupDao } from '../dao/index.js';
+import { getGroupDao, getUserDao } from '../dao/index.js';
 import { UserContextService } from './userContextService.js';
 
 const normalizeGroupServers = (servers: IGroup['servers'] = []): IGroupServerConfig[] =>
@@ -76,6 +76,14 @@ export const unrestrictedAccess = (): EffectiveGroupAccess => ({
   serversByName: new Map(),
 });
 
+export const accessFromGrants = (grants?: IGroupServerConfig[] | null): EffectiveGroupAccess => ({
+  unrestricted: false,
+  groups: [],
+  serversByName: mergeGroupServerConfigs([
+    { id: 'user-grants', name: 'user-grants', servers: grants || [] },
+  ]),
+});
+
 export const getMemberGroups = async (username: string): Promise<IGroup[]> => {
   return getGroupDao().findByMember(username);
 };
@@ -84,10 +92,14 @@ export const getEffectiveAccess = async (
   user?: GroupAccessPrincipal | null,
 ): Promise<EffectiveGroupAccess> => {
   const current = user === undefined ? UserContextService.getInstance().getCurrentUser() : user;
-  // Admins (and unauthenticated/system callers) keep full access. Membership
-  // lists only restrict regular users.
+  // Admins (and unauthenticated/system callers) keep full access.
   if (!isRestrictedMember(current)) {
     return unrestrictedAccess();
+  }
+
+  const persisted = await getUserDao().findByUsername(current.username);
+  if (persisted && Array.isArray(persisted.grants)) {
+    return accessFromGrants(persisted.grants);
   }
 
   const groups = await getMemberGroups(current.username);

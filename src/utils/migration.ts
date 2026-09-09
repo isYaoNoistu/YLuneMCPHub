@@ -402,6 +402,12 @@ export async function initializeDatabaseMode(): Promise<boolean> {
     }
 
     logger.log('✅ Database mode initialized successfully');
+    try {
+      const { migrateUserGrantsFromGroups } = await import('../services/userGrantMigration.js');
+      await migrateUserGrantsFromGroups();
+    } catch (error) {
+      logger.warn('Could not copy group membership into user grants', error);
+    }
     return true;
   } catch (error) {
     logger.error('❌ Failed to initialize database mode:', error);

@@ -3,10 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useServerData } from '@/hooks/useServerData';
-import { useGroupData } from '@/hooks/useGroupData';
 import { useCostData } from '@/hooks/useCostData';
 import { formatTokens } from '@/utils/contextCost';
-import { buildGroupToolRows, groupsWithoutMembers, serversNotInGroups } from '@/utils/groupTools';
 import { checkActivityAvailable, getActivityUsage } from '@/services/activityService';
 import { ActivityUsage, Server } from '@/types';
 
@@ -18,7 +16,6 @@ const DashboardPage: React.FC = () => {
   const { allServers, error, setError, isLoading, triggerRefresh } = useServerData({
     refreshOnMount: true,
   });
-  const { groups } = useGroupData();
   const { serverCosts } = useCostData();
 
   const [hasLoaded, setHasLoaded] = React.useState(false);
@@ -50,13 +47,6 @@ const DashboardPage: React.FC = () => {
   const footprint = useMemo(
     () => serverCosts.filter((c) => c.connected).reduce((acc, c) => acc + c.exposed, 0),
     [serverCosts],
-  );
-
-  const groupRows = useMemo(() => buildGroupToolRows(groups, allServers), [groups, allServers]);
-  const emptyMemberGroups = useMemo(() => groupsWithoutMembers(groups), [groups]);
-  const ungroupedServers = useMemo(
-    () => serversNotInGroups(allServers, groups),
-    [allServers, groups],
   );
 
   const [usage, setUsage] = useState<ActivityUsage | null>(null);
@@ -151,11 +141,6 @@ const DashboardPage: React.FC = () => {
               </p>
             </article>
             <article className="stat-card">
-              <div className="stat-num">{groups.length}</div>
-              <div className="stat-label">{t('nav.groups')}</div>
-              <p className="stat-note mono">GROUP ROUTES</p>
-            </article>
-            <article className="stat-card">
               <div className="stat-num">{stats.tools}</div>
               <div className="stat-label">{t('server.tools')}</div>
               <p className="stat-note mono">EXPOSED TOOLS</p>
@@ -170,83 +155,10 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <p className="dash-endpoint-note mono">{t('pages.dashboard.unifiedEndpointNote')}</p>
-
-      <h2 className="block-title mono">// {t('pages.dashboard.groupMatrix')}</h2>
-      {groups.length === 0 && !showSkeleton ? (
-        <button className="group-add" type="button" onClick={() => navigate('/groups')}>
-          <span className="group-add-plus" aria-hidden="true">
-            ＋
-          </span>
-          <b>Add</b>
-          <span className="mono">ADD NEW GROUP</span>
+      {isAdmin && (
+        <button type="button" className="hub-btn primary" onClick={() => navigate('/users')}>
+          {t('pages.dashboard.gotoUsers')}
         </button>
-      ) : (
-        <div className="dash-table-wrap">
-          <table className="dash-table">
-            <thead>
-              <tr>
-                <th>{t('pages.dashboard.colGroup')}</th>
-                <th>{t('pages.dashboard.colMembers')}</th>
-                <th>{t('pages.dashboard.colServers')}</th>
-                <th>{t('pages.dashboard.colTools')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groupRows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <button type="button" className="cfg-link" onClick={() => navigate('/groups')}>
-                      {row.name}
-                    </button>
-                    {row.description ? <div className="dash-muted">{row.description}</div> : null}
-                  </td>
-                  <td>
-                    {row.members.length === 0 ? (
-                      <span className="dash-warn">{t('pages.dashboard.noMembers')}</span>
-                    ) : (
-                      <div className="dash-chips">
-                        {row.members.map((member) => (
-                          <span key={member} className="dash-chip">
-                            {member}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td className="mono">{row.servers.length}</td>
-                  <td>
-                    {row.tools.length === 0 ? (
-                      <span className="dash-muted">—</span>
-                    ) : (
-                      <div className="dash-chips">
-                        {row.tools.map((tool) => (
-                          <span key={`${row.id}-${tool.server}-${tool.name}`} className="dash-chip">
-                            {tool.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {isAdmin && (emptyMemberGroups.length > 0 || ungroupedServers.length > 0) && (
-        <div className="dash-attention">
-          {emptyMemberGroups.length > 0 && (
-            <p>
-              {t('pages.dashboard.emptyMemberGroups')}: {emptyMemberGroups.join(', ')}
-            </p>
-          )}
-          {ungroupedServers.length > 0 && (
-            <p>
-              {t('pages.dashboard.ungroupedServers')}: {ungroupedServers.join(', ')}
-            </p>
-          )}
-        </div>
       )}
 
       {isAdmin && (

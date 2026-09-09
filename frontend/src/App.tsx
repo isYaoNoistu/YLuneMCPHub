@@ -14,7 +14,6 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const OAuthConsentPage = lazy(() => import('./pages/OAuthConsentPage'));
 const DashboardPage = lazy(() => import('./pages/Dashboard'));
 const ServersPage = lazy(() => import('./pages/ServersPage'));
-const GroupsPage = lazy(() => import('./pages/GroupsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const LogsPage = lazy(() => import('./pages/LogsPage'));
@@ -65,7 +64,7 @@ function App() {
                     <Route element={<MainLayout />}>
                       <Route path="/" element={<DashboardPage />} />
                       <Route path="/servers" element={<ServersPage />} />
-                      <Route path="/groups" element={<GroupsPage />} />
+                      <Route path="/groups" element={<Navigate to="/users" replace />} />
                       <Route path="/prompts" element={<PromptsPage />} />
                       <Route path="/resources" element={<ResourcesPage />} />
                       <Route path="/users" element={<UsersPage />} />

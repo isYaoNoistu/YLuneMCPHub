@@ -2,19 +2,19 @@
 
 <h1>月弦</h1>
 
-<p><b>统一 MCP 网关</b> — 接入 · 分组授权 · 用户 Key · 对外端点</p>
+<p><b>统一 MCP 网关</b> — 接入 · 按用户授权工具 · 用户 Key · 对外端点</p>
 
 <p><b>简体中文</b> · <a href="README.en.md">English</a></p>
 
 在 **WorkBuddy** 或 **Cursor** 里只配一个 HTTP MCP，就能用上本机或机房里已经接好的全部工具。  
-月弦跑在**你们自己的机器**上：管理员在控制台加服务、建组、发用户；智能体只连 `/mcp`。  
+月弦跑在**你们自己的机器**上：管理员在控制台加服务、建用户、按人勾工具；智能体只连 `/mcp`。  
 凭据留在部署环境，仓库里没有 Token、没有密码、没有真实主机名。
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?labelColor=1f2937" alt="Apache 2.0"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node-20+-339933?logo=nodedotjs&logoColor=white&labelColor=1f2937" alt="Node 20+"></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-HTTP-7c3aed?labelColor=1f2937" alt="MCP HTTP"></a>
-  <img src="https://img.shields.io/badge/auth-group%20membership-059669?labelColor=1f2937" alt="group membership">
+  <img src="https://img.shields.io/badge/auth-per--user%20tools-059669?labelColor=1f2937" alt="per-user tools">
 </p>
 
 <p>
@@ -34,7 +34,7 @@
 ---
 
 值班要查告警、发版、数据库时，工具本身在 [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) 里：夜莺、Jenkins、PostgreSQL 三个只读 stdio 进程。  
-**月弦不重复实现这些工具。** 它把已经编好的 MCP 收进来，按组成员授权，再以一条 HTTP 端点交给智能体。
+**月弦不重复实现这些工具。** 它把已经编好的 MCP 收进来，按用户勾选工具，再以一条 HTTP 端点交给智能体。
 
 一个人接 Cursor 时，可以直接跑 DevOpsMCP 的三个二进制。人一多、要按人裁工具、要统一入口时，才上月弦。
 
@@ -42,17 +42,17 @@
 | 现场     | 只接 DevOpsMCP                         | 前面再加月弦                                      |
 | ------ | ----------------------------------- | -------------------------------------------- |
 | 一个人值班  | `mcp.json` 写三个 stdio，本机直连           | 用得上，但不必                      |
-| 多人共用   | 每人一份路径和 Token，工具全集都在               | 管理员建组、勾工具、加成员；用户只贴一段 `/mcp` + 自己的 Key        |
-| 工具变多   | 客户端工具数容易顶满                            | 默认 `/mcp` 只暴露该用户所属组的并集；也可连 `/mcp/{组}` 只看一组 |
+| 多人共用   | 每人一份路径和 Token，工具全集都在               | 管理员建用户、按人勾工具；用户只贴一段 `/mcp` + 自己的 Key        |
+| 工具变多   | 客户端工具数容易顶满                            | 默认 `/mcp` 只暴露该用户勾过的工具 |
 | 新同事入职 | 再抄一份本机配置                              | 控制台建用户，复制生成的 `mcp.json` 即可                   |
 
 
 ## 它做什么
 
-- **统一网关** — 一个进程对外提供 `/mcp`、`/mcp/{组}`、`/mcp/{服务}`、`/mcp/$smart`。上游可以是 stdio、HTTP、SSE、OpenAPI。
-- **组成员授权** — 管理员建组、指定成员和组内工具。普通用户默认 `/mcp` = 自己所属组的并集；零组 = 零工具。管理员默认全部已启用服务，不必加入任何组。
-- **用户与 Key** — 管理员创建子用户后系统才签发 Token，并给出可复制的 Cursor / WorkBuddy `mcp.json`。系统级 Key 仍可按组 / 服务裁剪，给自动化用。
-- **控制台** — 服务器、分组、用户、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。
+- **统一网关** — 一个进程对外提供 `/mcp`、`/mcp/{服务}`、`/mcp/$smart`。上游可以是 stdio、HTTP、SSE、OpenAPI。
+- **按用户授权** — 管理员在用户页勾该用户能用的 MCP 和 tools。普通用户默认 `/mcp` = 自己的授权清单；空清单 = 零工具。管理员默认全部已启用服务。
+- **用户与 Key** — 管理员创建子用户后系统才签发 Token。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy `mcp.json`。
+- **控制台** — 服务器、用户、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。
 - **可选能力** — 智能路由（`$smart` + pgvector）、工具结果压缩、OAuth 2.0 授权服务器、Better Auth 第三方登录、PostgreSQL 配置库、CLI。
 
 不是再写一套夜莺 / Jenkins / PostgreSQL 客户端，也不是 CMDB。具体只读工具在 DevOpsMCP；月弦负责收口、授权、对外。
@@ -68,7 +68,7 @@
        ▼
   ┌─────────────────────────────────────┐
   │  月弦（本仓库）                         │
-  │  控制台 · 分组 · 用户 Key · /mcp        │
+  │  控制台 · 用户授权 · 用户 Key · /mcp        │
   └─────────────────────────────────────┘
          │  stdio / HTTP 拉起上游
          ▼
@@ -139,30 +139,29 @@ pnpm frontend:dev
 第一次把 Jenkins 给普通用户用：
 
 1. 管理员登录 → **服务器** → 添加 STDIO 服务，`command` 指向 DevOpsMCP 编好的 `jenkins-mcp-server.exe`（或 Linux 二进制），环境变量按 [DevOpsMCP Jenkins README](https://github.com/isYaoNoistu/DevOpsMCP/blob/main/jenkins-mcp-server/README.md) 填。
-2. **用户** → 创建 `test`（不要勾管理员）。系统会签发 Key 并给出 `mcp.json`。
-3. **分组** → 新建组，勾 Jenkins 需要的工具，把 `test` 加进成员。管理员不用加。
-4. 把 `test` 的 `mcp.json` 交给对方。此时对方的 `/mcp` 只有该组工具。
+2. **用户** → 创建 `test`（不要勾管理员），勾 Jenkins 需要的工具。系统会签发 Key。
+3. 在用户列表随时 **复制 mcp.json** 交给对方。对方的 `/mcp` 只有勾过的工具。
 
 字段怎么填、其它页签怎么用：见 [使用教程](docs/使用教程.md)。
 
 ## 谁能调用什么
 
 
-| 身份            | 默认 `/mcp`              | `/mcp/{组}`     | 改组 / 改成员      |
-| ------------- | ---------------------- | -------------- | ------------- |
-| 管理员           | 全部已启用服务                | 可以             | 可以            |
-| 普通用户（用户 Key）  | 所属组的工具并集；零组则没有工具       | 必须是该组成员        | 不可以           |
-| 系统 Key `all`  | 全部（不受成员名单限制）           | 按 Key 范围       | 不可以           |
+| 身份            | 默认 `/mcp`              | 改授权      |
+| ------------- | ---------------------- | ------------- |
+| 管理员           | 全部已启用服务                | 可以            |
+| 普通用户（用户 Key）  | 该用户勾过的工具；空清单则没有工具       | 不可以           |
+| 系统 Key `all`  | 全部                     | 不可以           |
 
 
 ## 安全模型
 
 ```
-管理员改组、改成员、改服务
+管理员改用户授权、改服务
         +
-普通用户只能调用被加入的组
+普通用户只能调用自己被勾选的工具
         +
-用户 Key 跟随该用户的成员身份
+用户 Key 跟随该用户的授权
         +
 仓库禁止 Token / 密码 / 真实主机名
 ```
@@ -173,9 +172,9 @@ pnpm frontend:dev
 
 ## 测试阶段与免责
 
-本仓库尚在**测试阶段**：分组授权、控制台字段、默认端点语义都可能改。按 [Apache License 2.0](LICENSE) 以「按现状」提供，**不构成对任何生产环境的承诺或担保**。
+本仓库尚在**测试阶段**：用户授权、控制台字段、默认端点语义都可能改。按 [Apache License 2.0](LICENSE) 以「按现状」提供，**不构成对任何生产环境的承诺或担保**。
 
-你自行部署、接入真实 MCP 与真实平台之后，因误授权、凭据配错、Agent 幻觉、上游变更或网络故障导致的影响，**由使用者自行承担**。上线前用只读上游账号验收；先查月弦分组、用户 Key 和上游 MCP，而不是默认是仓库的锅。
+你自行部署、接入真实 MCP 与真实平台之后，因误授权、凭据配错、Agent 幻觉、上游变更或网络故障导致的影响，**由使用者自行承担**。上线前用只读上游账号验收；先查月弦用户授权、用户 Key 和上游 MCP，而不是默认是仓库的锅。
 
 ## 什么时候用 · 什么时候不用
 
@@ -188,7 +187,7 @@ pnpm frontend:dev
 
 | 先看这个                                      | 再往下                                                                                          |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [使用教程](docs/使用教程.md)                      | 登录、加服务器、分组、用户、设置里每一项怎么填                                                                    |
+| [使用教程](docs/使用教程.md)                      | 登录、加服务器、用户授权、设置里每一项怎么填                                                                    |
 | [配置与数据](docs/配置与数据.md)                    | 配置进 PostgreSQL；JSON 不是运行时存储                                                           |
 | [和 DevOpsMCP](#和-devopsmcp)               | [DevOpsMCP 仓库](https://github.com/isYaoNoistu/DevOpsMCP) · 夜莺 / Jenkins / PostgreSQL 怎么编、怎么拿凭据 |
 | [适配的智能体](#适配的智能体)                         | 控制台用户页给出的 `mcp.json`                                                                         |

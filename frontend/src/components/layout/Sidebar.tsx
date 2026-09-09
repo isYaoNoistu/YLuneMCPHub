@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useServerContext } from '@/contexts/ServerContext';
-import { useGroupData } from '@/hooks/useGroupData';
 import { canViewSystemLogs } from '@/utils/navigationPermissions';
 import { usePermissionCheck } from '../PermissionChecker';
 import { checkActivityAvailable } from '@/services/activityService';
@@ -26,7 +25,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const navigate = useNavigate();
   const { auth, logout } = useAuth();
   const { allServers } = useServerContext();
-  const { groups } = useGroupData();
   const [activityAvailable, setActivityAvailable] = useState(false);
 
   useEffect(() => {
@@ -40,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
 
   const workspaceItems: MenuItem[] = [
     { path: '/', label: t('nav.dashboard'), ico: '◈', end: true },
-    { path: '/groups', label: t('nav.groups'), ico: '⬡', badge: groups.length || undefined },
     { path: '/servers', label: t('nav.servers'), ico: '▤', badge: allServers.length || undefined },
     { path: '/prompts', label: t('nav.prompts'), ico: '⌘' },
     { path: '/resources', label: t('nav.resources'), ico: '▦' },

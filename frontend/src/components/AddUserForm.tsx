@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '@/hooks/useUserData';
-import { useSettingsData } from '@/hooks/useSettingsData';
-import { User, UserFormData } from '@/types';
-import { Check, Copy } from 'lucide-react';
+import { useServerData } from '@/hooks/useServerData';
+import { useCostData } from '@/hooks/useCostData';
+import { IGroupServerConfig, User, UserFormData } from '@/types';
 import SecretReveal from './ui/SecretReveal';
-import { formatUserMcpJson } from '@/utils/userMcpConfig';
+import { ServerToolConfig } from './ServerToolConfig';
+import McpJsonPanel from './McpJsonPanel';
 
 interface AddUserFormProps {
   onAdd: () => void;
@@ -15,16 +16,22 @@ interface AddUserFormProps {
 const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
   const { t } = useTranslation();
   const { createUser } = useUserData();
-  const { installConfig } = useSettingsData();
+  const { allServers } = useServerData();
+  const { serverCosts } = useCostData();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdUser, setCreatedUser] = useState<User | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [grants, setGrants] = useState<IGroupServerConfig[]>([]);
 
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
     remark: '',
   });
+
+  const [availableServers, setAvailableServers] = useState(allServers.filter((s) => s.enabled !== false));
+  useEffect(() => {
+    setAvailableServers(allServers.filter((server) => server.enabled !== false));
+  }, [allServers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +48,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
       const result = await createUser({
         username: formData.username.trim(),
         remark: formData.remark?.trim() || undefined,
+        grants,
       });
       if (result?.success && result.data) {
         setCreatedUser(result.data);
@@ -51,21 +59,6 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
       setError(err instanceof Error ? err.message : t('users.createError'));
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const mcpJson = createdUser?.token
-    ? formatUserMcpJson(createdUser.token, createdUser.username, installConfig?.baseUrl)
-    : '';
-
-  const copyMcpJson = async () => {
-    if (!mcpJson) return;
-    try {
-      await navigator.clipboard.writeText(mcpJson);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setCopied(false);
     }
   };
 
@@ -80,23 +73,16 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
             <p className="ylune-help" style={{ marginTop: 0 }}>
               {t('users.createSuccessHint', { username: createdUser.username })}
             </p>
+            <p className="ylune-help">{t('users.mcpJsonAlwaysHint')}</p>
 
             <div>
               <label className="ylune-label">{t('users.token')}</label>
               <SecretReveal value={createdUser.token} emptyLabel={t('users.tokenMissing')} />
             </div>
 
-            <div>
-              <label className="ylune-label">{t('users.mcpJsonTitle')}</label>
-              <p className="ylune-help">{t('users.mcpJsonHint')}</p>
-              <pre className="ylune-code">{mcpJson}</pre>
-            </div>
+            <McpJsonPanel username={createdUser.username} token={createdUser.token} />
           </div>
           <div className="ylune-dialog-foot">
-            <button type="button" className="hub-btn" onClick={copyMcpJson}>
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-              {copied ? t('common.copied') : t('users.copyMcpJson')}
-            </button>
             <button type="button" className="hub-btn primary" onClick={onAdd}>
               {t('common.close')}
             </button>
@@ -108,7 +94,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
 
   return (
     <div className="ylune-dialog-backdrop">
-      <div className="ylune-dialog">
+      <div className="ylune-dialog is-lg">
         <form onSubmit={handleSubmit}>
           <div className="ylune-dialog-head">
             <h2 className="ylune-dialog-title">{t('users.addNew')}</h2>
@@ -148,6 +134,17 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
                 placeholder={t('users.remarkPlaceholder')}
                 className="hub-input"
                 disabled={isSubmitting}
+              />
+            </div>
+
+            <div>
+              <label className="ylune-label">{t('users.grants')}</label>
+              <p className="ylune-help">{t('users.grantsHint')}</p>
+              <ServerToolConfig
+                servers={availableServers}
+                value={grants}
+                onChange={setGrants}
+                serverCosts={serverCosts}
               />
             </div>
           </div>

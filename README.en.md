@@ -2,19 +2,19 @@
 
 <h1>YLune</h1>
 
-<p><b>A unified MCP gateway</b> — ingest · group authorization · user keys · one HTTP endpoint</p>
+<p><b>A unified MCP gateway</b> — ingest · per-user tool grants · user keys · one HTTP endpoint</p>
 
 <p><a href="README.md">简体中文</a> · <b>English</b></p>
 
 Point **WorkBuddy** or **Cursor** at a single HTTP MCP and use every tool you have already wired up.  
-YLune runs on **your** machines: admins add servers, create groups, and issue users; agents only talk to `/mcp`.  
+YLune runs on **your** machines: admins add servers, create users, and grant tools per user; agents only talk to `/mcp`.  
 Credentials stay in the deploy environment. This repo has no tokens, passwords, or real hostnames.
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?labelColor=1f2937" alt="Apache 2.0"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node-20+-339933?logo=nodedotjs&logoColor=white&labelColor=1f2937" alt="Node 20+"></a>
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-HTTP-7c3aed?labelColor=1f2937" alt="MCP HTTP"></a>
-  <img src="https://img.shields.io/badge/auth-group%20membership-059669?labelColor=1f2937" alt="group membership">
+  <img src="https://img.shields.io/badge/auth-per--user%20tools-059669?labelColor=1f2937" alt="per-user tools">
 </p>
 
 <p>
@@ -34,7 +34,7 @@ Credentials stay in the deploy environment. This repo has no tokens, passwords, 
 ---
 
 On-call tools live in [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP): read-only Nightingale, Jenkins, and PostgreSQL stdio servers.  
-**YLune does not reimplement those tools.** It ingests MCP servers you already have, authorizes them by group membership, and exposes one HTTP endpoint.
+**YLune does not reimplement those tools.** It ingests MCP servers you already have, grants them per user, and exposes one HTTP endpoint.
 
 A single operator can run the three DevOpsMCP binaries directly. Use YLune when several people share one entrypoint and you need to slice tools per user.
 
@@ -42,17 +42,17 @@ A single operator can run the three DevOpsMCP binaries directly. Use YLune when 
 | Situation        | DevOpsMCP only                         | In front of YLune                                      |
 | ---------------- | -------------------------------------- | ------------------------------------------------------ |
 | One on-call      | Three stdio entries in `mcp.json`      | Works, but optional                                    |
-| Several people   | Everyone copies paths and tokens       | Admin creates a group, ticks tools, adds members       |
-| Too many tools   | Clients hit tool-count limits          | Default `/mcp` is the union of that user's groups      |
+| Several people   | Everyone copies paths and tokens       | Admin creates a user and ticks that user's tools       |
+| Too many tools   | Clients hit tool-count limits          | Default `/mcp` is only the tools granted to that user  |
 | A new teammate   | Another local config copy              | Create a user in the console and copy the `mcp.json`   |
 
 
 ## What it does
 
-- **Gateway** — `/mcp`, `/mcp/{group}`, `/mcp/{server}`, `/mcp/$smart`. Upstream: stdio, HTTP, SSE, OpenAPI.
-- **Group membership** — Admins create groups, pick members and tools. A regular user's `/mcp` is the union of their groups; no groups means no tools. Admins have every enabled server and do not need to join a group.
-- **Users and keys** — Creating a user issues a token and a ready-to-paste Cursor / WorkBuddy `mcp.json`. System keys can still be scoped by group or server for automation.
-- **Console** — Servers, groups, users, settings, built-in prompts / resources, logs and activity. Private deploys hide the external market by default.
+- **Gateway** — `/mcp`, `/mcp/{server}`, `/mcp/$smart`. Upstream: stdio, HTTP, SSE, OpenAPI.
+- **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server.
+- **Users and keys** — Creating a user issues a token. Copy mcp.json from the user list any time, not only once.
+- **Console** — Servers, users, settings, built-in prompts / resources, logs and activity. Private deploys hide the external market by default.
 - **Optional** — Smart routing (`$smart` + pgvector), result compression, OAuth 2.0 authorization server, Better Auth, PostgreSQL config store, CLI.
 
 Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools stay in DevOpsMCP; YLune is the front door.
@@ -68,7 +68,7 @@ Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools sta
        ▼
   ┌─────────────────────────────────────┐
   │  YLune (this repo)                  │
-  │  console · groups · user keys · /mcp│
+  │  console · user grants · keys · /mcp│
   └─────────────────────────────────────┘
          │  stdio / HTTP to upstream
          ▼
@@ -136,21 +136,21 @@ Field-by-field console guide (Chinese): [docs/使用教程.md](docs/使用教程
 ## Who can call what
 
 
-| Principal              | Default `/mcp`                         | `/mcp/{group}`     | Edit groups |
-| ---------------------- | -------------------------------------- | ------------------ | ----------- |
-| Admin                  | Every enabled server                   | Yes                | Yes         |
-| Regular user key       | Union of member groups; none if empty  | Must be a member   | No          |
-| System key `all`       | Everything (not membership-limited)    | Per key scope      | No          |
+| Principal              | Default `/mcp`                         | Edit grants |
+| ---------------------- | -------------------------------------- | ----------- |
+| Admin                  | Every enabled server                   | Yes         |
+| Regular user key       | Tools granted to that user; none if empty | No       |
+| System key `all`       | Everything                             | No          |
 
 
 ## Security model
 
 ```
-Admins mutate groups, members, and servers
+Admins mutate user grants and servers
         +
-Regular users only invoke groups they belong to
+Regular users only invoke tools granted to them
         +
-User keys follow that user’s membership
+User keys follow that user’s grants
         +
 No tokens / passwords / real hostnames in the repo
 ```

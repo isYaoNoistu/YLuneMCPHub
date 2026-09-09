@@ -1,15 +1,80 @@
+import { getBasePath } from './runtime';
+
 const sanitizeServerName = (username: string): string => {
   const safe = username.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
   return `ylune-${safe || 'user'}`;
 };
 
-export const getHubBaseUrl = (installBaseUrl?: string): string => {
-  const configured = installBaseUrl?.trim().replace(/\/+$/, '');
-  if (configured) return configured;
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin;
+export const isLoopbackHostname = (hostname: string): boolean => {
+  const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0';
+};
+
+const parseOrigin = (value?: string): URL | null => {
+  const raw = value?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw.includes('://') ? raw : `http://${raw}`);
+  } catch {
+    return null;
   }
-  return 'http://localhost:3000';
+};
+
+const rewriteLocalViteOrigin = (origin: string): string => {
+  try {
+    const url = new URL(origin);
+    if (isLoopbackHostname(url.hostname) && (url.port === '5173' || url.port === '5174')) {
+      url.port = '3000';
+    }
+    return url.origin;
+  } catch {
+    return origin.replace(/\/+$/, '');
+  }
+};
+
+/** Public origin agents should call. Prefer a real install URL; never keep localhost when the console is on a public host. */
+export const resolveHubOrigin = (installBaseUrl?: string, pageOrigin?: string): string => {
+  const configured = installBaseUrl?.trim().replace(/\/+$/, '') || '';
+  const page = pageOrigin?.trim().replace(/\/+$/, '') || '';
+  const configuredUrl = parseOrigin(configured);
+  const pageUrl = parseOrigin(page);
+
+  if (configuredUrl && !isLoopbackHostname(configuredUrl.hostname)) {
+    return configured;
+  }
+  if (pageUrl && !isLoopbackHostname(pageUrl.hostname)) {
+    return rewriteLocalViteOrigin(pageUrl.origin);
+  }
+  if (configured) {
+    return rewriteLocalViteOrigin(configuredUrl?.origin || configured);
+  }
+  if (page) {
+    return rewriteLocalViteOrigin(pageUrl?.origin || page);
+  }
+  return 'http://127.0.0.1:3000';
+};
+
+export const joinMcpUrl = (origin: string, basePath = ''): string => {
+  const root = origin.replace(/\/+$/, '');
+  const prefix =
+    !basePath || basePath === '/'
+      ? ''
+      : `/${basePath.replace(/^\/+|\/+$/g, '')}`;
+  if (prefix && (root === prefix || root.endsWith(prefix))) {
+    return `${root}/mcp`;
+  }
+  return `${root}${prefix}/mcp`;
+};
+
+export const getHubBaseUrl = (installBaseUrl?: string): string => {
+  const pageOrigin = typeof window !== 'undefined' ? window.location?.origin : '';
+  return resolveHubOrigin(installBaseUrl, pageOrigin);
+};
+
+export const getMcpEndpointUrl = (installBaseUrl?: string, basePath?: string): string => {
+  const origin = getHubBaseUrl(installBaseUrl);
+  const path = basePath ?? (typeof window !== 'undefined' ? getBasePath() : '');
+  return joinMcpUrl(origin, path);
 };
 
 export const buildUserMcpConfig = (
@@ -19,7 +84,7 @@ export const buildUserMcpConfig = (
 ): Record<string, unknown> => ({
   mcpServers: {
     [sanitizeServerName(username)]: {
-      url: `${getHubBaseUrl(installBaseUrl)}/mcp`,
+      url: getMcpEndpointUrl(installBaseUrl),
       headers: {
         Authorization: `Bearer ${token}`,
       },

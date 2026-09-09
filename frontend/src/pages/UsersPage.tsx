@@ -8,6 +8,7 @@ import EditUserForm from '@/components/EditUserForm';
 import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw } from 'lucide-react';
 import DeleteDialog from '@/components/ui/DeleteDialog';
 import SecretReveal from '@/components/ui/SecretReveal';
+import McpJsonPanel from '@/components/McpJsonPanel';
 
 const UsersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -41,6 +42,9 @@ const UsersPage: React.FC = () => {
           <h1 className="hub-h1">{t('pages.users.title')}</h1>
           <p className="hub-sub">
             <span className="hub-num">{users.length}</span> {t('nav.users')}
+          </p>
+          <p className="ylune-help" style={{ marginBottom: 0 }}>
+            {t('users.pageHint')}
           </p>
         </div>
         <div className="view-actions">
@@ -99,6 +103,7 @@ const UsersPage: React.FC = () => {
             <div>{t('users.username')}</div>
             <div>{t('users.remark')}</div>
             <div>{t('users.token')}</div>
+            <div>mcp.json</div>
             <div className="text-right">{t('users.actions')}</div>
           </div>
           {users.map((user) => {
@@ -150,6 +155,9 @@ const UsersPage: React.FC = () => {
                     value={user.token}
                     emptyLabel={t('users.tokenMissing')}
                   />
+                </div>
+                <div className="min-w-0">
+                  <McpJsonPanel username={user.username} token={user.token} compact />
                 </div>
                 <div className="flex justify-end gap-1">
                   <button

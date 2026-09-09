@@ -171,7 +171,7 @@ docker compose exec -T postgres pg_dump -U ylune ylune > ylune.sql
 docker compose exec -T postgres psql -U ylune -d ylune < ylune.sql
 ```
 
-升级：`git pull` 后在本目录再执行 `docker compose up -d --build`。卷还在，管理员账号和服务器配置还在。
+升级：`git pull` 后在本目录再执行 `docker compose up -d --build`。卷还在，管理员账号和服务器配置还在。本版起普通用户按用户页勾工具授权；启动时会把还没有 `grants` 的旧用户从分组成员抄一次。发版后打开「用户」核对，再复制 `mcp.json`。
 
 手里还有一份旧 `mcp_settings.json`、库又是空的：本机设 `YLUNE_IMPORT_SETTINGS_FILE` 指向该文件后启动一次，核对控制台后再删文件。不要把这份 JSON 挂进长期运行的容器。步骤见 [docs/配置与数据.md](../docs/配置与数据.md)。
 

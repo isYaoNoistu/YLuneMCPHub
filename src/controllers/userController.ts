@@ -12,6 +12,7 @@ import {
   generateInternalPassword,
   ensureUserAccessToken,
   toPublicUser,
+  normalizeUserGrants,
 } from '../services/userService.js';
 import { validatePasswordStrength } from '../utils/passwordValidation.js';
 
@@ -88,7 +89,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   if (!(await requireAdmin(req, res))) return;
 
   try {
-    const { username, password, isAdmin, email, remark, token } = req.body;
+    const { username, password, isAdmin, email, remark, token, grants } = req.body;
 
     if (!username || typeof username !== 'string' || !username.trim()) {
       res.status(400).json({
@@ -130,6 +131,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       isAdmin || false,
       email,
       typeof remark === 'string' ? remark : undefined,
+      grants !== undefined ? normalizeUserGrants(grants) : [],
     );
     if (!newUser) {
       res.status(400).json({
@@ -163,7 +165,7 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
 
   try {
     const { username } = req.params;
-    const { isAdmin, newPassword, email, remark } = req.body;
+    const { isAdmin, newPassword, email, remark, grants } = req.body;
 
     if (!username) {
       res.status(400).json({
@@ -198,6 +200,7 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
     if (isAdmin !== undefined) updateData.isAdmin = isAdmin;
     if (email !== undefined) updateData.email = email;
     if (remark !== undefined) updateData.remark = remark;
+    if (grants !== undefined) updateData.grants = normalizeUserGrants(grants);
     if (newPassword) {
       // Validate new password strength
       const validationResult = validatePasswordStrength(newPassword);
@@ -215,7 +218,7 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
     if (Object.keys(updateData).length === 0) {
       res.status(400).json({
         success: false,
-        message: 'At least one field (isAdmin, email, remark, or newPassword) is required to update',
+        message: 'At least one field (isAdmin, email, remark, grants, or newPassword) is required to update',
       });
       return;
     }

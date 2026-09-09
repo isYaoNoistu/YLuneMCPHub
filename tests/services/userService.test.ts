@@ -64,6 +64,7 @@ describe('userService', () => {
         'new@example.com',
         undefined,
         undefined,
+        [],
       );
     });
 
@@ -83,6 +84,7 @@ describe('userService', () => {
         undefined,
         undefined,
         undefined,
+        [],
       );
     });
 
@@ -103,6 +105,7 @@ describe('userService', () => {
         undefined,
         undefined,
         '值班',
+        [],
       );
     });
 

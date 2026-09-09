@@ -7,6 +7,12 @@ const mockGroupDao = {
   findById: jest.fn(),
 };
 
+const mockUserDao = {
+  findByUsername: jest.fn(),
+  findAll: jest.fn(),
+  update: jest.fn(),
+};
+
 const mockUserContextService = {
   getCurrentUser: jest.fn(),
   getEffectiveAccess: jest.fn(),
@@ -15,6 +21,7 @@ const mockUserContextService = {
 
 jest.mock('../../src/dao/index.js', () => ({
   getGroupDao: jest.fn(() => mockGroupDao),
+  getUserDao: jest.fn(() => mockUserDao),
 }));
 
 jest.mock('../../src/services/userContextService.js', () => ({
@@ -52,6 +59,7 @@ describe('groupAccessService', () => {
     jest.clearAllMocks();
     mockUserContextService.getCurrentUser.mockReturnValue(null);
     mockUserContextService.getEffectiveAccess.mockReturnValue(null);
+    mockUserDao.findByUsername.mockResolvedValue(null);
   });
 
   it('treats listed usernames as members', () => {
@@ -107,6 +115,36 @@ describe('groupAccessService', () => {
     expect(access.serversByName.get('jenkins')?.tools).toEqual(
       expect.arrayContaining(['health_check', 'list_jobs', 'get_build_info']),
     );
+  });
+
+  it('uses the user grants list when it is present', async () => {
+    mockUserDao.findByUsername.mockResolvedValue({
+      username: 'test',
+      password: 'x',
+      isAdmin: false,
+      grants: [{ name: 'jenkins', tools: ['health_check'], prompts: 'all', resources: 'all' }],
+    });
+    mockGroupDao.findByMember.mockResolvedValue([jenkinsAll, extraTools]);
+
+    const access = await getEffectiveAccess({ username: 'test', isAdmin: false });
+    expect(access.unrestricted).toBe(false);
+    expect(access.serversByName.get('jenkins')?.tools).toEqual(['health_check']);
+    expect(mockGroupDao.findByMember).not.toHaveBeenCalled();
+  });
+
+  it('gives a regular user no servers when grants is an empty list', async () => {
+    mockUserDao.findByUsername.mockResolvedValue({
+      username: 'test',
+      password: 'x',
+      isAdmin: false,
+      grants: [],
+    });
+    mockGroupDao.findByMember.mockResolvedValue([jenkinsAll]);
+
+    const access = await getEffectiveAccess({ username: 'test', isAdmin: false });
+    expect(access.unrestricted).toBe(false);
+    expect(access.serversByName.size).toBe(0);
+    expect(mockGroupDao.findByMember).not.toHaveBeenCalled();
   });
 
   it('allows a member group route and denies a non-member group', async () => {

@@ -482,6 +482,7 @@ export interface User {
   email?: string;
   remark?: string;
   token?: string;
+  grants?: IGroupServerConfig[];
 }
 
 export interface UserFormData {
@@ -491,6 +492,7 @@ export interface UserFormData {
   password?: string;
   isAdmin?: boolean;
   email?: string;
+  grants?: IGroupServerConfig[];
 }
 
 export interface UserUpdateData {
@@ -498,6 +500,7 @@ export interface UserUpdateData {
   newPassword?: string;
   email?: string;
   remark?: string;
+  grants?: IGroupServerConfig[];
 }
 
 export interface UserStats {
