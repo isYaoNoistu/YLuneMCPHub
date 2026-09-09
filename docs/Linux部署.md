@@ -58,6 +58,9 @@ chmod +x attach.sh
 | 现象 | 原因 |
 | --- | --- |
 | 容器没有 `/opt/mcp` | 还在用旧 compose，或没 `git pull` 月弦 |
+| 打开 :3000 没有控制台 / `UI is not available` | 旧镜像不认 `@ylune/mcphub`。`git pull` 后 `docker compose up -d --build` |
+| 日志 `mcp_settings.json` ENOENT | 配置在 Postgres，属正常噪音 |
+| 日志没有 vector 扩展 | `postgres:16` 预期如此；`$smart` 才要 `pgvector/pgvector:pg16` |
 | `spawn … ENOENT` | 没跑 `attach.sh`，或 `command` 填了宿主机路径 |
 | 登录月弦 API 失败 | 控制台已改密，DevOpsMCP `.env` 没写 `YLUNE_PASSWORD` |
 | 普通用户 `/mcp` 没有工具 | 还没进组 |

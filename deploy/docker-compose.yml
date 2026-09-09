@@ -52,6 +52,7 @@ services:
       PORT: 3000
       NODE_ENV: production
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in deploy/.env}
+      JWT_SECRET: ${JWT_SECRET:-}
       DB_URL: postgresql://ylune:${DB_PASSWORD}@postgres:5432/ylune
       USE_DB: "true"
       BASE_PATH: ${BASE_PATH:-}

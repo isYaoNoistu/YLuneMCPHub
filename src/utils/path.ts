@@ -7,6 +7,10 @@ import { logger } from './logger.js';
 // Project root directory - use process.cwd() as a simpler alternative
 const rootDir = process.cwd();
 
+/** package.json names that count as this hub (fork + upstream). */
+export const isHubPackageName = (name?: string): boolean =>
+  name === 'mcphub' || name === '@samanhappy/mcphub' || name === '@ylune/mcphub';
+
 // Cache the package root for performance
 let cachedPackageRoot: string | null | undefined = undefined;
 
@@ -36,7 +40,7 @@ function initializePackageRoot(): void {
       if (fs.existsSync(packageJsonPath)) {
         try {
           const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-          if (pkg.name === 'mcphub' || pkg.name === '@samanhappy/mcphub') {
+          if (isHubPackageName(pkg.name)) {
             cachedPackageRoot = root;
             return;
           }
@@ -138,7 +142,7 @@ export const findPackageRoot = (startPath?: string): string | null => {
     if (fs.existsSync(packageJsonPath)) {
       try {
         const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-        if (pkg.name === 'mcphub' || pkg.name === '@samanhappy/mcphub') {
+        if (isHubPackageName(pkg.name)) {
           if (debug) {
             logger.log(`DEBUG: Found package.json at ${packageJsonPath}`);
           }

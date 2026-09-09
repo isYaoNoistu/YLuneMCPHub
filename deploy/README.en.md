@@ -34,6 +34,7 @@ cp .env.example .env   # Windows: Copy-Item .env.example .env
 | `YLUNE_PORT` | no | Host port → container 3000. Default `3000`. |
 | `ADMIN_PASSWORD` | **yes** | Used only when no admin exists yet. Changing it later does **not** change the password in the DB; use the console. |
 | `DB_PASSWORD` | **yes** | Postgres password, also interpolated into `DB_URL`. Use alphanumerics; avoid `@` `:` `/` `#`. |
+| `JWT_SECRET` | no | JWT signing key. Unset uses a new random secret each start (sessions die on restart). |
 | `BASE_PATH` | no | Set only for a subpath proxy (e.g. `/ylune`). Must match Nginx `location`. |
 | `NPM_REGISTRY` | no | Build + runtime. Default `https://registry.npmmirror.com`. |
 | `DEBIAN_MIRROR` / `DEBIAN_SECURITY_MIRROR` | no | Build-time apt. Default Aliyun. |
@@ -121,6 +122,9 @@ Root path uses `nginx.conf`. For `/ylune`, set `BASE_PATH=/ylune` and copy `ngin
 | Symptom | What to check |
 | --- | --- |
 | Compose exits mentioning `ADMIN_PASSWORD` / `DB_PASSWORD` | Create `deploy/.env` from the example. |
+| Browser shows no UI / log says `UI is not available` | Pull a build that treats `@ylune/mcphub` as the package name, then `docker compose up -d --build`. |
+| `mcp_settings.json` ENOENT in logs | Expected in database mode; config lives in Postgres. |
+| `vector` extension missing | Expected with `postgres:16`. Only `$smart` needs `pgvector/pgvector:pg16`. |
 | Unhealthy / 502 | `docker compose logs ylune`; first boot can take a minute (`start_period` 60s). |
 | Env password ignored after first boot | Admin already exists; change it in the console. |
 | `spawn … ENOENT` on STDIO | `command` must exist **inside** the container (`/opt/mcp/...`). Run DevOpsMCP `attach.sh` first. |

@@ -62,6 +62,7 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `YLUNE_PORT` | `3000` | 否 | 宿主机访问月弦的端口，映射到容器 3000。 |
 | `ADMIN_PASSWORD` | 自己设的强密码 | **是** | 仅在库里还没有管理员时用来创建 `admin`。已经有管理员后，改这个变量**不会**改库里的密码，请在控制台改。 |
 | `DB_PASSWORD` | 自己设 | **是** | 容器内 Postgres 口令，同时写进 `DB_URL`。请用字母数字，不要用 `@` `:` `/` `#`，否则连接串会断。 |
+| `JWT_SECRET` | 长随机串 | 否 | 登录 JWT 签名。不设则每次启动用临时密钥，重启后要重新登录。生产请设。 |
 | `BASE_PATH` | 留空 或 `/ylune` | 否 | 只有 Nginx / 网关把月弦挂在子路径时才填。填了必须和 Nginx `location` 一致。 |
 | `NPM_REGISTRY` | `https://registry.npmmirror.com` | 否 | **构建和运行**都用。构建时传给 Dockerfile；容器启动时 `entrypoint.sh` 再设一次。海外可改回 `https://registry.npmjs.org/` |
 | `DEBIAN_MIRROR` | `https://mirrors.aliyun.com/debian` | 否 | 构建时替换 Debian 软件源。海外可改 `https://deb.debian.org/debian` |
@@ -225,6 +226,15 @@ TLS 请在这层 Nginx 前面再挂你们现有的证书终结，或自行把本
 
 **`ADMIN_PASSWORD` / `DB_PASSWORD` 未设置就退出**  
 还没有 `deploy/.env`，或变量名为空。按第 5.1 节复制并填写。
+
+**打开 :3000 显示 Frontend not found / 日志 `UI is not available`**  
+镜像其实已经编过前端。旧代码只认 `package.json` 名叫 `mcphub` / `@samanhappy/mcphub`，本仓库是 `@ylune/mcphub`，进程找不到包根目录就不挂静态页。拉到识别 `@ylune/mcphub` 的提交后 `docker compose up -d --build`。
+
+**日志里 `mcp_settings.json` ENOENT**  
+数据库模式下配置在 Postgres。`.dockerignore` 不把这份 JSON 打进镜像，启动时 Json DAO 会先报一次再切到库。后面有 `Empty database: ... starting with database only` 或 `Database mode initialized` 就算正常。
+
+**日志里 `extension "vector" is not available`**  
+当前用的是官方 `postgres:16`，没有 pgvector。控制台和 `/mcp` 能用；只有 `$smart` 智能路由才需要把 `POSTGRES_IMAGE` 改成 `pgvector/pgvector:pg16`（不要直接拿 16 的数据目录升 17）。
 
 **控制台 502 / 一直不健康**  
 `docker compose logs ylune`。常见原因：第一次构建未完成、`/health` 还没起来（`start_period` 60s）、磁盘把卷写挂。
