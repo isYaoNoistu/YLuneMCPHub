@@ -74,7 +74,7 @@
     "ipaddr.js": "^2.4.0",
     "js-yaml": "4.3.1",
     "jsonwebtoken": "^9.0.2",
-    "kysely": "^0.28.9",
+    "kysely": "^0.29.5",
     "multer": "^2.2.0",
     "openai": "^6.7.0",
     "openapi-types": "^12.1.3",
