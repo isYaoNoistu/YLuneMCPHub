@@ -3,7 +3,7 @@
 # 调用方：人工，按本目录 README.md 操作
 # 大概流程：
 # 1) 复制 .env.example 为 .env，改口令与端口（不要提交 .env）
-# 2) 构建上下文是仓库根目录（本文件 context: ..，用根目录 Dockerfile）
+# 2) 构建上下文是仓库根目录（本文件 context: ..，用根目录 Dockerfile；apt/npm/pypi 默认国内镜像）
 # 3) docker compose up -d --build
 # 4) 浏览器打开 YLUNE_PORT，管理员登录后立刻改密码
 # 5) 需要反代时再加 --profile proxy
@@ -38,6 +38,12 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-https://mirrors.aliyun.com/debian}
+        DEBIAN_SECURITY_MIRROR: ${DEBIAN_SECURITY_MIRROR:-https://mirrors.aliyun.com/debian-security}
+        NODE_DIST_MIRROR: ${NODE_DIST_MIRROR:-https://npmmirror.com/mirrors/node}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        PYPI_INDEX: ${PYPI_INDEX:-https://mirrors.aliyun.com/pypi/simple}
     image: ylune:local
     container_name: ylune
     ports:
@@ -49,7 +55,7 @@ services:
       DB_URL: postgresql://ylune:${DB_PASSWORD}@postgres:5432/ylune
       USE_DB: "true"
       BASE_PATH: ${BASE_PATH:-}
-      NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
+      NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

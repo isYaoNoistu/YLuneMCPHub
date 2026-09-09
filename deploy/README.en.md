@@ -35,9 +35,12 @@ cp .env.example .env   # Windows: Copy-Item .env.example .env
 | `ADMIN_PASSWORD` | **yes** | Used only when no admin exists yet. Changing it later does **not** change the password in the DB; use the console. |
 | `DB_PASSWORD` | **yes** | Postgres password, also interpolated into `DB_URL`. Use alphanumerics; avoid `@` `:` `/` `#`. |
 | `BASE_PATH` | no | Set only for a subpath proxy (e.g. `/ylune`). Must match Nginx `location`. |
-| `NPM_REGISTRY` | no | Applied by `entrypoint.sh` at start. |
+| `NPM_REGISTRY` | no | Build + runtime. Default `https://registry.npmmirror.com`. |
+| `DEBIAN_MIRROR` / `DEBIAN_SECURITY_MIRROR` | no | Build-time apt. Default Aliyun. |
+| `NODE_DIST_MIRROR` | no | Node 22 tarball mirror (not NodeSource). |
+| `PYPI_INDEX` | no | `uv tool install` index. |
 | `NGINX_HTTP_PORT` | no | Used with `--profile proxy`. |
-| `POSTGRES_IMAGE` | no | Default `postgres:16`. Set `pgvector/pgvector:pg17` when you need `$smart`. Do not reuse `ylune-pg` across major versions. |
+| `POSTGRES_IMAGE` | no | Default `postgres:16`. For `$smart` use `pgvector/pgvector:pg16` (Postgres 17 is not required). Do not reuse `ylune-pg` across major versions. |
 | `MCP_MOUNT_DIR` | no | Host dir mapped to `/opt/mcp`. Default `/data/ylune-mcp`. Empty is fine; DevOpsMCP `attach.sh` writes binaries here. |
 | `PUBLISH_DB_PORT` | no | Uncomment `postgres.ports` if you need host access to the DB. |
 

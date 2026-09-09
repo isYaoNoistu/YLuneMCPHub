@@ -23,6 +23,7 @@ cp .env.example .env
 # 本机已有 postgres:16 时，.env 里 POSTGRES_IMAGE=postgres:16（示例里已是这个）
 # MCP_MOUNT_DIR 默认 /data/ylune-mcp，一般不用动
 docker compose up -d --build
+# 构建默认走阿里云 Debian + npmmirror Node/npm；卡在 deb.debian.org 的旧构建请停掉重来
 ```
 
 浏览器：`http://<机器>:3000`，`admin` + `.env` 里的口令。登录后立刻改密码。

@@ -1,58 +1,18 @@
+# 备份：改国内源之前的 Dockerfile 全文。不要用 docker build -f 本文件。
 # syntax=docker/dockerfile:1.7
 
 FROM python:3.13-slim-trixie AS base
-
-# 构建默认走国内镜像（Debian / Node 发行包 / npm / PyPI）。
-# 海外或要官方源时，在 deploy/.env 或 docker build --build-arg 改掉即可。
-ARG DEBIAN_MIRROR=https://mirrors.aliyun.com/debian
-ARG DEBIAN_SECURITY_MIRROR=https://mirrors.aliyun.com/debian-security
-ARG NODE_VERSION=22.20.0
-ARG NODE_DIST_MIRROR=https://npmmirror.com/mirrors/node
-ARG NPM_REGISTRY=https://registry.npmmirror.com
-ARG PYPI_INDEX=https://mirrors.aliyun.com/pypi/simple
-
-ENV NPM_REGISTRY=${NPM_REGISTRY} \
-  COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-  COREPACK_NPM_REGISTRY=${NPM_REGISTRY} \
-  UV_DEFAULT_INDEX=${PYPI_INDEX} \
-  UV_INDEX_URL=${PYPI_INDEX}
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # procps provides `ps`, which tree-kill needs to walk stdio process trees
 # (missing it caused spawn ps ENOENT crashes — issue #1072)
-# Node 22：不用 nodesource（国内很慢），从 npmmirror 拉官方二进制
-RUN set -eux; \
-  if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-    sed -i -E \
-      -e "s|https?://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" \
-      -e "s|https?://deb.debian.org/debian|${DEBIAN_MIRROR}|g" \
-      /etc/apt/sources.list.d/debian.sources; \
-  fi; \
-  if [ -f /etc/apt/sources.list ]; then \
-    sed -i -E \
-      -e "s|https?://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" \
-      -e "s|https?://deb.debian.org/debian|${DEBIAN_MIRROR}|g" \
-      /etc/apt/sources.list; \
-  fi; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    curl ca-certificates gnupg git build-essential procps; \
-  arch="$(uname -m)"; \
-  case "$arch" in \
-    x86_64) node_arch=x64 ;; \
-    aarch64) node_arch=arm64 ;; \
-    *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
-  esac; \
-  curl -fsSL "${NODE_DIST_MIRROR}/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.gz" \
-    | tar -xz -C /usr/local --strip-components=1; \
-  node -v && npm -v; \
-  apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl gnupg git build-essential procps \
+  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+  && apt-get install -y nodejs \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN npm config set registry "${NPM_REGISTRY}" \
-  && corepack enable \
-  && corepack prepare pnpm@10.12.4 --activate \
-  && pnpm config set registry "${NPM_REGISTRY}"
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 ENV RUSTUP_HOME=/usr/local/rustup \
   CARGO_HOME=/usr/local/cargo \
@@ -86,9 +46,9 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-  pnpm config set registry "${NPM_REGISTRY}" && pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile
+  pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-  pnpm config set registry "${NPM_REGISTRY}" && pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile --offline
+  pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile --offline
 
 COPY . .
 

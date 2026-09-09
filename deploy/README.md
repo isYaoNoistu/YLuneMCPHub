@@ -45,7 +45,7 @@
 ## 3. 前置条件
 
 - 部署机已装 [Docker Engine](https://docs.docker.com/engine/install/) 和 Compose 插件（`docker compose version` 能出版本）。
-- 能访问镜像源（`postgres:16` 或你在 `POSTGRES_IMAGE` 里写的镜像、`nginx:1.27-alpine`，以及构建时的 Node / Python 基座）。本机已有 `postgres:16` 时不必再拉。
+- 能访问镜像源（`postgres:16` 或你在 `POSTGRES_IMAGE` 里写的镜像、`nginx:1.27-alpine`）。构建月弦默认走国内 Debian / Node / npm / PyPI，见第 4 节。
 - 宿主机空出 `YLUNE_PORT`（默认 3000）。启用反代时再空出 `NGINX_HTTP_PORT`（默认 80）。
 - 首次构建会编译前后端，机器要有足够内存；构建层会拉依赖，需要出网或已配镜像加速。
 
@@ -63,9 +63,13 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `ADMIN_PASSWORD` | 自己设的强密码 | **是** | 仅在库里还没有管理员时用来创建 `admin`。已经有管理员后，改这个变量**不会**改库里的密码，请在控制台改。 |
 | `DB_PASSWORD` | 自己设 | **是** | 容器内 Postgres 口令，同时写进 `DB_URL`。请用字母数字，不要用 `@` `:` `/` `#`，否则连接串会断。 |
 | `BASE_PATH` | 留空 或 `/ylune` | 否 | 只有 Nginx / 网关把月弦挂在子路径时才填。填了必须和 Nginx `location` 一致。 |
-| `NPM_REGISTRY` | `https://registry.npmjs.org/` | 否 | 容器启动时 `entrypoint.sh` 会 `npm config set registry`。国内可改镜像。 |
+| `NPM_REGISTRY` | `https://registry.npmmirror.com` | 否 | **构建和运行**都用。构建时传给 Dockerfile；容器启动时 `entrypoint.sh` 再设一次。海外可改回 `https://registry.npmjs.org/` |
+| `DEBIAN_MIRROR` | `https://mirrors.aliyun.com/debian` | 否 | 构建时替换 Debian 软件源。海外可改 `https://deb.debian.org/debian` |
+| `DEBIAN_SECURITY_MIRROR` | `https://mirrors.aliyun.com/debian-security` | 否 | 构建时 Debian security。海外可改 `https://deb.debian.org/debian-security` |
+| `NODE_DIST_MIRROR` | `https://npmmirror.com/mirrors/node` | 否 | 构建时下载 Node 22 官方二进制，不再走 nodesource |
+| `PYPI_INDEX` | `https://mirrors.aliyun.com/pypi/simple` | 否 | 构建时 `uv tool install` 用的 PyPI |
 | `NGINX_HTTP_PORT` | `80` | 否 | 仅 `--profile proxy` 时用。 |
-| `POSTGRES_IMAGE` | `postgres:16` | 否 | 配置库镜像。默认用官方 16。智能路由要向量扩展时再改 `pgvector/pgvector:pg17`。换大版本不要直接复用 `ylune-pg` 卷。 |
+| `POSTGRES_IMAGE` | `postgres:16` | 否 | 配置库镜像。默认官方 16。智能路由要向量扩展时用 `pgvector/pgvector:pg16`（**不必 17**）。换大版本不要直接复用 `ylune-pg` 卷。 |
 | `MCP_MOUNT_DIR` | `/data/ylune-mcp` | 否 | 宿主机目录，映射到容器 `/opt/mcp`。空目录即可。DevOpsMCP 的 `attach.sh` 往这里写二进制。 |
 | `PUBLISH_DB_PORT` | `5432` | 否 | 默认不暴露库端口。要在宿主机连库时，取消 compose 里 `postgres.ports` 注释。 |
 
@@ -111,7 +115,7 @@ docker compose up -d --build
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
 
-第一次构建可能要十几分钟。看到两个容器 `healthy` 再继续。
+第一次构建会拉 Debian / Node / pnpm 依赖。默认走阿里云和 npmmirror（见 `.env.example`）。`git pull` 后必须 `--build` 才会用新 Dockerfile。若上一层卡在 `deb.debian.org`，先停掉再重新 `up -d --build`。
 
 ```bash
 docker compose ps
