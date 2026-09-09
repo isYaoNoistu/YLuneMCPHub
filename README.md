@@ -82,10 +82,12 @@
     夜莺 API        Jenkins REST      PostgreSQL
 ```
 
-1. 按 [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) 编出三个二进制，本机验收 `command` / `env` 能通。
-2. 在月弦控制台把它们加成服务器（类型 STDIO，`command` 填绝对路径）。
+1. 按 [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) 编出三个二进制（`deploy/pack-linux.sh` 或 `pack-windows.cmd`），本机验收 `command` / `env` 能通。
+2. 在月弦控制台把它们加成服务器（类型 STDIO，`command` 填月弦进程能看见的绝对路径）。Docker 月弦用 DevOpsMCP 的 `deploy/attach.sh` 自动注册。
 3. 建组（例如 `jenkins-readonly`），勾需要的工具，把普通用户加进成员。
 4. 用户把控制台给出的 `mcp.json` 贴进 Cursor / WorkBuddy，只连月弦。
+
+Linux 上若目录是 `/data/DevOpsMCP` + `/data/YLuneMCPHub`：月弦 `docker compose up`，再 `DevOpsMCP/deploy/attach.sh`。见 [docs/Linux部署.md](docs/Linux部署.md)。
 
 DevOpsMCP 的凭据约定仍然成立：仓库和文档不写 Token；Jenkins / 夜莺 Token、PostgreSQL 口令只放运行环境或 `${ENV}`。
 
@@ -132,7 +134,7 @@ pnpm frontend:dev
 浏览器打开 http://127.0.0.1:5173 。后端 API 与 MCP 在 http://127.0.0.1:3000 。  
 开发默认账号 `admin` / `admin123`，**登录后立刻改密码**。没有 `DB_URL` 时配置才写在 `data/mcp_settings.dev.json`。真用请接 Postgres。
 
-要用 Docker 整套拉起（Postgres + 月弦），见 [deploy/README.md](deploy/README.md)。仓库根目录不再放 compose。
+要用 Docker 整套拉起（Postgres + 月弦），见 [deploy/README.md](deploy/README.md)。仓库根目录不再放 compose。两仓都在 `/data`、还要挂 DevOpsMCP 时，见 [docs/Linux部署.md](docs/Linux部署.md)。
 
 第一次把 Jenkins 给普通用户用：
 
@@ -190,7 +192,7 @@ pnpm frontend:dev
 | [配置与数据](docs/配置与数据.md)                    | 配置进 PostgreSQL；JSON 不是运行时存储                                                           |
 | [和 DevOpsMCP](#和-devopsmcp)               | [DevOpsMCP 仓库](https://github.com/isYaoNoistu/DevOpsMCP) · 夜莺 / Jenkins / PostgreSQL 怎么编、怎么拿凭据 |
 | [适配的智能体](#适配的智能体)                         | 控制台用户页给出的 `mcp.json`                                                                         |
-| [Docker 部署](deploy/README.md)             | Compose、环境变量、验收、反代、接 DevOpsMCP；English: [deploy/README.en.md](deploy/README.en.md) |
+| [Docker 部署](deploy/README.md)             | Compose、环境变量、验收、反代；Linux 两仓示例：[docs/Linux部署.md](docs/Linux部署.md) |
 
 
 ## 仓库布局
@@ -203,6 +205,7 @@ login/         登录页视觉标尺（静态）
 locales/       文案
 docs/使用教程.md  字段级操作说明
 docs/配置与数据.md 配置进库、迁库
+docs/Linux部署.md  /data 两仓：月弦 compose + DevOpsMCP attach
 deploy/        Docker Compose 整包与部署流程
 examples/      配置样例（无真实凭据）
 README.md      中文（GitHub 默认）

@@ -30,7 +30,7 @@
 
 | 文件 | 要不要改 | 说明 |
 | --- | --- | --- |
-| `docker-compose.yml` | 一般不用改 | 正式编排。构建上下文是上一级仓库根目录。 |
+| `docker-compose.yml` | 一般不用改 | 正式编排。构建上下文是上一级仓库根目录。`ylune` 固定把 `MCP_MOUNT_DIR` 挂到 `/opt/mcp`。 |
 | `.env.example` | 复制后改 | 复制为 `.env`，改口令和端口。 |
 | `.env` | 必改，勿提交 | 本机/机房密钥。已被根目录 `.gitignore` 的 `.env` 规则忽略。 |
 | `nginx.conf` | 改域名时再动 | 根路径反代。`--profile proxy` 时挂进 Nginx。 |
@@ -49,7 +49,7 @@
 - 宿主机空出 `YLUNE_PORT`（默认 3000）。启用反代时再空出 `NGINX_HTTP_PORT`（默认 80）。
 - 首次构建会编译前后端，机器要有足够内存；构建层会拉依赖，需要出网或已配镜像加速。
 
-Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe`。Windows 上编的 DevOpsMCP 二进制不要直接挂进容器，见第 7 节。
+Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe`。要把 DevOpsMCP 接进月弦，在 Linux 上跑对方仓库的 `deploy/attach.sh`。
 
 ---
 
@@ -65,7 +65,7 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `BASE_PATH` | 留空 或 `/ylune` | 否 | 只有 Nginx / 网关把月弦挂在子路径时才填。填了必须和 Nginx `location` 一致。 |
 | `NPM_REGISTRY` | `https://registry.npmjs.org/` | 否 | 容器启动时 `entrypoint.sh` 会 `npm config set registry`。国内可改镜像。 |
 | `NGINX_HTTP_PORT` | `80` | 否 | 仅 `--profile proxy` 时用。 |
-| `DEVOPSMCP_BIN_DIR` | `/opt/devopsmcp` | 否 | 要挂 Linux 二进制时，还要取消 compose 里对应 `volumes` 注释。 |
+| `MCP_MOUNT_DIR` | `/data/ylune-mcp` | 否 | 宿主机目录，映射到容器 `/opt/mcp`。空目录即可。DevOpsMCP 的 `attach.sh` 往这里写二进制。 |
 | `PUBLISH_DB_PORT` | `5432` | 否 | 默认不暴露库端口。要在宿主机连库时，取消 compose 里 `postgres.ports` 注释。 |
 
 未写 `ADMIN_PASSWORD` 或 `DB_PASSWORD` 时，Compose 会直接拒绝启动（`${VAR:?…}`），避免用空口令起来。
@@ -173,25 +173,26 @@ docker compose exec -T postgres psql -U ylune -d ylune < ylune.sql
 
 ## 7. 接 DevOpsMCP
 
-月弦不内置夜莺 / Jenkins / PostgreSQL 工具。二进制在 [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) 编，控制台里加成 **STDIO** 或 **HTTP** 服务器。凭据只放运行环境，不要写进本仓库。
+月弦只负责启动，并留挂载点 `/opt/mcp`。编译、灌文件、在控制台注册，都在 DevOpsMCP 仓库：
 
-### 7.1 推荐：上游跑在宿主机或另一台机器（HTTP）
+**[DevOpsMCP/deploy/README.md](https://github.com/isYaoNoistu/DevOpsMCP/blob/main/deploy/README.md)**（本机若两仓都在 `/data`，即 `/data/DevOpsMCP/deploy/README.md`）。
 
-容器是 Linux，宿主机若是 Windows，STDIO 挂 `.exe` 会失败。更稳的做法：
+本仓这边仍是一条命令：
 
-1. 在能访问夜莺 / Jenkins / 库的机器上按 DevOpsMCP 文档把三个服务跑起来（或只跑你需要的）。
-2. 若上游只提供 stdio，先在那台机器用任意 HTTP-MCP 封装，或继续本机 `pnpm` 跑月弦、不要用这套容器接 Windows 二进制。
-3. 月弦控制台 → **服务器** → 类型选 HTTP / SSE，URL 填上游地址，Header 按上游要求。
+```bash
+cd /data/YLuneMCPHub/deploy
+docker compose up -d --build
+```
 
-### 7.2 容器内 STDIO（仅 Linux 二进制）
+然后到 DevOpsMCP：
 
-1. 在 Linux 上编好 `nightingale-mcp-server`、`jenkins-mcp-server`、`postgres-mcp-server`。
-2. `.env` 写 `DEVOPSMCP_BIN_DIR=/绝对路径`。
-3. 取消 `docker-compose.yml` 里 `ylune` 的那行 volume 注释。
-4. `docker compose up -d` 后，控制台 STDIO 的 `command` 填容器内路径，例如 `/opt/devopsmcp/jenkins-mcp-server`。
-5. 环境变量按各 MCP 的 README 填，值用 `${JENKINS_API_TOKEN}` 这类引用，真正的 Token 加到 compose 的 `environment` 或容器 env，不要写进 git。
+```bash
+cd /data/DevOpsMCP/deploy
+cp .env.example .env   # 填 Token 和 REGISTER_*
+./attach.sh
+```
 
-管理员建组、加成员后，普通用户才能在默认 `/mcp` 里看到对应工具。管理员不必入组。细节见使用教程。
+同机的夜莺 / Jenkins / 库，在 DevOpsMCP 的 `.env` 里用 `host.docker.internal`，不要用 `127.0.0.1`。逐步说明见 [docs/Linux部署.md](../docs/Linux部署.md)。
 
 ---
 
@@ -230,7 +231,7 @@ TLS 请在这层 Nginx 前面再挂你们现有的证书终结，或自行把本
 确认 `postgres` 是 `healthy`，且 `DB_PASSWORD` 没有 URL 特殊字符。不要把根目录开发用的 `DB_URL` 和这套容器混用同一端口抢 5432。
 
 **STDIO 服务起不来 / `spawn … ENOENT`**  
-`command` 必须是**容器内**存在的 Linux 可执行文件。Windows `.exe`、只存在于宿主机的路径都会失败。改用第 7.1 节。
+`command` 必须是容器内 `/opt/mcp/...`。先在 DevOpsMCP 跑 `./attach.sh --build-only`，再确认 `docker compose exec ylune ls -l /opt/mcp`。
 
 **改了代码容器没变**  
 必须 `--build`。默认用的是刚构建的 `ylune:local`，不是 Docker Hub 上的旧镜像。

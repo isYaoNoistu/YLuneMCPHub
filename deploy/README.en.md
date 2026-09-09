@@ -37,7 +37,7 @@ cp .env.example .env   # Windows: Copy-Item .env.example .env
 | `BASE_PATH` | no | Set only for a subpath proxy (e.g. `/ylune`). Must match Nginx `location`. |
 | `NPM_REGISTRY` | no | Applied by `entrypoint.sh` at start. |
 | `NGINX_HTTP_PORT` | no | Used with `--profile proxy`. |
-| `DEVOPSMCP_BIN_DIR` | no | Linux binaries only; also uncomment the volume in compose. |
+| `MCP_MOUNT_DIR` | no | Host dir mapped to `/opt/mcp`. Default `/data/ylune-mcp`. Empty is fine; DevOpsMCP `attach.sh` writes binaries here. |
 | `PUBLISH_DB_PORT` | no | Uncomment `postgres.ports` if you need host access to the DB. |
 
 Compose fails fast if `ADMIN_PASSWORD` or `DB_PASSWORD` is unset (`${VAR:?…}`).
@@ -77,9 +77,26 @@ docker compose exec -T postgres pg_dump -U ylune ylune > ylune.sql
 
 ## DevOpsMCP
 
-YLune does not ship Nightingale / Jenkins / PostgreSQL tools. Build them from [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP).
+YLune does not ship Nightingale / Jenkins / PostgreSQL tools. Build them from [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP). DevOpsMCP is **stdio only**; the YLune container **spawns** the binaries.
 
-The image is Linux. **Windows `.exe` files cannot run inside the container.** Prefer running those MCPs on a host that can reach the real APIs, then add them in the console as HTTP/SSE. For in-container STDIO, mount Linux binaries (`DEVOPSMCP_BIN_DIR`) and point `command` at the **container** path (e.g. `/opt/devopsmcp/jenkins-mcp-server`). Put tokens in env, not in git.
+YLune still starts with `docker compose up -d --build`. The image always mounts `/opt/mcp`. Compile, copy files, and register on the hub with DevOpsMCP `deploy/attach.sh` (see that repo’s [deploy/README.md](https://github.com/isYaoNoistu/DevOpsMCP/blob/main/deploy/README.md)). Chinese walkthrough: [docs/Linux部署.md](../docs/Linux部署.md).
+
+```text
+/data/DevOpsMCP      # source
+/data/YLuneMCPHub    # this repo
+/data/ylune-mcp      # mount (binaries, targets, pgpass); not in git
+```
+
+```bash
+cd /data/YLuneMCPHub/deploy
+docker compose up -d --build
+
+cd /data/DevOpsMCP/deploy
+cp .env.example .env   # tokens + REGISTER_*
+./attach.sh
+```
+
+Console `command` is `/opt/mcp/...`. Same-host Jenkins / n9e / DB: `host.docker.internal`, never `127.0.0.1` from inside the container. Windows `.exe` files cannot run in this image.
 
 Regular users only see tools from groups they belong to. Admins do not need to join a group.
 
@@ -102,7 +119,7 @@ Root path uses `nginx.conf`. For `/ylune`, set `BASE_PATH=/ylune` and copy `ngin
 | Compose exits mentioning `ADMIN_PASSWORD` / `DB_PASSWORD` | Create `deploy/.env` from the example. |
 | Unhealthy / 502 | `docker compose logs ylune`; first boot can take a minute (`start_period` 60s). |
 | Env password ignored after first boot | Admin already exists; change it in the console. |
-| `spawn … ENOENT` on STDIO | Path must exist **inside** the Linux container. |
+| `spawn … ENOENT` on STDIO | `command` must exist **inside** the container (`/opt/mcp/...`). Run DevOpsMCP `attach.sh` first. |
 | Image did not pick up code | You must `--build`. This pack does not pull `samanhappy/mcphub`. |
 | Settings gone | You used `down -v`. |
 | Subpath 404 | `BASE_PATH` and Nginx `location` disagree. |

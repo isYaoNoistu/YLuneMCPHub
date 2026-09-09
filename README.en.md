@@ -78,10 +78,12 @@ Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools sta
   └─────────────────────────────────────┘
 ```
 
-1. Build the three binaries from [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) and confirm `command` / `env` locally.
-2. Add them in YLune as STDIO servers (`command` = absolute path).
+1. Build the three binaries from [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) (`deploy/pack-linux.sh` or `pack-windows.cmd`) and confirm `command` / `env` locally.
+2. Add them in YLune as STDIO servers (`command` = the path the YLune process can see). For Docker YLune, run DevOpsMCP `deploy/attach.sh` instead of filling three forms.
 3. Create a group, tick the tools, add regular users. Do not add admins.
 4. Give each user the generated `mcp.json`. They only connect to YLune.
+
+If both clones live under `/data` and YLune runs in Docker: `docker compose up`, then `DevOpsMCP/deploy/attach.sh`. Chinese: [docs/Linux部署.md](docs/Linux部署.md).
 
 DevOpsMCP credential rules still apply: no tokens in git; Jenkins / Nightingale tokens and database passwords stay in the runtime or `${ENV}`.
 
@@ -127,7 +129,7 @@ pnpm frontend:dev
 Open http://127.0.0.1:5173 . API and MCP listen on http://127.0.0.1:3000 .  
 Dev login is `admin` / `admin123` — **change it after first login**. Without `DB_URL`, config is `data/mcp_settings.dev.json`. Use Postgres for real work.
 
-To bring up Postgres + YLune with Docker, follow [deploy/README.en.md](deploy/README.en.md). There is no compose file at the repo root.
+To bring up Postgres + YLune with Docker, follow [deploy/README.en.md](deploy/README.en.md). There is no compose file at the repo root. When both repos are under `/data` and you need DevOpsMCP inside the container, follow [docs/Linux部署.md](docs/Linux部署.md) (Chinese).
 
 Field-by-field console guide (Chinese): [docs/使用教程.md](docs/使用教程.md).
 
@@ -175,7 +177,7 @@ You deploy it and connect real MCP servers. Mis-authorization, bad credentials, 
 | [使用教程](docs/使用教程.md)                      | Every console field                                                  |
 | [配置与数据](docs/配置与数据.md)                    | PostgreSQL is the store; JSON is not                                 |
 | [With DevOpsMCP](#with-devopsmcp)            | [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP)                |
-| [Docker deploy](deploy/README.en.md)         | Compose, env, checks, proxy, DevOpsMCP. 中文：[deploy/README.md](deploy/README.md) |
+| [Docker deploy](deploy/README.en.md)         | Compose pack. Linux `/data` two-repo example (中文)：[docs/Linux部署.md](docs/Linux部署.md) |
 
 
 ## License

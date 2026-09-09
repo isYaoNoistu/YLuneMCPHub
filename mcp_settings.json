@@ -2,5 +2,31 @@
   "mcpServers": {},
   "users": [],
   "groups": [],
-  "bearerKeys": []
+  "bearerKeys": [],
+  "systemConfig": {
+    "oauthServer": {
+      "enabled": true,
+      "accessTokenLifetime": 3600,
+      "refreshTokenLifetime": 1209600,
+      "authorizationCodeLifetime": 300,
+      "requireClientSecret": false,
+      "allowedScopes": [
+        "read",
+        "write"
+      ],
+      "requireState": false,
+      "dynamicRegistration": {
+        "enabled": true,
+        "allowedGrantTypes": [
+          "authorization_code",
+          "refresh_token"
+        ],
+        "requiresAuthentication": false
+      },
+      "clientIdMetadata": {
+        "enabled": false,
+        "cacheTtlMs": 3600000
+      }
+    }
+  }
 }

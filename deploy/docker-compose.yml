@@ -7,6 +7,7 @@
 # 3) docker compose up -d --build
 # 4) 浏览器打开 YLUNE_PORT，管理员登录后立刻改密码
 # 5) 需要反代时再加 --profile proxy
+# 6) 容器固定挂 /opt/mcp（宿主机 MCP_MOUNT_DIR）。空目录即可；二进制由 DevOpsMCP/deploy 写入
 # 勿放密钥：口令、Token、内网地址只写本目录 .env 或宿主机环境变量
 
 name: ylune
@@ -49,9 +50,11 @@ services:
       USE_DB: "true"
       BASE_PATH: ${BASE_PATH:-}
       NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
-    # 容器是 Linux。要把 DevOpsMCP 的 Linux 二进制给 STDIO 用时，取消下面 volumes。
-    # volumes:
-    #   - ${DEVOPSMCP_BIN_DIR}:/opt/devopsmcp:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # 挂载点：DevOpsMCP 把 Linux 二进制 / targets / pgpass 写到宿主机目录，月弦 STDIO 读 /opt/mcp
+      - ${MCP_MOUNT_DIR:-/data/ylune-mcp}:/opt/mcp:ro
     depends_on:
       postgres:
         condition: service_healthy
