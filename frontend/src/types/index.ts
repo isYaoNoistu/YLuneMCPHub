@@ -473,6 +473,7 @@ export interface IUser {
   username: string;
   isAdmin?: boolean;
   permissions?: string[];
+  grants?: IGroupServerConfig[];
 }
 
 // User management types

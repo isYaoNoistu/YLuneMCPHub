@@ -82,6 +82,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           username: user.username,
           isAdmin: user.isAdmin,
           permissions: dataService.getPermissions(user),
+          grants: user.isAdmin ? [] : user.grants || [],
         },
         isUsingDefaultPassword,
       });
@@ -149,10 +150,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 };
 
 // Get current user
-export const getCurrentUser = (req: Request, res: Response): void => {
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    // User is already attached to request by auth middleware
     const user = (req as any).user;
+    const stored = user?.username ? await findUserByUsername(user.username) : undefined;
 
     res.json({
       success: true,
@@ -160,6 +161,7 @@ export const getCurrentUser = (req: Request, res: Response): void => {
         username: user.username,
         isAdmin: user.isAdmin,
         permissions: dataService.getPermissions(user),
+        grants: user.isAdmin ? [] : stored?.grants || [],
       },
     });
   } catch (error) {

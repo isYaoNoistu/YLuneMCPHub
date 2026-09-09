@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
@@ -15,6 +15,9 @@ import {
   deleteOldActivities,
 } from '@/services/activityService';
 import Pagination from '@/components/ui/Pagination';
+import CopyableCode from '@/components/ui/CopyableCode';
+import FilterSelect from '@/components/ui/FilterSelect';
+import { X } from 'lucide-react';
 
 // Pagination info type
 interface PaginationInfo {
@@ -180,12 +183,26 @@ const ActivityPage: React.FC = () => {
   };
 
   // Parse JSON safely
-  const safeParseJSON = (str: string | undefined): any => {
+  const safeParseJSON = (str: string | undefined): unknown => {
     if (!str) return null;
     try {
       return JSON.parse(str);
     } catch {
       return str;
+    }
+  };
+
+  const formatPayload = (value: unknown): string => {
+    if (value == null || value === '') {
+      return '';
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
     }
   };
 
@@ -235,288 +252,69 @@ const ActivityPage: React.FC = () => {
 
   // Render filters
   const renderFilters = () => {
+    const toOptions = (values?: string[]) =>
+      (values || []).map((value) => ({ value, label: value }));
+
     return (
-      <div className="hub-card px-4 py-3 mb-4">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[140px]">
-            <label className="sr-only" htmlFor="activity-server">
-              {t('activity.server')}
-            </label>
-            <div className="relative">
-              <input
-                id="activity-server"
-                type="text"
-                value={searchServer}
-                onChange={(e) => setSearchServer(e.target.value)}
-                placeholder={t('activity.searchServer')}
-                className="hub-input pr-9"
-                list="server-options"
-              />
-              {searchServer && (
-                <button
-                  onClick={() => setSearchServer('')}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label={t('common.clear')}
-                  type="button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            {filterOptions?.servers && (
-              <datalist id="server-options">
-                {filterOptions.servers.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            )}
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="sr-only" htmlFor="activity-tool">
-              {t('activity.tool')}
-            </label>
-            <div className="relative">
-              <input
-                id="activity-tool"
-                type="text"
-                value={searchTool}
-                onChange={(e) => setSearchTool(e.target.value)}
-                placeholder={t('activity.searchTool')}
-                className="hub-input pr-9"
-                list="tool-options"
-              />
-              {searchTool && (
-                <button
-                  onClick={() => setSearchTool('')}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label={t('common.clear')}
-                  type="button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            {filterOptions?.tools && (
-              <datalist id="tool-options">
-                {filterOptions.tools.map((t) => (
-                  <option key={t} value={t} />
-                ))}
-              </datalist>
-            )}
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="sr-only" htmlFor="activity-status">
-              {t('activity.status')}
-            </label>
-            <div className="relative">
-              <input
-                id="activity-status"
-                type="text"
-                value={searchStatus}
-                onChange={(e) => setSearchStatus(e.target.value.toLowerCase())}
-                placeholder={t('activity.searchStatus')}
-                className="hub-input pr-9"
-                list="activity-status-options"
-              />
-              {searchStatus && (
-                <button
-                  onClick={() => setSearchStatus('')}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label={t('common.clear')}
-                  type="button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <datalist id="activity-status-options">
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status} />
-              ))}
-            </datalist>
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="sr-only" htmlFor="activity-group">
-              {t('activity.group')}
-            </label>
-            <div className="relative">
-              <input
-                id="activity-group"
-                type="text"
-                value={searchGroup}
-                onChange={(e) => setSearchGroup(e.target.value)}
-                placeholder={t('activity.searchGroup')}
-                className="hub-input pr-9"
-                list="group-options"
-              />
-              {searchGroup && (
-                <button
-                  onClick={() => setSearchGroup('')}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label={t('common.clear')}
-                  type="button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            {filterOptions?.groups && (
-              <datalist id="group-options">
-                {filterOptions.groups.map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-            )}
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="sr-only" htmlFor="activity-username">
-              {t('activity.user')}
-            </label>
-            <div className="relative">
-              <input
-                id="activity-username"
-                type="text"
-                value={searchUsername}
-                onChange={(e) => setSearchUsername(e.target.value)}
-                placeholder={t('activity.searchUsername')}
-                className="hub-input pr-9"
-                list="username-options"
-              />
-              {searchUsername && (
-                <button
-                  onClick={() => setSearchUsername('')}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label={t('common.clear')}
-                  type="button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            {filterOptions?.usernames && (
-              <datalist id="username-options">
-                {filterOptions.usernames.map((username) => (
-                  <option key={username} value={username} />
-                ))}
-              </datalist>
-            )}
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="sr-only" htmlFor="activity-keyname">
-              {t('activity.keyName')}
-            </label>
-            <div className="relative">
-              <input
-                id="activity-keyname"
-                type="text"
-                value={searchKeyName}
-                onChange={(e) => setSearchKeyName(e.target.value)}
-                placeholder={t('activity.searchKeyName')}
-                className="hub-input pr-9"
-                list="keyname-options"
-              />
-              {searchKeyName && (
-                <button
-                  onClick={() => setSearchKeyName('')}
-                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label={t('common.clear')}
-                  type="button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-            {filterOptions?.keyNames && (
-              <datalist id="keyname-options">
-                {filterOptions.keyNames.map((k) => (
-                  <option key={k} value={k} />
-                ))}
-              </datalist>
-            )}
-          </div>
-          <div className="flex-shrink-0 flex items-center gap-2">
-            <button onClick={handleSearch} className="hub-btn primary whitespace-nowrap">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  clipRule="evenodd"
-                />
-              </svg>
+      <div className="hub-card" style={{ padding: 16, marginBottom: 16 }}>
+        <div className="activity-filters">
+          <FilterSelect
+            id="activity-server"
+            label={t('activity.server')}
+            value={searchServer}
+            onChange={setSearchServer}
+            options={toOptions(filterOptions?.servers)}
+            placeholder={t('activity.searchServer')}
+          />
+          <FilterSelect
+            id="activity-tool"
+            label={t('activity.tool')}
+            value={searchTool}
+            onChange={setSearchTool}
+            options={toOptions(filterOptions?.tools)}
+            placeholder={t('activity.searchTool')}
+          />
+          <FilterSelect
+            id="activity-status"
+            label={t('activity.status')}
+            value={searchStatus}
+            onChange={setSearchStatus}
+            options={STATUS_OPTIONS.map((status) => ({
+              value: status,
+              label:
+                status === 'success' ? t('activity.statusSuccess') : t('activity.statusError'),
+            }))}
+            placeholder={t('activity.searchStatus')}
+          />
+          <FilterSelect
+            id="activity-group"
+            label={t('activity.group')}
+            value={searchGroup}
+            onChange={setSearchGroup}
+            options={toOptions(filterOptions?.groups)}
+            placeholder={t('activity.searchGroup')}
+          />
+          <FilterSelect
+            id="activity-username"
+            label={t('activity.user')}
+            value={searchUsername}
+            onChange={setSearchUsername}
+            options={toOptions(filterOptions?.usernames)}
+            placeholder={t('activity.searchUsername')}
+          />
+          <FilterSelect
+            id="activity-keyname"
+            label={t('activity.key')}
+            value={searchKeyName}
+            onChange={setSearchKeyName}
+            options={toOptions(filterOptions?.keyNames)}
+            placeholder={t('activity.searchKeyName')}
+          />
+          <div className="activity-filter-actions">
+            <button type="button" onClick={handleSearch} className="hub-btn primary">
               {t('common.search')}
             </button>
-            <button onClick={handleClearFilters} className="hub-btn whitespace-nowrap">
+            <button type="button" onClick={handleClearFilters} className="hub-btn">
               {t('common.clear')}
             </button>
           </div>
@@ -649,139 +447,82 @@ const ActivityPage: React.FC = () => {
   const renderDetailModal = () => {
     if (!showDetailModal || !selectedActivity) return null;
 
-    const inputData = safeParseJSON(selectedActivity.input);
-    const outputData = safeParseJSON(selectedActivity.output);
+    const inputText = formatPayload(safeParseJSON(selectedActivity.input) ?? selectedActivity.input);
+    const outputText = formatPayload(
+      safeParseJSON(selectedActivity.output) ?? selectedActivity.output,
+    );
+    const ok = selectedActivity.status === 'success';
+
+    const meta = [
+      { label: t('activity.timestamp'), value: formatTimestamp(selectedActivity.timestamp) },
+      { label: t('activity.duration'), value: formatDuration(selectedActivity.duration), mono: true },
+      { label: t('activity.server'), value: selectedActivity.server, mono: true },
+      { label: t('activity.tool'), value: selectedActivity.tool, mono: true },
+      { label: t('activity.user'), value: selectedActivity.username || '—' },
+      { label: t('activity.key'), value: selectedActivity.keyName || '—' },
+      { label: t('activity.group'), value: selectedActivity.group || '—' },
+      { label: t('activity.sourceIp'), value: selectedActivity.sourceIp || '—', mono: true },
+    ];
 
     return (
       <div className="ylune-dialog-backdrop">
         <div className="ylune-dialog is-xl">
-          <div className="ylune-dialog-head flex items-center justify-between" style={{ paddingRight: 22 }}>
-            <h3 className="ylune-dialog-title">{t('activity.details')}</h3>
-            <button
-              onClick={() => setShowDetailModal(false)}
-              className="hub-icon-btn sm"
-              aria-label="close"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-          <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.timestamp')}
-                </label>
-                <p className="text-gray-900 dark:text-white">
-                  {formatTimestamp(selectedActivity.timestamp)}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.duration')}
-                </label>
-                <p className="text-gray-900 dark:text-white">
-                  {formatDuration(selectedActivity.duration)}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.server')}
-                </label>
-                <p className="text-gray-900 dark:text-white font-mono">{selectedActivity.server}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.tool')}
-                </label>
-                <p className="text-gray-900 dark:text-white font-mono">{selectedActivity.tool}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.status')}
-                </label>
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    selectedActivity.status === 'success'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}
-                >
-                  {selectedActivity.status === 'success'
-                    ? t('activity.statusSuccess')
-                    : t('activity.statusError')}
-                </span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.group')}
-                </label>
-                <p className="text-gray-900 dark:text-white">{selectedActivity.group || '-'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.user')}
-                </label>
-                <p className="text-gray-900 dark:text-white">{selectedActivity.username || '-'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('activity.sourceIp')}
-                </label>
-                <p className="text-gray-900 dark:text-white font-mono">
-                  {selectedActivity.sourceIp || '-'}
-                </p>
-              </div>
-              {selectedActivity.keyName && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {t('activity.key')}
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedActivity.keyName}</p>
-                </div>
-              )}
+          <div className="ylune-dialog-head">
+            <div>
+              <h3 className="ylune-dialog-title">{t('activity.details')}</h3>
+              <p className="ylune-help" style={{ margin: '4px 0 0' }}>
+                {t('activity.detailsHint')}
+              </p>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className={`hub-status ${ok ? 'ok' : 'err'}`}>
+                <span className="hub-dot" />
+                {ok ? t('activity.statusSuccess') : t('activity.statusError')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="hub-icon-btn sm"
+                aria-label={t('common.close')}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="ylune-dialog-body">
+            <dl className="activity-meta">
+              {meta.map((item) => (
+                <div key={item.label} className="activity-meta-item">
+                  <dt>{item.label}</dt>
+                  <dd className={item.mono ? 'hub-mono' : undefined}>{item.value}</dd>
+                </div>
+              ))}
+            </dl>
 
             {selectedActivity.errorMessage && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-red-500 mb-1">
+              <div className="activity-error">
+                <div className="ylune-label" style={{ marginBottom: 6, color: 'inherit' }}>
                   {t('activity.errorMessage')}
-                </label>
-                <div className="bg-red-50 dark:bg-red-900/20 rounded p-3 text-sm text-red-800 dark:text-red-200">
-                  {selectedActivity.errorMessage}
                 </div>
+                {selectedActivity.errorMessage}
               </div>
             )}
 
-            {inputData && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {t('activity.input')}
-                </label>
-                <pre className="bg-gray-100 dark:bg-gray-700 rounded p-3 text-sm overflow-x-auto max-h-64">
-                  {typeof inputData === 'string' ? inputData : JSON.stringify(inputData, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {outputData && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {t('activity.output')}
-                </label>
-                <pre className="bg-gray-100 dark:bg-gray-700 rounded p-3 text-sm overflow-x-auto max-h-64">
-                  {typeof outputData === 'string'
-                    ? outputData
-                    : JSON.stringify(outputData, null, 2)}
-                </pre>
-              </div>
-            )}
+            <CopyableCode
+              title={t('activity.input')}
+              value={inputText}
+              emptyLabel={t('activity.emptyPayload')}
+            />
+            <CopyableCode
+              title={t('activity.output')}
+              value={outputText}
+              emptyLabel={t('activity.emptyPayload')}
+            />
+          </div>
+          <div className="ylune-dialog-foot">
+            <button type="button" className="hub-btn" onClick={() => setShowDetailModal(false)}>
+              {t('common.close')}
+            </button>
           </div>
         </div>
       </div>
@@ -872,25 +613,24 @@ const ActivityPage: React.FC = () => {
                 />
               )}
             </div>
-            <div className="flex-[2] flex items-center justify-end space-x-2">
-              <label htmlFor="perPage" className="text-sm text-gray-500 dark:text-gray-400">
-                {t('common.itemsPerPage')}:
-              </label>
-              <select
+            <div className="flex-[2] flex items-center justify-end" style={{ minWidth: 160 }}>
+              <FilterSelect
                 id="perPage"
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
+                label={t('common.itemsPerPage')}
+                value={String(itemsPerPage)}
+                onChange={(value) => {
+                  setItemsPerPage(Number(value));
                   setCurrentPage(1);
                 }}
-                disabled={isLoading}
-                className="border border-gray-300 dark:border-gray-600 rounded p-1 text-sm dark:bg-gray-700 dark:text-white outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+                options={[
+                  { value: '10', label: '10' },
+                  { value: '20', label: '20' },
+                  { value: '50', label: '50' },
+                  { value: '100', label: '100' },
+                ]}
+                searchable={false}
+                allowEmpty={false}
+              />
             </div>
           </div>
         </>

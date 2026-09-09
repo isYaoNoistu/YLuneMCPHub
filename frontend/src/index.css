@@ -276,6 +276,10 @@
   min-width: 200px;
 }
 
+.hub-multiselect.is-compact {
+  min-width: 0;
+}
+
 .hub-multiselect-control {
   min-height: 38px;
   width: 100%;
@@ -287,6 +291,9 @@
   border: 1px solid var(--hub-line);
   border-radius: 8px;
   background: var(--hub-bg);
+  color: var(--hub-ink);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -341,7 +348,7 @@
 
 .hub-multiselect-menu {
   position: absolute;
-  z-index: 50;
+  z-index: 80;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
@@ -349,7 +356,32 @@
   border: 1px solid var(--hub-line);
   border-radius: 8px;
   background: var(--hub-surface);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--hub-ink);
+  color-scheme: dark;
+}
+
+.hub-multiselect-menu.is-portal {
+  position: fixed;
+  z-index: 400;
+  right: auto;
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+  background: #121214;
+  color: #f2f0ea;
+  border-color: rgba(242, 240, 234, 0.16);
+}
+
+.hub-multiselect-menu.is-portal .hub-multiselect-list {
+  flex: 1;
+}
+
+.hub-multiselect-menu.is-portal .hub-input {
+  background: #0a0a0b;
+  color: #f2f0ea;
+  border-color: rgba(242, 240, 234, 0.16);
+  color-scheme: dark;
 }
 
 .hub-multiselect-search {

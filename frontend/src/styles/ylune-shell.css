@@ -1340,6 +1340,342 @@ button.cfg-link {
   letter-spacing: 0.04em;
 }
 
+.dash-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.95fr);
+  gap: 12px;
+  margin: 16px 0 20px;
+  align-items: stretch;
+}
+
+.dash-session {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 16px 16px 16px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(94, 234, 212, 0.06), transparent 42%),
+    var(--color-surface);
+  overflow: hidden;
+}
+
+.dash-session::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-accent);
+}
+
+.dash-identity {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.dash-identity-kicker {
+  margin: 0 0 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.dash-identity h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.dash-identity .hub-tag {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.dash-identity-hint {
+  margin: 0 0 4px;
+}
+
+.dash-snapshot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.dash-snapshot-item {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.dash-snapshot-item span {
+  display: block;
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.dash-snapshot-item b {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.dash-snapshot-item b.is-warn {
+  color: var(--color-danger);
+}
+
+.dash-snapshot-item.is-wide {
+  grid-column: 1 / -1;
+}
+
+.dash-snapshot-item.is-wide b {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.dash-snapshot-item b.is-err {
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-session-pulse {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 8px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.dash-session-pulse .dash-day {
+  min-height: 52px;
+  gap: 4px;
+}
+
+.dash-session-pulse .dash-day-bar {
+  width: 10px;
+}
+
+.dash-endpoint {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+}
+
+.dash-endpoint span {
+  display: block;
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.dash-endpoint code {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.activity-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 14px;
+  align-items: end;
+}
+
+.activity-filter-field {
+  min-width: 0;
+}
+
+.activity-filter-field .ylune-label {
+  margin-bottom: 6px;
+}
+
+.activity-filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .activity-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dash-roster {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  min-height: 0;
+  flex: 1;
+}
+
+.dash-roster-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 10px;
+}
+
+.dash-roster-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dash-roster-head .hub-num {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.dash-roster-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.dash-roster-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.dash-roster-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dash-empty {
+  display: grid;
+  place-items: center;
+  min-height: 148px;
+  padding: 20px 16px;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.55;
+}
+
+.dash-empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dash-chart {
+  min-height: 220px;
+}
+
+.dash-errors.is-empty {
+  min-height: 96px;
+  display: grid;
+  place-items: center;
+}
+
+.activity-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 24px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+
+.activity-meta-item {
+  min-width: 0;
+}
+
+.activity-meta-item dt {
+  margin: 0 0 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.activity-meta-item dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.activity-error {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 10px;
+  background: rgba(248, 113, 113, 0.08);
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.copyable-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.copyable-code .ylune-code {
+  max-height: 240px;
+}
+
+@media (max-width: 640px) {
+  .activity-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dash-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--color-border);
@@ -1560,6 +1896,10 @@ button.cfg-link {
 }
 
 @media (max-width: 900px) {
+  .dash-hero {
+    grid-template-columns: 1fr;
+  }
+
   .dash-charts {
     grid-template-columns: 1fr;
   }
