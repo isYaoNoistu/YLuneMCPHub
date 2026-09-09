@@ -12,7 +12,7 @@ Do not put real tokens, production passwords, internal hostnames, or customer na
 
 | Service | Container | Role |
 | --- | --- | --- |
-| `postgres` | `ylune-postgres` | **The** config store (servers, users, groups, keys, system settings) plus pgvector. Port 5432 is **not** published by default. |
+| `postgres` | `ylune-postgres` | Config store. Default image `postgres:16`. pgvector is only needed for `$smart`. Port 5432 is **not** published by default. |
 | `ylune` | `ylune` | The gateway. Built from the repo-root `Dockerfile` as `ylune:local`. |
 | `nginx` | `ylune-nginx` | Optional reverse proxy. Started only with `--profile proxy`. |
 
@@ -37,6 +37,7 @@ cp .env.example .env   # Windows: Copy-Item .env.example .env
 | `BASE_PATH` | no | Set only for a subpath proxy (e.g. `/ylune`). Must match Nginx `location`. |
 | `NPM_REGISTRY` | no | Applied by `entrypoint.sh` at start. |
 | `NGINX_HTTP_PORT` | no | Used with `--profile proxy`. |
+| `POSTGRES_IMAGE` | no | Default `postgres:16`. Set `pgvector/pgvector:pg17` when you need `$smart`. Do not reuse `ylune-pg` across major versions. |
 | `MCP_MOUNT_DIR` | no | Host dir mapped to `/opt/mcp`. Default `/data/ylune-mcp`. Empty is fine; DevOpsMCP `attach.sh` writes binaries here. |
 | `PUBLISH_DB_PORT` | no | Uncomment `postgres.ports` if you need host access to the DB. |
 

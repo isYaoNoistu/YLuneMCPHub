@@ -20,6 +20,7 @@
 cd /data/YLuneMCPHub/deploy
 cp .env.example .env
 # 改 ADMIN_PASSWORD、DB_PASSWORD
+# 本机已有 postgres:16 时，.env 里 POSTGRES_IMAGE=postgres:16（示例里已是这个）
 # MCP_MOUNT_DIR 默认 /data/ylune-mcp，一般不用动
 docker compose up -d --build
 ```

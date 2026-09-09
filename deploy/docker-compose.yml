@@ -14,7 +14,7 @@ name: ylune
 
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    image: ${POSTGRES_IMAGE:-postgres:16}
     container_name: ylune-postgres
     environment:
       POSTGRES_DB: ylune

@@ -12,7 +12,7 @@
 
 | 服务 | 容器名 | 作用 |
 | --- | --- | --- |
-| `postgres` | `ylune-postgres` | **唯一配置库**（服务器、用户、分组、Key、系统设置）+ pgvector。默认**不**把 5432 暴露到宿主机。 |
+| `postgres` | `ylune-postgres` | **唯一配置库**（服务器、用户、分组、Key、系统设置）。默认镜像 `postgres:16`。智能路由才需要 pgvector。默认**不**把 5432 暴露到宿主机。 |
 | `ylune` | `ylune` | 月弦本体。用仓库根目录 `Dockerfile` 现场构建，镜像名 `ylune:local`。 |
 | `nginx` | `ylune-nginx` | 可选反代。只有加 `--profile proxy` 才会起。 |
 
@@ -45,7 +45,7 @@
 ## 3. 前置条件
 
 - 部署机已装 [Docker Engine](https://docs.docker.com/engine/install/) 和 Compose 插件（`docker compose version` 能出版本）。
-- 能访问镜像源（`pgvector/pgvector:pg17`、`nginx:1.27-alpine`，以及构建时的 Node / Python 基座）。
+- 能访问镜像源（`postgres:16` 或你在 `POSTGRES_IMAGE` 里写的镜像、`nginx:1.27-alpine`，以及构建时的 Node / Python 基座）。本机已有 `postgres:16` 时不必再拉。
 - 宿主机空出 `YLUNE_PORT`（默认 3000）。启用反代时再空出 `NGINX_HTTP_PORT`（默认 80）。
 - 首次构建会编译前后端，机器要有足够内存；构建层会拉依赖，需要出网或已配镜像加速。
 
@@ -65,6 +65,7 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `BASE_PATH` | 留空 或 `/ylune` | 否 | 只有 Nginx / 网关把月弦挂在子路径时才填。填了必须和 Nginx `location` 一致。 |
 | `NPM_REGISTRY` | `https://registry.npmjs.org/` | 否 | 容器启动时 `entrypoint.sh` 会 `npm config set registry`。国内可改镜像。 |
 | `NGINX_HTTP_PORT` | `80` | 否 | 仅 `--profile proxy` 时用。 |
+| `POSTGRES_IMAGE` | `postgres:16` | 否 | 配置库镜像。默认用官方 16。智能路由要向量扩展时再改 `pgvector/pgvector:pg17`。换大版本不要直接复用 `ylune-pg` 卷。 |
 | `MCP_MOUNT_DIR` | `/data/ylune-mcp` | 否 | 宿主机目录，映射到容器 `/opt/mcp`。空目录即可。DevOpsMCP 的 `attach.sh` 往这里写二进制。 |
 | `PUBLISH_DB_PORT` | `5432` | 否 | 默认不暴露库端口。要在宿主机连库时，取消 compose 里 `postgres.ports` 注释。 |
 
