@@ -26,6 +26,11 @@ export const isUnrestrictedPrincipal = (
   user?: GroupAccessPrincipal | null,
 ): boolean => Boolean(!user?.username || user.isAdmin);
 
+const isRestrictedMember = (
+  user?: GroupAccessPrincipal | null,
+): user is GroupAccessPrincipal & { username: string } =>
+  Boolean(user?.username && !user.isAdmin);
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const isGroupMember = (group: IGroup, username: string): boolean => {
@@ -81,7 +86,7 @@ export const getEffectiveAccess = async (
   const current = user === undefined ? UserContextService.getInstance().getCurrentUser() : user;
   // Admins (and unauthenticated/system callers) keep full access. Membership
   // lists only restrict regular users.
-  if (isUnrestrictedPrincipal(current)) {
+  if (!isRestrictedMember(current)) {
     return unrestrictedAccess();
   }
 
