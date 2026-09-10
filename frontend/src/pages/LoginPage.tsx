@@ -266,9 +266,14 @@ const LoginPage: React.FC = () => {
             <h1 className="login-title boot-in" id="loginTitle">
               YLUNE<span className="tick">.</span>
             </h1>
-            <p className="login-sub boot-in">
-              MCP 服务的统一网关。<em>内部入口</em>，账号由管理员分配。
-            </p>
+            <div className="login-deck boot-in">
+              <p className="login-deck-lead">{t('auth.loginLead')}</p>
+              <ul className="login-deck-rail">
+                <li>{t('auth.loginFactGateway')}</li>
+                <li>{t('auth.loginFactInternal')}</li>
+                <li>{t('auth.loginFactIssued')}</li>
+              </ul>
+            </div>
 
             <form
               className={`login-form boot-in${shake ? ' shake' : ''}`}
@@ -381,7 +386,14 @@ const LoginPage: React.FC = () => {
                 </div>
               )}
 
-              <p className="login-hint boot-in mono">INTERNAL ACCESS ONLY · 账号由管理员分配</p>
+              <p className="login-access boot-in">
+                <i className="login-access-dot" aria-hidden="true" />
+                <span>{t('auth.loginAccessClosed')}</span>
+                <span className="login-access-sep" aria-hidden="true">
+                  /
+                </span>
+                <span>{t('auth.loginAccessIssued')}</span>
+              </p>
             </form>
           </section>
         </div>
