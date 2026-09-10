@@ -19,6 +19,7 @@ Credentials stay in the deploy environment. This repo has no tokens, passwords, 
 
 <p>
   <b><a href="#quick-start">Quick start</a></b> ·
+  <a href="#what-it-looks-like">Screenshots</a> ·
   <a href="#with-devopsmcp">With DevOpsMCP</a> ·
   <a href="#what-it-does">What it does</a> ·
   <a href="#how-it-works">How it works</a> ·
@@ -37,6 +38,22 @@ On-call tools live in [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP): rea
 **YLune does not reimplement those tools.** It ingests MCP servers you already have, grants them per user, and exposes one HTTP endpoint.
 
 A single operator can run the three DevOpsMCP binaries directly. Use YLune when several people share one entrypoint and you need to slice tools per user.
+
+## What it looks like
+
+The console is black with a teal accent. Screenshots of login, the dashboard, activity, and per-user tool grants:
+
+<p align="center">
+  <img src="docs/images/login.jpg" alt="YLune login" width="48%" />
+  <img src="docs/images/dashboard.png" alt="YLune dashboard" width="48%" />
+</p>
+<p align="center"><sub>Login · Dashboard (gateway and agent traffic; view only)</sub></p>
+
+<p align="center">
+  <img src="docs/images/activity.png" alt="YLune activity" width="48%" />
+  <img src="docs/images/add-user.png" alt="Add a user and grant MCP tools" width="48%" />
+</p>
+<p align="center"><sub>Activity · Tick servers and tools when creating a user</sub></p>
 
 
 | Situation        | DevOpsMCP only                         | In front of YLune                                      |

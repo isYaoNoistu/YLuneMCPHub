@@ -19,6 +19,7 @@
 
 <p>
   <b><a href="#快速开始">快速开始</a></b> ·
+  <a href="#长什么样">界面</a> ·
   <a href="#和-devopsmcp">和 DevOpsMCP</a> ·
   <a href="#它做什么">它做什么</a> ·
   <a href="#怎么工作">怎么工作</a> ·
@@ -37,6 +38,22 @@
 **月弦不重复实现这些工具。** 它把已经编好的 MCP 收进来，按用户勾选工具，再以一条 HTTP 端点交给智能体。
 
 一个人接 Cursor 时，可以直接跑 DevOpsMCP 的三个二进制。人一多、要按人裁工具、要统一入口时，才上月弦。
+
+## 长什么样
+
+控制台是黑底 + 月光青。单看文字不容易建立印象，下面四张是现在的界面：登录、仪表盘、活动记录、给用户勾 MCP 工具。
+
+<p align="center">
+  <img src="docs/images/login.jpg" alt="月弦登录页" width="48%" />
+  <img src="docs/images/dashboard.png" alt="月弦仪表盘" width="48%" />
+</p>
+<p align="center"><sub>登录 · 仪表盘（管理员看网关和智能体调用，本页只读）</sub></p>
+
+<p align="center">
+  <img src="docs/images/activity.png" alt="月弦活动记录" width="48%" />
+  <img src="docs/images/add-user.png" alt="添加用户并勾选 MCP 工具" width="48%" />
+</p>
+<p align="center"><sub>活动 · 添加用户时按人勾服务器和 tools</sub></p>
 
 
 | 现场     | 只接 DevOpsMCP                         | 前面再加月弦                                      |
@@ -203,6 +220,7 @@ hub/           控制台视觉标尺（静态）
 login/         登录页视觉标尺（静态）
 locales/       文案
 docs/使用教程.md  字段级操作说明
+docs/images/   控制台截图（README 用）
 docs/配置与数据.md 配置进库、迁库
 docs/Linux部署.md  /data 两仓：月弦 compose + DevOpsMCP attach
 deploy/        Docker Compose 整包与部署流程
