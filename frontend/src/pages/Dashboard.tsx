@@ -7,8 +7,43 @@ import { useUserData } from '@/hooks/useUserData';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { formatTokens } from '@/utils/contextCost';
 import { checkActivityAvailable, getActivityUsage } from '@/services/activityService';
-import { ActivityUsage, IGroupServerConfig, Server } from '@/types';
+import { ActivityUsage, IGroupServerConfig, IUser, Server, User } from '@/types';
 import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
+
+const formatWhen = (iso?: string | null): string => {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+};
+
+const isTokenExpired = (user: Pick<User, 'isAdmin' | 'tokenExpiresAt' | 'expired'>): boolean => {
+  if (user.isAdmin || !user.tokenExpiresAt) return false;
+  if (user.expired) return true;
+  const expires = new Date(user.tokenExpiresAt).getTime();
+  return !Number.isNaN(expires) && expires <= Date.now();
+};
+
+const tokenRemainingLabel = (
+  user: Pick<User, 'isAdmin' | 'tokenExpiresAt' | 'expired'>,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string => {
+  if (user.isAdmin || !user.tokenExpiresAt) {
+    return t('users.tokenNeverExpires');
+  }
+  if (isTokenExpired(user)) {
+    return t('users.tokenExpired');
+  }
+  const ms = new Date(user.tokenExpiresAt).getTime() - Date.now();
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  if (days >= 1) {
+    return t('pages.dashboard.tokenRemainingDays', { days });
+  }
+  if (hours >= 1) {
+    return t('pages.dashboard.tokenRemainingHours', { hours });
+  }
+  return t('pages.dashboard.tokenRemainingSoon');
+};
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
@@ -95,7 +130,8 @@ const DashboardPage: React.FC = () => {
   const weekCalls = usage?.days.reduce((sum, day) => sum + day.count, 0) ?? null;
   const lastFailure = usage?.recentErrors[0];
   const mcpEndpoint = getMcpEndpointUrl(installConfig?.baseUrl);
-  const myGrants = auth.user?.grants || [];
+  const sessionUser = auth.user as IUser | null;
+  const myGrants = sessionUser?.grants || [];
   const myToolCount = myGrants.reduce((sum, grant) => {
     if (!grant.tools || grant.tools === 'all') {
       const server = allServers.find((item) => item.name === grant.name);
@@ -284,6 +320,20 @@ const DashboardPage: React.FC = () => {
                 <span>{t('pages.dashboard.grantedTools')}</span>
                 <b className="hub-num">{myGrants.length === 0 ? '—' : myToolCount}</b>
               </div>
+              <div className="dash-snapshot-item">
+                <span>{t('pages.dashboard.tokenRemaining')}</span>
+                <b className={sessionUser && isTokenExpired(sessionUser) ? 'is-err' : undefined}>
+                  {sessionUser ? tokenRemainingLabel(sessionUser, t) : '—'}
+                </b>
+              </div>
+              <div className="dash-snapshot-item">
+                <span>{t('pages.dashboard.lastCalledAt')}</span>
+                <b>{formatWhen(sessionUser?.lastCalledAt)}</b>
+              </div>
+              <div className="dash-snapshot-item">
+                <span>{t('pages.dashboard.createdAt')}</span>
+                <b>{formatWhen(sessionUser?.createdAt)}</b>
+              </div>
             </div>
 
             <div className="dash-endpoint">
@@ -329,7 +379,7 @@ const DashboardPage: React.FC = () => {
               )}
             </article>
 
-            <article className="dash-roster">
+            <article className="dash-roster is-users">
               <div className="dash-roster-head">
                 <h3>{t('pages.dashboard.usersNow')}</h3>
                 <span className="hub-num hub-mono">{users.length}</span>
@@ -339,30 +389,50 @@ const DashboardPage: React.FC = () => {
                   <strong>{t('pages.dashboard.noOtherUsers')}</strong>
                 </div>
               ) : (
-                users.slice(0, 8).map((user) => (
-                  <div key={user.username} className="dash-roster-row">
-                    <span className="dash-roster-name hub-mono">
-                      {user.username}
-                      {user.username === username ? (
-                        <span className="hub-tag accent" style={{ fontSize: 10, marginLeft: 8 }}>
-                          {t('users.currentUser')}
+                users.map((user) => {
+                  const expired = isTokenExpired(user);
+                  return (
+                    <div key={user.username} className={`dash-roster-row is-user${expired ? ' is-expired' : ''}`}>
+                      <div className="dash-user-top">
+                        <span className="dash-roster-name hub-mono">
+                          {user.username}
+                          {user.username === username ? (
+                            <span className="hub-tag accent" style={{ fontSize: 10, marginLeft: 8 }}>
+                              {t('users.currentUser')}
+                            </span>
+                          ) : null}
+                          {user.isAdmin ? (
+                            <span className="hub-tag muted" style={{ fontSize: 10, marginLeft: 6 }}>
+                              {t('users.admin')}
+                            </span>
+                          ) : null}
+                          {expired ? (
+                            <span className="hub-tag muted" style={{ fontSize: 10, marginLeft: 6 }}>
+                              {t('users.tokenExpired')}
+                            </span>
+                          ) : null}
                         </span>
-                      ) : null}
-                      {user.isAdmin ? (
-                        <span className="hub-tag muted" style={{ fontSize: 10, marginLeft: 6 }}>
-                          {t('users.admin')}
+                        <span className="hub-num hub-mono" style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+                          {user.isAdmin
+                            ? t('pages.dashboard.adminAccess')
+                            : t('pages.dashboard.grantCount', { count: user.grants?.length || 0 })}
                         </span>
-                      ) : null}
-                    </span>
-                    <div className="dash-roster-meta">
-                      <span className="hub-num hub-mono" style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-                        {user.isAdmin
-                          ? t('pages.dashboard.adminAccess')
-                          : t('pages.dashboard.grantCount', { count: user.grants?.length || 0 })}
-                      </span>
+                      </div>
+                      <div className="dash-user-times">
+                        <span>
+                          {t('pages.dashboard.tokenRemaining')} ·{' '}
+                          <b className={expired ? 'is-err' : undefined}>{tokenRemainingLabel(user, t)}</b>
+                        </span>
+                        <span>
+                          {t('pages.dashboard.lastCalledAt')} · {formatWhen(user.lastCalledAt)}
+                        </span>
+                        <span>
+                          {t('pages.dashboard.createdAt')} · {formatWhen(user.createdAt)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </article>
           </div>

@@ -29,6 +29,7 @@ jest.mock('../../src/dao/index.js', () => ({
     findByOwner: mockFindBearerKeysByOwner,
     create: mockCreateBearerKey,
   })),
+  getActivityDao: jest.fn(() => undefined),
 }));
 
 import {

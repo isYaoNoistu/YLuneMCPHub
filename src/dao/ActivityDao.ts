@@ -21,6 +21,7 @@ export interface ActivityDao {
   getDistinctGroups(): Promise<string[]>;
   getDistinctUsernames(): Promise<string[]>;
   getDistinctKeyNames(): Promise<string[]>;
+  getLastTimestampByUsernames?(usernames: string[]): Promise<Map<string, Date>>;
 }
 
 /**
@@ -106,6 +107,10 @@ export class ActivityDaoDbImpl implements ActivityDao {
 
   async getDistinctKeyNames(): Promise<string[]> {
     return await this.repository.getDistinctKeyNames();
+  }
+
+  async getLastTimestampByUsernames(usernames: string[]): Promise<Map<string, Date>> {
+    return await this.repository.findLastTimestampByUsernames(usernames);
   }
 
   private mapToActivity(entity: any): IActivity {

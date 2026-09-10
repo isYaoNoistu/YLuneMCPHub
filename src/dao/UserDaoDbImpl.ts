@@ -3,6 +3,7 @@ import { UserDao } from './index.js';
 import { IGroupServerConfig, IUser } from '../types/index.js';
 import { UserRepository } from '../db/repositories/UserRepository.js';
 import { User } from '../db/entities/User.js';
+import { parseTokenExpiresAt } from '../utils/userTokenExpiry.js';
 
 /**
  * Database-backed implementation of UserDao
@@ -24,6 +25,7 @@ export class UserDaoDbImpl implements UserDao {
       remark: u.remark ?? undefined,
       grants: Array.isArray(u.grants) ? u.grants : undefined,
       tokenExpiresAt: u.tokenExpiresAt ?? null,
+      createdAt: u.createdAt ?? null,
     };
   }
 
@@ -63,7 +65,7 @@ export class UserDaoDbImpl implements UserDao {
       ssoUserId: entity.ssoUserId ?? null,
       remark: entity.remark ?? null,
       grants: entity.grants ?? [],
-      tokenExpiresAt: entity.tokenExpiresAt ?? null,
+      tokenExpiresAt: parseTokenExpiresAt(entity.tokenExpiresAt),
     });
     return this.toIUser(user);
   }

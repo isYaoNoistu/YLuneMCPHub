@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import { findUserByUsername, verifyPassword, updateUserPassword } from '../models/User.js';
+import { toSessionUser } from '../services/userService.js';
 import { getDataService } from '../services/services.js';
 import { DataService } from '../services/dataService.js';
 import { JWT_SECRET } from '../config/jwt.js';
@@ -90,6 +91,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const isUsingDefaultPassword =
       user.username === 'admin' && user.isAdmin && isDefaultPassword(password) && version !== 'dev';
 
+    const sessionUser = await toSessionUser(user, dataService.getPermissions(user));
+
     jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY }, (err, token) => {
       if (err) throw err;
       res.setHeader('Cache-Control', 'no-store');
@@ -97,12 +100,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         success: true,
         message: t('api.success.login_successful'),
         token,
-        user: {
-          username: user.username,
-          isAdmin: user.isAdmin,
-          permissions: dataService.getPermissions(user),
-          grants: user.isAdmin ? [] : user.grants || [],
-        },
+        user: sessionUser,
         isUsingDefaultPassword,
       });
     });
@@ -132,15 +130,22 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
   try {
     const user = (req as any).user;
     const stored = user?.username ? await findUserByUsername(user.username) : undefined;
+    const sessionUser = stored
+      ? await toSessionUser(stored, dataService.getPermissions(user))
+      : {
+          username: user.username,
+          isAdmin: user.isAdmin,
+          permissions: dataService.getPermissions(user),
+          grants: [],
+          tokenExpiresAt: null,
+          expired: false,
+          createdAt: null,
+          lastCalledAt: null,
+        };
 
     res.json({
       success: true,
-      user: {
-        username: user.username,
-        isAdmin: user.isAdmin,
-        permissions: dataService.getPermissions(user),
-        grants: user.isAdmin ? [] : stored?.grants || [],
-      },
+      user: sessionUser,
     });
   } catch (error) {
     logger.error('Get current user error:', error);

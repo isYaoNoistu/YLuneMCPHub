@@ -28,6 +28,7 @@ jest.mock('../../src/services/userService.js', () => ({
   generateInternalPassword: mockGenerateInternalPassword,
   ensureUserAccessToken: mockEnsureUserAccessToken,
   toPublicUser: mockToPublicUser,
+  attachLastCalledAt: jest.fn(async (users: unknown[]) => users),
 }));
 
 jest.mock('../../src/utils/passwordValidation.js', () => ({

@@ -51,7 +51,7 @@ Internal only. No public signup. Admins issue accounts. Agents do not use this p
 
 ### Dashboard
 
-Read-only gateway status: online servers, tool count, calls from agents and regular users. Admins rarely call tools themselves. This page does not copy mcp.json, grant tools, or add servers.
+Read-only gateway status: online servers, tool count, calls from agents and regular users, plus token time left, last call, and created time. Admins rarely call tools themselves. This page does not copy mcp.json, grant tools, or add servers.
 
 ![Dashboard](docs/images/dashboard.png)
 

@@ -1588,6 +1588,48 @@ button.cfg-link {
   flex-shrink: 0;
 }
 
+.dash-roster.is-users {
+  max-height: 460px;
+  overflow: auto;
+}
+
+.dash-roster-row.is-user {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+}
+
+.dash-roster-row.is-user.is-expired {
+  opacity: 0.55;
+}
+
+.dash-user-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-user-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.dash-user-times b {
+  font-weight: 600;
+  color: var(--hub-ink-2, var(--color-text));
+}
+
+.dash-user-times b.is-err,
+.dash-snapshot-item b.is-err {
+  color: var(--hub-err, #c45c5c);
+}
+
 .dash-empty {
   display: grid;
   place-items: center;

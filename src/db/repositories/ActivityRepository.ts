@@ -291,6 +291,34 @@ export class ActivityRepository {
     return result.map((r) => r.username);
   }
 
+  async findLastTimestampByUsernames(usernames: string[]): Promise<Map<string, Date>> {
+    const unique = [...new Set(usernames.filter((name) => typeof name === 'string' && name.trim()))];
+    const lastByUser = new Map<string, Date>();
+    if (unique.length === 0) {
+      return lastByUser;
+    }
+
+    const rows = await this.repository
+      .createQueryBuilder('activity')
+      .select('activity.username', 'username')
+      .addSelect('MAX(activity.timestamp)', 'lastAt')
+      .where('activity.username IN (:...usernames)', { usernames: unique })
+      .groupBy('activity.username')
+      .getRawMany<{ username?: string; lastAt?: Date | string }>();
+
+    for (const row of rows) {
+      if (!row.username || !row.lastAt) {
+        continue;
+      }
+      const date = row.lastAt instanceof Date ? row.lastAt : new Date(row.lastAt);
+      if (!Number.isNaN(date.getTime())) {
+        lastByUser.set(row.username, date);
+      }
+    }
+
+    return lastByUser;
+  }
+
   async getDistinctKeyNames(): Promise<string[]> {
     const result = await this.repository
       .createQueryBuilder('activity')

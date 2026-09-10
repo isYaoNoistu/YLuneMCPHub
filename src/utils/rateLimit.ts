@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { loginRateLimitIdentity } from './loginGuard.js';
 
@@ -6,10 +7,8 @@ const isTestEnv =
   process.env.JEST_WORKER_ID !== undefined ||
   process.env.VITEST_WORKER_ID !== undefined;
 
-const authLimitHandler = (req: { t?: (key: string) => string }, res: {
-  status: (code: number) => { json: (body: unknown) => void };
-}): void => {
-  const t = req.t;
+const authLimitHandler = (req: Request, res: Response): void => {
+  const t = (req as Request & { t?: (key: string) => string }).t;
   res.status(429).json({
     success: false,
     error: 'rate_limited',

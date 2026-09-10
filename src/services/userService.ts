@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { IGroupServerConfig, IUser } from '../types/index.js';
-import { getBearerKeyDao, getUserDao } from '../dao/index.js';
+import { getActivityDao, getBearerKeyDao, getUserDao } from '../dao/index.js';
 import { logger } from '../utils/logger.js';
 import { isUserTokenExpired, serializeTokenExpiresAt } from '../utils/userTokenExpiry.js';
 
@@ -51,14 +51,72 @@ export const ensureUserAccessToken = async (
 
 export const toPublicUser = async (
   user: IUser,
-): Promise<Omit<IUser, 'password'> & { token?: string; expired: boolean; tokenExpiresAt: string | null }> => {
+): Promise<
+  Omit<IUser, 'password'> & {
+    token?: string;
+    expired: boolean;
+    tokenExpiresAt: string | null;
+    createdAt: string | null;
+    lastCalledAt: string | null;
+  }
+> => {
   const { password: _, ...rest } = user;
   return {
     ...rest,
     tokenExpiresAt: serializeTokenExpiresAt(user.tokenExpiresAt),
+    createdAt: serializeTokenExpiresAt(user.createdAt),
+    lastCalledAt: null,
     expired: isUserTokenExpired(user),
     token: await getUserAccessToken(user.username),
   };
+};
+
+export const attachLastCalledAt = async <T extends { username: string; lastCalledAt?: string | null }>(
+  users: T[],
+): Promise<(T & { lastCalledAt: string | null })[]> => {
+  const dao = getActivityDao();
+  if (!dao?.getLastTimestampByUsernames || users.length === 0) {
+    return users.map((user) => ({ ...user, lastCalledAt: user.lastCalledAt ?? null }));
+  }
+
+  try {
+    const lastMap = await dao.getLastTimestampByUsernames(users.map((user) => user.username));
+    return users.map((user) => ({
+      ...user,
+      lastCalledAt: serializeTokenExpiresAt(lastMap.get(user.username) ?? null),
+    }));
+  } catch (error) {
+    logger.warn('Failed to load last call times for users:', error);
+    return users.map((user) => ({ ...user, lastCalledAt: user.lastCalledAt ?? null }));
+  }
+};
+
+export const toSessionUser = async (
+  user: IUser,
+  permissions: string[],
+): Promise<{
+  username: string;
+  isAdmin: boolean;
+  permissions: string[];
+  grants: IGroupServerConfig[];
+  tokenExpiresAt: string | null;
+  expired: boolean;
+  createdAt: string | null;
+  lastCalledAt: string | null;
+}> => {
+  const [withLast] = await attachLastCalledAt([
+    {
+      username: user.username,
+      isAdmin: Boolean(user.isAdmin),
+      permissions,
+      grants: user.isAdmin ? [] : user.grants || [],
+      tokenExpiresAt: serializeTokenExpiresAt(user.tokenExpiresAt),
+      expired: isUserTokenExpired(user),
+      createdAt: serializeTokenExpiresAt(user.createdAt),
+      lastCalledAt: null,
+    },
+  ]);
+  return withLast;
 };
 
 export const normalizeUserGrants = (input: unknown): IGroupServerConfig[] => {

@@ -17,6 +17,7 @@ export interface IUser {
   grants?: IGroupServerConfig[] | null;
   /** When set, this user's MCP Key stops working after this time. null = never expires. */
   tokenExpiresAt?: Date | string | null;
+  createdAt?: Date | string | null;
 }
 
 // Group interface for server grouping

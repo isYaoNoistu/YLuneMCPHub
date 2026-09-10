@@ -474,6 +474,10 @@ export interface IUser {
   isAdmin?: boolean;
   permissions?: string[];
   grants?: IGroupServerConfig[];
+  tokenExpiresAt?: string | null;
+  expired?: boolean;
+  createdAt?: string | null;
+  lastCalledAt?: string | null;
 }
 
 // User management types
@@ -486,6 +490,8 @@ export interface User {
   grants?: IGroupServerConfig[];
   tokenExpiresAt?: string | null;
   expired?: boolean;
+  createdAt?: string | null;
+  lastCalledAt?: string | null;
 }
 
 export interface UserFormData {

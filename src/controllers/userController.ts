@@ -12,6 +12,7 @@ import {
   generateInternalPassword,
   ensureUserAccessToken,
   toPublicUser,
+  attachLastCalledAt,
   normalizeUserGrants,
 } from '../services/userService.js';
 import { validatePasswordStrength } from '../utils/passwordValidation.js';
@@ -35,7 +36,9 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
   try {
-    const users = await Promise.all((await getAllUsers()).map((user) => toPublicUser(user)));
+    const users = await attachLastCalledAt(
+      await Promise.all((await getAllUsers()).map((user) => toPublicUser(user))),
+    );
     const response: ApiResponse = {
       success: true,
       data: users,
