@@ -1951,3 +1951,30 @@ button.cfg-link {
     gap: 4px;
   }
 }
+
+.grant-preview {
+  margin-top: 12px;
+}
+
+.grant-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grant-preview-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--hub-ink-2);
+}
+
+.grant-preview-list strong {
+  color: var(--hub-ink);
+}

@@ -373,6 +373,7 @@
     "cloud": "Marché Cloud",
     "logs": "Journaux",
     "activity": "Activité",
+    "lab": "Labo",
     "workspace": "Espace de travail",
     "system": "Système"
   },
@@ -387,7 +388,11 @@
       "recentServers": "Serveurs récents"
     },
     "servers": {
-      "title": "Gestion des serveurs"
+      "title": "Gestion des serveurs",
+      "searchPlaceholder": "Rechercher un serveur, un outil ou un #tag",
+      "toolChanges": "Liste d'outils modifiée",
+      "toolAdded": "Ajouté {{tools}}",
+      "toolRemoved": "Retiré {{tools}}"
     },
     "groups": {
       "title": "Gestion des groupes"
@@ -1008,6 +1013,21 @@
     "tokenValidUntil": "Jusqu'au {{time}}",
     "renew": "Renouveler",
     "renewHint": "La durée est comptée à partir de maintenant. Après renouvellement, la clé peut à nouveau appeler /mcp.",
+    "rotate": "Faire tourner la clé",
+    "rotateHint": "Cela invalide la clé actuelle de {{username}}. Tout mcp.json déjà partagé cessera de fonctionner.",
+    "rotateError": "Échec de la rotation de la clé",
+    "rotateSuccess": "Clé renouvelée",
+    "rotateSuccessHint": "L'ancienne clé est morte. Copiez la nouvelle clé ou le mcp.json.",
+    "grantPreview": "Aperçu des droits",
+    "grantPreviewHint": "{{servers}} serveurs et {{tools}} outils seront exposés",
+    "grantPreviewEmpty": "Aucun serveur sélectionné. Cette clé ne verra aucun outil sur /mcp",
+    "grantPreviewAll": "Tous les {{count}} outils",
+    "expiryCenter": "Centre d'expiration",
+    "expiryCenterHint": "Utilisateurs dont la clé a expiré ou expire dans 7 jours.",
+    "expiryNone": "Aucun utilisateur expiré ou bientôt expiré",
+    "grants": "Serveurs MCP et outils",
+    "grantsHint": "Choisissez les serveurs, puis les outils que cet utilisateur peut appeler.",
+    "adminUnrestricted": "Les administrateurs ont déjà tous les serveurs activés.",
     "email": "E-mail",
     "emailPlaceholder": "Entrer l'e-mail (optionnel)",
     "password": "Mot de passe",
@@ -1272,6 +1292,30 @@
     "serversInGroup": "serveur(s)",
     "envVarsNeeded": "Variables d'environnement requises — définissez-les avant d'utiliser les serveurs importés :",
     "importResult": "Serveurs : {{serversCreated}} créés, {{serversSkipped}} ignorés. Groupes : {{groupsCreated}} créés, {{groupsSkipped}} ignorés."
+  },
+  "lab": {
+    "title": "Laboratoire MCP",
+    "hint": "Les outils suivent les droits de l'utilisateur choisi. L'appel utilise sa clé. Un compte admin utilise la session actuelle.",
+    "asUser": "En tant qu'utilisateur",
+    "pickServer": "Choisir un serveur",
+    "tool": "Outil",
+    "pickTool": "Choisir un outil",
+    "args": "Arguments (JSON)",
+    "run": "Appeler",
+    "failed": "Échec de l'appel",
+    "noToken": "Cet utilisateur n'a pas encore de clé"
+  },
+  "diag": {
+    "title": "Diagnostic",
+    "noServers": "Aucun serveur MCP n'est encore connecté",
+    "disconnected": "Ces serveurs ne sont pas connectés : {{names}}",
+    "emptyGrants": "Ces utilisateurs n'ont aucun outil : {{names}}",
+    "expiredUsers": "Ces utilisateurs ont une clé expirée : {{names}}"
+  },
+  "backup": {
+    "download": "Exporter la config",
+    "success": "Sauvegarde téléchargée",
+    "failed": "Échec de l'export"
   },
   "cost": {
     "exposed": "Exposé",

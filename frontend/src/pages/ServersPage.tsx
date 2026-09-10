@@ -11,6 +11,8 @@ import Pagination from '@/components/ui/Pagination';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { selectServerPage, getServerFilterCounts, type ServerFilter } from '@/utils/serverFilters';
+import ToolChangeBanner from '@/components/ToolChangeBanner';
+import { extractSearchTags } from '@/utils/toolInventory';
 
 const ServersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -50,6 +52,7 @@ const ServersPage: React.FC = () => {
   const [search, setSearch] = useState('');
 
   const counts = useMemo(() => getServerFilterCounts(allServers), [allServers]);
+  const searchTags = useMemo(() => extractSearchTags(allServers).slice(0, 16), [allServers]);
 
   // Filter against the full list and paginate the filtered result client-side,
   // so status filters reach servers that live on other pagination pages.
@@ -136,6 +139,8 @@ const ServersPage: React.FC = () => {
         </div>
       )}
 
+      <ToolChangeBanner servers={allServers} />
+
       <div className="servers-toolbar">
         <div className="servers-filters">
           {(
@@ -176,6 +181,21 @@ const ServersPage: React.FC = () => {
           {clientPagination.total}/{allServers.length}
         </span>
       </div>
+
+      {searchTags.length > 0 && (
+        <div className="servers-filters" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+          {searchTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`servers-filter${search === tag.replace(/^#/, '') || search === tag ? ' is-on' : ''}`}
+              onClick={() => setSearch(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* List */}
       {isLoading && servers.length === 0 ? (

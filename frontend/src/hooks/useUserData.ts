@@ -65,6 +65,17 @@ export const useUserData = () => {
     }
   };
 
+  const rotateUserToken = async (username: string) => {
+    try {
+      const result: ApiResponse<User> = await apiPost(`/users/${username}/rotate-token`, {});
+      triggerRefresh();
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('users.rotateError'));
+      return null;
+    }
+  };
+
   // Delete a user
   const deleteUser = async (username: string) => {
     try {
@@ -96,5 +107,6 @@ export const useUserData = () => {
     createUser,
     updateUser,
     deleteUser,
+    rotateUserToken,
   };
 };

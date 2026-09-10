@@ -7,6 +7,7 @@ import { IGroupServerConfig, User } from '@/types';
 import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
+import GrantPreview from './GrantPreview';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -141,6 +142,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
                   onChange={setGrants}
                   serverCosts={serverCosts}
                 />
+                <GrantPreview grants={grants} servers={availableServers} />
               </div>
             )}
             {user.isAdmin && <p className="ylune-help">{t('users.adminUnrestricted')}</p>}

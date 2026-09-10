@@ -36,6 +36,7 @@ const SENSITIVE_INLINE_KEY_PATTERN =
 const AUTHORIZATION_CREDENTIAL_RE =
   /((?:authorization|proxy-authorization)\s*[:=]\s*(?:bearer|basic)\s+)[^\s",;]+/gi;
 const BEARER_BASIC_CREDENTIAL_RE = /\b(Bearer|Basic)\s+[A-Za-z0-9\-._~+/]+=*/gi;
+const USER_ACCESS_TOKEN_RE = /\b(?:ylune|mcphub)_[a-fA-F0-9]{64}\b/g;
 const SENSITIVE_QUERY_PARAM_RE = new RegExp(
   `([?&](?:${SENSITIVE_INLINE_KEY_PATTERN})=)[^&#\\s",;]+`,
   'gi',
@@ -76,6 +77,7 @@ export const sanitizeStringForLogging = (value: string): string => {
 
   sanitized = sanitized.replace(AUTHORIZATION_CREDENTIAL_RE, `$1${REDACTED_VALUE}`);
   sanitized = sanitized.replace(BEARER_BASIC_CREDENTIAL_RE, `$1 ${REDACTED_VALUE}`);
+  sanitized = sanitized.replace(USER_ACCESS_TOKEN_RE, REDACTED_VALUE);
   sanitized = sanitized.replace(SENSITIVE_QUERY_PARAM_RE, `$1${REDACTED_VALUE}`);
   sanitized = sanitized.replace(SENSITIVE_EQUALS_RE, `$1${REDACTED_VALUE}`);
   sanitized = sanitized.replace(SENSITIVE_JSON_DOUBLE_QUOTE_RE, `$1${REDACTED_VALUE}$3`);

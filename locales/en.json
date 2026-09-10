@@ -382,6 +382,7 @@
     "cloud": "Cloud Market",
     "logs": "Logs",
     "activity": "Activity",
+    "lab": "Lab",
     "workspace": "Workspace",
     "system": "System"
   },
@@ -456,7 +457,10 @@
     },
     "servers": {
       "title": "Server Management",
-      "searchPlaceholder": "Search server name, category, or tag"
+      "searchPlaceholder": "Search server name, tool, or #tag",
+      "toolChanges": "Tool list changed",
+      "toolAdded": "Added {{tools}}",
+      "toolRemoved": "Removed {{tools}}"
     },
     "groups": {
       "title": "Group Management"
@@ -1092,6 +1096,18 @@
     "tokenValidUntil": "Until {{time}}",
     "renew": "Renew",
     "renewHint": "Lifetime is counted from now. After renew, the key can call /mcp again.",
+    "rotate": "Rotate key",
+    "rotateHint": "This voids {{username}}'s current key. Any mcp.json already shared will stop working until you copy the new key.",
+    "rotateError": "Failed to rotate key",
+    "rotateSuccess": "Key rotated",
+    "rotateSuccessHint": "The old key is dead. Copy the new key or mcp.json to the agent.",
+    "grantPreview": "Grant preview",
+    "grantPreviewHint": "{{servers}} servers and {{tools}} tools will be exposed",
+    "grantPreviewEmpty": "No servers selected. This key will see no tools on /mcp",
+    "grantPreviewAll": "All {{count}} tools",
+    "expiryCenter": "Expiry center",
+    "expiryCenterHint": "Users whose keys have expired or will expire within 7 days. Renew before they can call /mcp again.",
+    "expiryNone": "No expired or soon-expiring users",
     "grants": "MCP servers and tools",
     "grantsHint": "Pick servers, then the tools this user may call. An empty list means /mcp exposes nothing. Admins already have every enabled server.",
     "adminUnrestricted": "Admins already have every enabled server and tool. No per-user grant list is required.",
@@ -1307,7 +1323,7 @@
     "output": "Output",
     "emptyPayload": "No payload recorded",
     "details": "Activity Details",
-    "detailsHint": "Caller, duration, and raw input / output. Copy the JSON as many times as you need.",
+    "detailsHint": "Caller, duration, and input / output. Tokens and similar secrets are redacted before storage. Copy the JSON as many times as you need.",
     "errorMessage": "Error Message",
     "searchServer": "Server...",
     "searchTool": "Tool...",
@@ -1362,6 +1378,30 @@
     "serversInGroup": "server(s)",
     "envVarsNeeded": "Required Environment Variables — set these before using the imported servers:",
     "importResult": "Servers: {{serversCreated}} created, {{serversSkipped}} skipped. Groups: {{groupsCreated}} created, {{groupsSkipped}} skipped."
+  },
+  "lab": {
+    "title": "MCP lab",
+    "hint": "Tools are filtered by the selected user's grants, and the call uses that user's key so you can verify access. Admin accounts use the current login session.",
+    "asUser": "As user",
+    "pickServer": "Pick a server",
+    "tool": "Tool",
+    "pickTool": "Pick a tool",
+    "args": "Arguments (JSON)",
+    "run": "Call",
+    "failed": "Call failed",
+    "noToken": "This user has no key yet"
+  },
+  "diag": {
+    "title": "Diagnostics",
+    "noServers": "No MCP servers are connected yet",
+    "disconnected": "These servers are not connected: {{names}}",
+    "emptyGrants": "These users have no tools granted, so /mcp is empty: {{names}}",
+    "expiredUsers": "These users have expired keys: {{names}}"
+  },
+  "backup": {
+    "download": "Export config",
+    "success": "Config backup downloaded",
+    "failed": "Export failed"
   },
   "cost": {
     "exposed": "Exposed",

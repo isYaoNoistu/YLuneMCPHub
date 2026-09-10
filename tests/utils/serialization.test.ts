@@ -149,6 +149,15 @@ describe('serialization utilities', () => {
     expect(formatted).not.toContain('top-secret');
   });
 
+  it('redacts YLune user access tokens in activity payloads', () => {
+    const token = `ylune_${'ab'.repeat(32)}`;
+    const legacy = `mcphub_${'cd'.repeat(32)}`;
+
+    expect(sanitizeStringForLogging(`Authorization Bearer ${token}`)).not.toContain(token);
+    expect(sanitizeStringForLogging(`copied ${legacy} into mcp.json`)).not.toContain(legacy);
+    expect(sanitizeStringForLogging(token)).toBe('[REDACTED]');
+  });
+
   it('redacts OAuth error response fields that may carry tokens', () => {
     const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
     const rawJson = `{"error":"invalid_token","error_description":"expired ${jwt}","error_uri":"https://auth.example.com/debug?token=${jwt}","error_code":"${jwt}","codeVerifier":"pkce-secret"}`;

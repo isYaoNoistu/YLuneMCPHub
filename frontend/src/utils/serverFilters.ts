@@ -36,7 +36,9 @@ export const filterServers = (
       ' ' +
       (server.config?.description || '') +
       ' ' +
-      (server.tools?.map((tool) => tool.name).join(' ') || '')
+      (server.tools?.map((tool) => tool.name).join(' ') || '') +
+      ' ' +
+      (server.config?.description?.match(/#[\w\u4e00-\u9fff-]+/g) || []).join(' ')
     ).toLowerCase();
 
     return haystack.includes(query);

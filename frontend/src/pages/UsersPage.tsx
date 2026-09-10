@@ -2,10 +2,15 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { User } from '@/types';
 import { useUserData } from '@/hooks/useUserData';
+import { useServerData } from '@/hooks/useServerData';
 import { useAuth } from '@/contexts/AuthContext';
+import { countGrantedTools, summarizeGrants } from '@/utils/grantPreview';
 import AddUserForm from '@/components/AddUserForm';
 import EditUserForm from '@/components/EditUserForm';
-import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw, Clock } from 'lucide-react';
+import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw, Clock, KeyRound } from 'lucide-react';
+import ExpiryCenter from '@/components/ExpiryCenter';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import YluneDialog from '@/components/ui/YluneDialog';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -28,6 +33,7 @@ const UsersPage: React.FC = () => {
     setError: setUserError,
     deleteUser,
     updateUser,
+    rotateUserToken,
     triggerRefresh,
   } = useUserData();
 
@@ -39,6 +45,11 @@ const UsersPage: React.FC = () => {
   const [pastAlertOpen, setPastAlertOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const { allServers } = useServerData();
+  const [rotatingUser, setRotatingUser] = useState<User | null>(null);
+  const [rotatedToken, setRotatedToken] = useState<{ username: string; token: string } | null>(
+    null,
+  );
 
   if (!currentUser?.isAdmin) {
     return (
@@ -94,6 +105,15 @@ const UsersPage: React.FC = () => {
         </div>
       )}
 
+      <ExpiryCenter
+        users={users}
+        onRenew={(user) => {
+          setRenewingUser(user);
+          setRenewLifetime(user.expired ? '7d' : '30d');
+          setRenewCustomAt('');
+        }}
+      />
+
       {usersLoading ? (
         <div className="hub-card p-10 text-center" style={{ color: 'var(--hub-ink-3)' }}>
           {t('app.loading')}
@@ -123,12 +143,13 @@ const UsersPage: React.FC = () => {
           {users.map((user) => {
             const isCurrentUser = currentUser?.username === user.username;
             const expired = user.expired === true;
+            const grantRows = summarizeGrants(user.grants, allServers, user.isAdmin);
             return (
               <div
                 key={user.username}
                 className={`hub-row hover${expired ? ' is-expired' : ''}`}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-start gap-3 min-w-0">
                   <div
                     className="grid place-items-center flex-shrink-0 hub-mono"
                     style={{
@@ -144,22 +165,34 @@ const UsersPage: React.FC = () => {
                   >
                     {user.username.charAt(0).toUpperCase()}
                   </div>
-                  <span
-                    className="hub-mono truncate"
-                    style={{ fontSize: 13, color: 'var(--hub-ink)' }}
-                  >
-                    {user.username}
-                  </span>
-                  {isCurrentUser && (
-                    <span className="hub-tag accent" style={{ fontSize: 10 }}>
-                      {t('users.currentUser')}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="hub-mono truncate"
+                        style={{ fontSize: 13, color: 'var(--hub-ink)' }}
+                      >
+                        {user.username}
+                      </span>
+                      {isCurrentUser && (
+                        <span className="hub-tag accent" style={{ fontSize: 10 }}>
+                          {t('users.currentUser')}
+                        </span>
+                      )}
+                      {expired && (
+                        <span className="hub-tag muted" style={{ fontSize: 10 }}>
+                          {t('users.tokenExpired')}
+                        </span>
+                      )}
+                    </div>
+                    <span className="ylune-help" style={{ margin: '2px 0 0', display: 'block' }}>
+                      {user.isAdmin
+                        ? t('users.adminUnrestricted')
+                        : t('users.grantPreviewHint', {
+                            servers: grantRows.length,
+                            tools: countGrantedTools(grantRows),
+                          })}
                     </span>
-                  )}
-                  {expired && (
-                    <span className="hub-tag muted" style={{ fontSize: 10 }}>
-                      {t('users.tokenExpired')}
-                    </span>
-                  )}
+                  </div>
                 </div>
                 <div className="flex items-center min-w-0">
                   <span
@@ -206,6 +239,15 @@ const UsersPage: React.FC = () => {
                       title={t('users.renew')}
                     >
                       <Clock size={13} />
+                    </button>
+                  )}
+                  {!user.isAdmin && (
+                    <button
+                      onClick={() => setRotatingUser(user)}
+                      className="hub-icon-btn sm"
+                      title={t('users.rotate')}
+                    >
+                      <KeyRound size={13} />
                     </button>
                   )}
                   <button
@@ -317,6 +359,47 @@ const UsersPage: React.FC = () => {
       )}
 
       <PastExpiryAlert isOpen={pastAlertOpen} onClose={() => setPastAlertOpen(false)} />
+
+      <ConfirmDialog
+        isOpen={!!rotatingUser}
+        onClose={() => setRotatingUser(null)}
+        title={t('users.rotate')}
+        message={t('users.rotateHint', { username: rotatingUser?.username || '' })}
+        confirmText={t('users.rotate')}
+        variant="danger"
+        onConfirm={async () => {
+          if (!rotatingUser) return;
+          const username = rotatingUser.username;
+          const result = await rotateUserToken(username);
+          setRotatingUser(null);
+          if (result?.success && result.data?.token) {
+            setRotatedToken({ username, token: result.data.token });
+          } else {
+            setUserError(result?.message || t('users.rotateError'));
+          }
+        }}
+      />
+
+      {rotatedToken && (
+        <YluneDialog
+          raised
+          title={t('users.rotateSuccess')}
+          onClose={() => setRotatedToken(null)}
+          footer={
+            <button type="button" className="hub-btn primary" onClick={() => setRotatedToken(null)}>
+              {t('common.close')}
+            </button>
+          }
+        >
+          <p className="ylune-help" style={{ marginTop: 0 }}>
+            {t('users.rotateSuccessHint')}
+          </p>
+          <SecretReveal value={rotatedToken.token} emptyLabel={t('users.tokenMissing')} />
+          <div style={{ marginTop: 12 }}>
+            <McpJsonPanel username={rotatedToken.username} token={rotatedToken.token} />
+          </div>
+        </YluneDialog>
+      )}
 
       <DeleteDialog
         isOpen={!!userToDelete}

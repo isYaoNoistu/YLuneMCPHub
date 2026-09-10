@@ -37,6 +37,7 @@ import {
   updateUser,
   deleteUser,
   ensureUserAccessToken,
+  rotateUserAccessToken,
 } from '../../src/services/userService.js';
 
 describe('userService', () => {
@@ -253,6 +254,33 @@ describe('userService', () => {
         expect.objectContaining({
           name: 'ops',
           token: requested,
+          kind: 'user',
+          owner: 'ops',
+        }),
+      );
+    });
+  });
+
+  describe('rotateUserAccessToken', () => {
+    it('returns null when the user does not exist', async () => {
+      mockFindByUsername.mockResolvedValue(undefined);
+
+      await expect(rotateUserAccessToken('missing')).resolves.toBeNull();
+      expect(mockDeleteBearerKeysByOwner).not.toHaveBeenCalled();
+    });
+
+    it('deletes old keys and issues a new user token', async () => {
+      mockFindByUsername.mockResolvedValue({ username: 'ops', isAdmin: false });
+      mockFindBearerKeysByOwner.mockResolvedValue([]);
+      mockCreateBearerKey.mockResolvedValue({});
+
+      const token = await rotateUserAccessToken('ops');
+
+      expect(mockDeleteBearerKeysByOwner).toHaveBeenCalledWith('ops');
+      expect(token).toMatch(/^ylune_[a-f0-9]{64}$/);
+      expect(mockCreateBearerKey).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'ops',
           kind: 'user',
           owner: 'ops',
         }),

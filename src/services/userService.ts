@@ -21,6 +21,15 @@ export const getUserAccessToken = async (username: string): Promise<string | und
   return current?.token;
 };
 
+export const rotateUserAccessToken = async (username: string): Promise<string | null> => {
+  const user = await getUserDao().findByUsername(username);
+  if (!user) {
+    return null;
+  }
+  await getBearerKeyDao().deleteByOwner(username);
+  return ensureUserAccessToken(username);
+};
+
 export const ensureUserAccessToken = async (
   username: string,
   requestedToken?: string,

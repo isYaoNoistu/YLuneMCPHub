@@ -51,19 +51,19 @@
 
 ### 仪表盘
 
-网关只读总览：在线服务、工具数、智能体 / 普通用户的调用，以及用户 Token 剩余时间、最近调用和创建时间。不是管理员自己在调工具。本页不复制 mcp.json、不授权、不加服务器。
+网关只读总览：在线服务、工具数、智能体 / 普通用户的调用，以及用户 Token 剩余时间、最近调用和创建时间。管理员还能看到故障提示、到期中心，并导出配置备份。不是管理员自己在调工具。本页不复制 mcp.json、不授权、不加服务器。
 
 ![仪表盘](docs/images/dashboard.png)
 
 ### 用户权限
 
-管理员按人勾 MCP 和 **具体 tools**。先勾服务器（例如 `jenkins`），再勾这个用户能用的工具；不勾则这个 Key 连 `/mcp` 看不到任何工具。创建时可选 Token **永久**或限期；过期后该行发灰，Key 失效，可续期或删除。管理员默认全部已启用服务，不必再勾。
+管理员按人勾 MCP 和 **具体 tools**。勾选时有权限预览。不勾则这个 Key 连 `/mcp` 看不到任何工具。创建时可选 Token **永久**或限期；过期后该行发灰，Key 失效，可续期、轮换或删除。管理员默认全部已启用服务，不必再勾。侧栏调试台可按某个用户的 Key 试调工具。
 
 ![用户权限：按人勾选服务器和工具](docs/images/add-user.png)
 
 ### 调用日志
 
-每次工具调用一条记录：谁、哪个服务、哪个工具、成功或失败、耗时、来源 IP。点详情可再看入参出参（若设置里打开了存储调用内容）。
+每次工具调用一条记录：谁、哪个服务、哪个工具、成功或失败、耗时、来源 IP。点详情可再看入参出参（若设置里打开了存储调用内容；Token 等密钥会脱敏）。
 
 ![调用日志](docs/images/activity.png)
 
@@ -80,8 +80,8 @@
 
 - **统一网关** — 一个进程对外提供 `/mcp`、`/mcp/{服务}`、`/mcp/$smart`。上游可以是 stdio、HTTP、SSE、OpenAPI。
 - **按用户授权** — 管理员在用户页勾该用户能用的 MCP 和 tools。普通用户默认 `/mcp` = 自己的授权清单；空清单 = 零工具。管理员默认全部已启用服务。
-- **用户与 Key** — 管理员创建子用户后系统才签发 Token。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy `mcp.json`。
-- **控制台** — 服务器、用户、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。
+- **用户与 Key** — 管理员创建子用户后系统才签发 Token。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy `mcp.json`，也可以轮换 Key。
+- **控制台** — 服务器、用户、调试台、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。
 - **可选能力** — 智能路由（`$smart` + pgvector）、工具结果压缩、OAuth 2.0 授权服务器、Better Auth 第三方登录、PostgreSQL 配置库、CLI。
 
 不是再写一套夜莺 / Jenkins / PostgreSQL 客户端，也不是 CMDB。具体只读工具在 DevOpsMCP；月弦负责收口、授权、对外。
@@ -113,7 +113,7 @@
 
 1. 按 [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) 编出三个二进制（`deploy/pack-linux.sh` 或 `pack-windows.cmd`），本机验收 `command` / `env` 能通。
 2. 在月弦控制台把它们加成服务器（类型 STDIO，`command` 填月弦进程能看见的绝对路径）。Docker 月弦用 DevOpsMCP 的 `deploy/attach.sh` 自动注册。
-3. 建组（例如 `jenkins-readonly`），勾需要的工具，把普通用户加进成员。
+3. 在用户页给普通用户勾需要的服务器和工具。
 4. 用户把控制台给出的 `mcp.json` 贴进 Cursor / WorkBuddy，只连月弦。
 
 Linux 上若目录是 `/data/DevOpsMCP` + `/data/YLuneMCPHub`：月弦 `docker compose up`，再 `DevOpsMCP/deploy/attach.sh`。见 [docs/linux-deploy.md](docs/linux-deploy.md)。
@@ -123,8 +123,8 @@ DevOpsMCP 的凭据约定仍然成立：仓库和文档不写 Token；Jenkins / 
 ## 怎么工作
 
 - **配置在 PostgreSQL。** 仓库里的 `mcp_settings.json` 是空种子。本机没有 `DB_URL` 时，开发模式才写 `data/mcp_settings.dev.json`（不进 git）。生产必须设 `DB_URL`，迁走只迁库。见 [配置与数据](docs/config-and-data.md)。
-- **热更新**：控制台改服务器、分组、开关后即时生效，不必为加一个工具重启网关。
-- **调用权看组成员，不看「公开」标签。** 服务可见性只影响控制台谁能改配置；要让 `test` 调 Jenkins，必须把 `test` 加进包含 Jenkins 的组。
+- **热更新**：控制台改服务器、用户授权、开关后即时生效，不必为加一个工具重启网关。
+- **调用权看该用户勾过的工具，不看「公开」标签。** 服务可见性只影响控制台谁能改配置；要让 `test` 调 Jenkins，必须在用户页给 `test` 勾 Jenkins 的工具。
 - **系统 Key** 的 `all` / `groups` / `servers` / `custom` 不跟成员名单走，继续给流水线和机器人用。
 
 ## 适配的智能体

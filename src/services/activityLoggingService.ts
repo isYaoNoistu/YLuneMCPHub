@@ -98,9 +98,9 @@ export class ActivityLoggingService {
   /**
    * Serialize a tool call payload for storage.
    *
-   * Payloads are stored verbatim (no field-level redaction): heuristic
-   * redaction corrupts the audit record on false positives and gives false
-   * assurance on false negatives, so the decision is whether to store at all.
+   * Known token patterns (user keys, Bearer credentials, common secret fields)
+   * are stripped before write. Other arguments stay intact. Deployments that
+   * treat tool arguments as sensitive can still disable payload storage.
    */
   private serializePayload(payload: any, storePayload: boolean): string | undefined {
     if (payload === undefined || payload === null) {
@@ -109,7 +109,7 @@ export class ActivityLoggingService {
     if (!storePayload) {
       return PAYLOAD_OMITTED;
     }
-    return this.safeStringify(payload);
+    return sanitizeStringForLogging(this.safeStringify(payload));
   }
 
   /**

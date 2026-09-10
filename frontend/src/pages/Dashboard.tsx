@@ -9,6 +9,9 @@ import { formatTokens } from '@/utils/contextCost';
 import { checkActivityAvailable, getActivityUsage } from '@/services/activityService';
 import { ActivityUsage, IGroupServerConfig, IUser, Server, User } from '@/types';
 import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
+import DiagnosticsBanner from '@/components/DiagnosticsBanner';
+import ConfigBackupButton from '@/components/ConfigBackupButton';
+import ExpiryCenter from '@/components/ExpiryCenter';
 
 const formatWhen = (iso?: string | null): string => {
   if (!iso) return '—';
@@ -174,6 +177,7 @@ const DashboardPage: React.FC = () => {
         </div>
         <div className="view-actions">
           <span className="hub-tag accent">LIVE</span>
+          {isAdmin && <ConfigBackupButton />}
           <button
             className="hub-btn"
             type="button"
@@ -187,6 +191,9 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {isAdmin && <DiagnosticsBanner servers={allServers} users={users} />}
+      {isAdmin && <ExpiryCenter users={users} />}
 
       {error && (
         <p className="form-msg" style={{ marginBottom: 16 }}>

@@ -53,6 +53,22 @@ describe('serverFilters', () => {
       'disabled-offline-server',
     ]);
   });
+
+  it('matches description hashtags', () => {
+    const tagged = [
+      ...servers,
+      {
+        name: 'nightingale',
+        status: 'connected' as const,
+        enabled: true,
+        tools: [{ name: 'query' }],
+        config: { description: 'alerts #ops' },
+      },
+    ];
+    expect(filterServers(tagged, 'all', '#ops').map((server) => server.name)).toEqual([
+      'nightingale',
+    ]);
+  });
 });
 
 describe('selectServerPage', () => {

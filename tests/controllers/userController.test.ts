@@ -11,6 +11,7 @@ const mockGetAdminCount = jest.fn();
 const mockCheckReservedUsername = jest.fn(() => null);
 const mockGenerateInternalPassword = jest.fn(() => 'A1!generated-internal-pass');
 const mockEnsureUserAccessToken = jest.fn(async () => 'ylune_testtoken');
+const mockRotateUserAccessToken = jest.fn(async () => 'ylune_rotatedtoken');
 const mockToPublicUser = jest.fn(async (user: { password?: string; [key: string]: unknown }) => {
   const { password: _password, ...rest } = user;
   return { ...rest, token: 'ylune_testtoken' };
@@ -27,6 +28,7 @@ jest.mock('../../src/services/userService.js', () => ({
   checkReservedUsername: mockCheckReservedUsername,
   generateInternalPassword: mockGenerateInternalPassword,
   ensureUserAccessToken: mockEnsureUserAccessToken,
+  rotateUserAccessToken: mockRotateUserAccessToken,
   toPublicUser: mockToPublicUser,
   attachLastCalledAt: jest.fn(async (users: unknown[]) => users),
 }));
@@ -39,6 +41,7 @@ import {
   getUsers,
   createUser,
   updateExistingUser,
+  rotateUserToken,
 } from '../../src/controllers/userController.js';
 
 const makeRes = () => {
@@ -293,6 +296,43 @@ describe('userController', () => {
       await updateExistingUser(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
+    });
+  });
+
+  describe('rotateUserToken', () => {
+    it('returns 404 when the user does not exist', async () => {
+      mockRotateUserAccessToken.mockResolvedValue(null);
+
+      const req = makeReq({ params: { username: 'missing' } });
+      const res = makeRes();
+
+      await rotateUserToken(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, message: 'User not found' }),
+      );
+    });
+
+    it('returns the new token after a successful rotation', async () => {
+      mockRotateUserAccessToken.mockResolvedValue('ylune_rotatedtoken');
+      mockGetUserByUsername.mockResolvedValue({
+        username: 'ops',
+        isAdmin: false,
+      });
+
+      const req = makeReq({ params: { username: 'ops' } });
+      const res = makeRes();
+
+      await rotateUserToken(req, res);
+
+      expect(mockRotateUserAccessToken).toHaveBeenCalledWith('ops');
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({ username: 'ops', token: 'ylune_rotatedtoken' }),
+        }),
+      );
     });
   });
 });

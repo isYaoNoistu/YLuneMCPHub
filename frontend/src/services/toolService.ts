@@ -22,6 +22,7 @@ export interface ToolCallResult {
 export const callTool = async (
   request: ToolCallRequest,
   server?: string,
+  accessToken?: string,
 ): Promise<ToolCallResult> => {
   try {
     // Construct the URL with optional server parameter
@@ -32,7 +33,7 @@ export const callTool = async (
 
     const response = await apiPost<any>(url, request.arguments, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`, // Add bearer auth for MCP routing
+        Authorization: `Bearer ${accessToken || localStorage.getItem('mcphub_token')}`,
       },
     });
 

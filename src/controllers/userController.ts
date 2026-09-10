@@ -11,6 +11,7 @@ import {
   checkReservedUsername,
   generateInternalPassword,
   ensureUserAccessToken,
+  rotateUserAccessToken,
   toPublicUser,
   attachLastCalledAt,
   normalizeUserGrants,
@@ -339,6 +340,35 @@ export const deleteExistingUser = async (req: Request, res: Response): Promise<v
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+    });
+  }
+};
+
+export const rotateUserToken = async (req: Request, res: Response): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+
+  try {
+    const { username } = req.params;
+    if (!username) {
+      res.status(400).json({ success: false, message: 'Username is required' });
+      return;
+    }
+
+    const token = await rotateUserAccessToken(username);
+    if (!token) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    const user = await getUserByUsername(username);
+    res.json({
+      success: true,
+      data: user ? { ...(await toPublicUser(user)), token } : { username, token },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to rotate user token',
     });
   }
 };

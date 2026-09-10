@@ -373,6 +373,7 @@
     "cloud": "Bulut Market",
     "logs": "Günlükler",
     "activity": "Etkinlik",
+    "lab": "Laboratuvar",
     "workspace": "Çalışma Alanı",
     "system": "Sistem"
   },
@@ -387,7 +388,11 @@
       "recentServers": "Son Sunucular"
     },
     "servers": {
-      "title": "Sunucu Yönetimi"
+      "title": "Sunucu Yönetimi",
+      "searchPlaceholder": "Sunucu, araç veya #etiket ara",
+      "toolChanges": "Araç listesi değişti",
+      "toolAdded": "Eklendi {{tools}}",
+      "toolRemoved": "Kaldırıldı {{tools}}"
     },
     "groups": {
       "title": "Grup Yönetimi"
@@ -1007,6 +1012,21 @@
     "tokenValidUntil": "{{time}} tarihine kadar",
     "renew": "Yenile",
     "renewHint": "Süre şimdiden başlar. Yeniledikten sonra Key tekrar /mcp çağırabilir.",
+    "rotate": "Anahtarı döndür",
+    "rotateHint": "Bu, {{username}} kullanıcısının mevcut anahtarını geçersiz kılar. Paylaşılan mcp.json çalışmayı durdurur.",
+    "rotateError": "Anahtar döndürülemedi",
+    "rotateSuccess": "Anahtar döndürüldü",
+    "rotateSuccessHint": "Eski anahtar geçersiz. Yeni anahtarı veya mcp.json dosyasını kopyalayın.",
+    "grantPreview": "İzin önizlemesi",
+    "grantPreviewHint": "{{servers}} sunucu ve {{tools}} araç açılacak",
+    "grantPreviewEmpty": "Sunucu seçilmedi. Bu anahtar /mcp üzerinde araç görmez",
+    "grantPreviewAll": "Tüm {{count}} araç",
+    "expiryCenter": "Süre merkezi",
+    "expiryCenterHint": "Anahtarı dolmuş veya 7 gün içinde dolacak kullanıcılar.",
+    "expiryNone": "Süresi dolan veya yakında dolacak kullanıcı yok",
+    "grants": "MCP sunucuları ve araçlar",
+    "grantsHint": "Önce sunucuları, sonra bu kullanıcının çağırabileceği araçları seçin.",
+    "adminUnrestricted": "Yöneticiler zaten tüm etkin sunuculara sahiptir.",
     "email": "E-posta",
     "emailPlaceholder": "E-posta girin (isteğe bağlı)",
     "password": "Şifre",
@@ -1271,6 +1291,30 @@
     "serversInGroup": "sunucu",
     "envVarsNeeded": "Gerekli Ortam Değişkenleri — içe aktarılan sunucuları kullanmadan önce bunları ayarlayın:",
     "importResult": "Sunucular: {{serversCreated}} oluşturuldu, {{serversSkipped}} atlandı. Gruplar: {{groupsCreated}} oluşturuldu, {{groupsSkipped}} atlandı."
+  },
+  "lab": {
+    "title": "MCP laboratuvarı",
+    "hint": "Araçlar seçilen kullanıcının izinlerine göre süzülür ve çağrı o kullanıcının anahtarıyla yapılır. Yönetici hesabı mevcut oturumu kullanır.",
+    "asUser": "Kullanıcı olarak",
+    "pickServer": "Sunucu seç",
+    "tool": "Araç",
+    "pickTool": "Araç seç",
+    "args": "Argümanlar (JSON)",
+    "run": "Çağır",
+    "failed": "Çağrı başarısız",
+    "noToken": "Bu kullanıcının henüz anahtarı yok"
+  },
+  "diag": {
+    "title": "Tanılama",
+    "noServers": "Henüz bağlı MCP sunucusu yok",
+    "disconnected": "Bu sunucular bağlı değil: {{names}}",
+    "emptyGrants": "Bu kullanıcıların hiç aracı yok: {{names}}",
+    "expiredUsers": "Bu kullanıcıların anahtarı dolmuş: {{names}}"
+  },
+  "backup": {
+    "download": "Yapılandırmayı dışa aktar",
+    "success": "Yedek indirildi",
+    "failed": "Dışa aktarma başarısız"
   },
   "cost": {
     "exposed": "Gösterilen",

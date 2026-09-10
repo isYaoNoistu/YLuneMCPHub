@@ -41,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     { path: '/servers', label: t('nav.servers'), ico: '▤', badge: allServers.length || undefined },
     { path: '/prompts', label: t('nav.prompts'), ico: '⌘' },
     { path: '/resources', label: t('nav.resources'), ico: '▦' },
+    ...(auth.user?.isAdmin ? [{ path: '/lab', label: t('nav.lab'), ico: '✎' }] : []),
   ];
 
   const systemItems: MenuItem[] = [

@@ -53,6 +53,7 @@ import {
   updateExistingUser,
   deleteExistingUser,
   getUserStats,
+  rotateUserToken,
 } from '../controllers/userController.js';
 import {
   getAllMarketServers,
@@ -317,6 +318,7 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
   authenticatedRouter.post('/users', createUser);
   authenticatedRouter.put('/users/:username', updateExistingUser);
   authenticatedRouter.delete('/users/:username', deleteExistingUser);
+  authenticatedRouter.post('/users/:username/rotate-token', rotateUserToken);
   authenticatedRouter.get('/users-stats', getUserStats);
 
   // OAuth Client management routes (admin only)

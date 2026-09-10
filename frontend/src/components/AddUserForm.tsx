@@ -7,6 +7,7 @@ import { IGroupServerConfig, User, UserFormData } from '@/types';
 import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
+import GrantPreview from './GrantPreview';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -174,6 +175,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
                 onChange={setGrants}
                 serverCosts={serverCosts}
               />
+              <GrantPreview grants={grants} servers={availableServers} />
             </div>
           </div>
 

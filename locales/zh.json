@@ -384,6 +384,7 @@
     "cloud": "云端市场",
     "logs": "日志",
     "activity": "活动",
+    "lab": "调试台",
     "workspace": "工作区",
     "system": "系统"
   },
@@ -458,7 +459,10 @@
     },
     "servers": {
       "title": "服务器管理",
-      "searchPlaceholder": "搜索服务器名称、分类或标签"
+      "searchPlaceholder": "搜索服务器名称、工具或 #标签",
+      "toolChanges": "工具清单有变化",
+      "toolAdded": "新增 {{tools}}",
+      "toolRemoved": "移除 {{tools}}"
     },
     "settings": {
       "title": "设置",
@@ -1095,6 +1099,18 @@
     "tokenValidUntil": "{{time}} 到期",
     "renew": "续期",
     "renewHint": "从现在起重新计算有效期。过期用户续期后即可再调 /mcp。",
+    "rotate": "轮换 Key",
+    "rotateHint": "将作废 {{username}} 的旧 Key。已经发出去的 mcp.json 会立刻失效，需要把新 Key 再复制给对方。",
+    "rotateError": "轮换 Key 失败",
+    "rotateSuccess": "Key 已轮换",
+    "rotateSuccessHint": "旧 Key 已失效。请复制新 Key 或 mcp.json 交给对方。",
+    "grantPreview": "权限预览",
+    "grantPreviewHint": "当前会放出 {{servers}} 个服务、{{tools}} 个工具",
+    "grantPreviewEmpty": "未勾选任何服务，这个 Key 调 /mcp 看不到工具",
+    "grantPreviewAll": "全部 {{count}} 个工具",
+    "expiryCenter": "到期中心",
+    "expiryCenterHint": "已过期或 7 天内到期的用户。续期后 Key 才能再调 /mcp。",
+    "expiryNone": "没有即将到期或已过期的用户",
     "grants": "可用的 MCP 与工具",
     "grantsHint": "先勾服务器，再勾这个用户能用的 tools。不勾则这个 Key 调 /mcp 没有任何工具。管理员默认全部已启用服务，不必勾。",
     "adminUnrestricted": "管理员默认拥有全部已启用服务和工具，不必单独授权。",
@@ -1309,7 +1325,7 @@
     "output": "输出",
     "emptyPayload": "没有记录内容",
     "details": "活动详情",
-    "detailsHint": "调用方、耗时和原始入参 / 出参。JSON 可随时再复制。",
+    "detailsHint": "调用方、耗时和入参 / 出参。写入前会脱敏 Token 等密钥，JSON 可随时再复制。",
     "errorMessage": "错误信息",
     "searchServer": "服务器...",
     "searchTool": "工具...",
@@ -1364,6 +1380,30 @@
     "serversInGroup": "个服务器",
     "envVarsNeeded": "所需环境变量 — 请在使用导入的服务器前设置这些变量：",
     "importResult": "服务器：创建 {{serversCreated}} 个，跳过 {{serversSkipped}} 个。分组：创建 {{groupsCreated}} 个，跳过 {{groupsSkipped}} 个。"
+  },
+  "lab": {
+    "title": "MCP 调试台",
+    "hint": "按所选用户的授权筛选工具，并用该用户的 Key 真正调用，用来验收授权是否生效。选管理员时用当前登录会话。",
+    "asUser": "以用户视角",
+    "pickServer": "选择服务器",
+    "tool": "工具",
+    "pickTool": "选择工具",
+    "args": "参数（JSON）",
+    "run": "调用",
+    "failed": "调用失败",
+    "noToken": "这个用户还没有 Key，无法代调"
+  },
+  "diag": {
+    "title": "故障提示",
+    "noServers": "还没有接入任何 MCP 服务器",
+    "disconnected": "这些服务未连上：{{names}}",
+    "emptyGrants": "这些用户没有勾任何工具，Key 调 /mcp 是空的：{{names}}",
+    "expiredUsers": "这些用户的 Key 已过期：{{names}}"
+  },
+  "backup": {
+    "download": "导出配置",
+    "success": "已下载配置备份",
+    "failed": "导出失败"
   },
   "cost": {
     "exposed": "已暴露",
