@@ -28,6 +28,15 @@ docker compose up -d --build
 
 浏览器：`http://<机器>:3000`，`admin` + `.env` 里的口令。登录后立刻改密码。
 
+要走 HTTPS：在同一份 `.env` 写 `YLUNE_DOMAIN`、`TLS_CERT_FILE`、`TLS_KEY_FILE`（证书放宿主机，例如 `/data/certs/ylune/`），再：
+
+```bash
+# 建议同时 YLUNE_BIND=127.0.0.1，避免再明文开 3000
+docker compose --profile https up -d --build
+```
+
+之后控制台和智能体都用 `https://你的域名`，`mcp.json` 里是 `https://你的域名/mcp`。步骤见 [deploy/README.md](../deploy/README.md) 第 8.2 节。
+
 ---
 
 ## 2. 接 DevOpsMCP
@@ -49,7 +58,7 @@ chmod +x attach.sh
 
 ## 3. 之后在月弦里只做授权
 
-「服务器」应为已连接。然后：**用户**里勾工具并复制 `mcp.json`。智能体只连 `http://<机器>:3000/mcp` + 用户 Key。管理员不必单独授权。
+「服务器」应为已连接。然后：**用户**里勾工具并复制 `mcp.json`。智能体只连 `/mcp` + 用户 Key。没开 HTTPS 时是 `http://<机器>:3000/mcp`；写了域名和证书后是 `https://你的域名/mcp`。管理员不必单独授权。
 
 ---
 
@@ -78,6 +87,7 @@ docker compose up -d --build
 | 日志没有 vector 扩展 | `postgres:16` 预期如此；`$smart` 才要 `pgvector/pgvector:pg16` |
 | `spawn … ENOENT` | 没跑 `attach.sh`，或 `command` 填了宿主机路径 |
 | 登录月弦 API 失败 | 控制台已改密，DevOpsMCP `.env` 没写 `YLUNE_PASSWORD` |
+| `--profile https` Nginx 起不来 | `.env` 没写域名，或宿主机证书路径不存在 / 仍是 Let's Encrypt 软链 |
 | 普通用户 `/mcp` 没有工具 | 还没在用户页勾服务器和工具；或 `git pull` 后没 `--build` |
 
-Compose 约定见 [../deploy/README.md](../deploy/README.md)。配置落库见 [配置与数据.md](配置与数据.md)。
+Compose 约定见 [../deploy/README.md](../deploy/README.md)。配置落库见 [config-and-data.md](config-and-data.md)。

@@ -10,7 +10,7 @@
 
 1. **月弦是网关**，不是夜莺 / Jenkins / PostgreSQL 客户端。那些只读工具在 DevOpsMCP。
 2. **普通用户能调什么，只看这个用户勾了哪些 MCP 和工具。** 服务标成「公开」不会单独放开 MCP 调用。管理员默认全部已启用服务，不必再勾。
-3. **运行配置在 PostgreSQL，不在仓库 JSON。** 仓库里的 `mcp_settings.json` 是空种子。没有 `DB_URL` 时，`pnpm backend:dev` 才用 `data/mcp_settings.dev.json`（不进 git）。生产必须设 `DB_URL`。详见 [配置与数据.md](配置与数据.md)。
+3. **运行配置在 PostgreSQL，不在仓库 JSON。** 仓库里的 `mcp_settings.json` 是空种子。没有 `DB_URL` 时，`pnpm backend:dev` 才用 `data/mcp_settings.dev.json`（不进 git）。生产必须设 `DB_URL`。详见 [config-and-data.md](config-and-data.md)。
 
 建议顺序：启动 → 管理员改密码 → 加服务器 → 建用户并勾工具 → 在用户页复制 `mcp.json` 交给智能体。随时可以再复制。
 
@@ -70,7 +70,7 @@ cp .env.example .env   # Windows：Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
-**Linux 上两仓都在 `/data`：** 月弦仍是上面这一条 `docker compose up`（容器挂载点 `/opt/mcp`）。编译、灌文件、自动注册到控制台：到 DevOpsMCP 跑 `deploy/attach.sh`。见 [Linux部署.md](Linux部署.md) 和 [DevOpsMCP deploy](https://github.com/isYaoNoistu/DevOpsMCP/blob/main/deploy/README.md)。
+**Linux 上两仓都在 `/data`：** 月弦仍是上面这一条 `docker compose up`（容器挂载点 `/opt/mcp`）。编译、灌文件、自动注册到控制台：到 DevOpsMCP 跑 `deploy/attach.sh`。见 [linux-deploy.md](linux-deploy.md) 和 [DevOpsMCP deploy](https://github.com/isYaoNoistu/DevOpsMCP/blob/main/deploy/README.md)。
 
 | 环境变量 | 示例 | 说明 |
 | --- | --- | --- |
@@ -79,8 +79,11 @@ docker compose up -d --build
 | `DB_PASSWORD` | 自己设 | 容器内 Postgres 口令，请用字母数字 |
 | `MCP_MOUNT_DIR` | `/data/ylune-mcp` | 宿主机挂载点，对应容器 `/opt/mcp` |
 | `BASE_PATH` | 留空 | 反代挂子路径时才填，须和 Nginx 一致 |
+| `YLUNE_DOMAIN` | `ylune.example.com` | 可选。和证书一起填后走 HTTPS，控制台 / `mcp.json` 用这个域名 |
+| `TLS_CERT_FILE` / `TLS_KEY_FILE` | `/data/certs/ylune/*.pem` | 可选。宿主机证书和私钥，只挂进 Nginx |
+| `YLUNE_BIND` | `127.0.0.1` | 可选。启用 HTTPS 后建议绑本机，不对外明文开 3000 |
 
-步骤、验收、备份、反代见 [deploy/README.md](../deploy/README.md)。
+步骤、验收、备份、HTTP / HTTPS 反代见 [deploy/README.md](../deploy/README.md)。
 
 ### 2.4 常用环境变量（`.env.example`）
 
@@ -128,7 +131,7 @@ docker compose up -d --build
 先按 DevOpsMCP 仓库编出二进制。本机直连智能体：用它的 `deploy/pack-windows.cmd` 或 `pack-linux.sh`。月弦 Docker：用它的 `deploy/attach.sh` 自动注册，不必手填三个 STDIO 表单。
 
 - **本机直跑月弦**：`command` 填宿主机绝对路径（Windows 带 `.exe`）。
-- **月弦在 Docker、MCP 在同一台 Linux**：`command` 是容器内 `/opt/mcp/...`。见 [Linux部署.md](Linux部署.md)。
+- **月弦在 Docker、MCP 在同一台 Linux**：`command` 是容器内 `/opt/mcp/...`。见 [linux-deploy.md](linux-deploy.md)。
 
 ### 4.1 添加 Jenkins（STDIO）
 
@@ -271,7 +274,7 @@ WorkBuddy：写入它的 MCP 配置或界面粘贴。
 | --- | --- |
 | 用户名 | 登录名，例如 `test` |
 | 备注 | 可选，「值班测试」「某某用」 |
-| Token 有效期 | 默认永久。也可选 1 / 7 / 30 / 90 天，或指定到期时间。过期后 Key 不能调 `/mcp`，列表发灰，可续期或删除 |
+| Token 有效期 | 默认永久。也可选 1 / 7 / 30 / 90 天，或指定到期时间（必须晚于现在；选到过去的时间会弹出提示，不能创建或续期）。过期后 Key 不能调 `/mcp`，列表发灰，可续期或删除 |
 | 可用的 MCP 与工具 | 先勾服务器，再勾这个用户能用的 tools。不勾则这个 Key 调 `/mcp` 没有任何工具 |
 
 不要把值班同事勾成管理员。管理员默认全部已启用服务，不受这份清单限制。可以细到某一个 tool，不必把整个 Jenkins 都给出去。
@@ -296,7 +299,7 @@ WorkBuddy：写入它的 MCP 配置或界面粘贴。
 
 ### 6.3 编辑 / 续期 / 删除
 
-可改备注、可用的 MCP 与工具、Token 有效期。列表上的时钟按钮是续期：从现在起重新算 1 / 7 / 30 / 90 天，或改成永久。过期用户行会发灰，Key 不能再调 `/mcp`，但还可以续期或删除。不能删除最后一个管理员。删除用户后，他的用户 Key 不能再调 MCP。
+可改备注、可用的 MCP 与工具、Token 有效期。列表上的时钟按钮是续期：从现在起重新算 1 / 7 / 30 / 90 天，或改成永久 / 指定到期时间。指定到期时间必须晚于现在，选到过去的时间会弹出提示，不会保存。过期用户行会发灰，Key 不能再调 `/mcp`，但还可以续期或删除。不能删除最后一个管理员。删除用户后，他的用户 Key 不能再调 MCP。
 
 ---
 
@@ -364,7 +367,7 @@ WorkBuddy：写入它的 MCP 配置或界面粘贴。
 | --- | --- |
 | Python 包仓库地址 | 默认留空（PyPI）。内网镜像才填，例如 `https://pypi.example.com/simple` |
 | NPM 仓库地址 | 默认留空。内网 npm 才填 |
-| 基础地址 | 智能体和 OAuth 回调看到的公网根，例如 `https://ylune.example.com`。本机开发填 `http://127.0.0.1:3000` 或 `http://localhost:3000` |
+| 基础地址 | 智能体和 OAuth 回调看到的公网根，例如 `https://ylune.example.com`。本机开发填 `http://127.0.0.1:3000` 或 `http://localhost:3000`。Docker 写了 `YLUNE_DOMAIN` 后，页面和 `mcp.json` 都以该域名为准，库里以前存的 IP 会被盖掉 |
 | 名称分隔符 | 默认 `-`。工具对外名是 `服务器名-工具名`。已有客户端时不要随便改 |
 | 清除包缓存 | 磁盘被 npm/uv 缓存撑满时用；下次启动会重新下载 |
 
@@ -479,7 +482,7 @@ WorkBuddy：写入它的 MCP 配置或界面粘贴。
 ## 12. 日志与活动
 
 - **日志**：月弦进程日志，排「服务连不上、鉴权失败」。
-- **活动（调用日志）**：每次工具调用一条记录。点「查看」打开详情，输入 / 输出 JSON 可随时再复制。设置里「存储工具调用内容」打开后会记下完整入参出参，**不做脱敏**。工具参数可能带密钥时请关掉。
+- **活动（调用日志）**：每次工具调用一条记录。筛选是服务器、工具、状态、用户（用户 Key 和账号是同一人）。点「查看」打开详情，输入 / 输出 JSON 可随时再复制。设置里「存储工具调用内容」打开后会记下完整入参出参，**不做脱敏**。工具参数可能带密钥时请关掉。
 
 ![调用日志](images/activity.png)
 

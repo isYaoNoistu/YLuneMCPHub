@@ -1085,6 +1085,8 @@
     "tokenLifetime_90d": "90 days",
     "tokenLifetime_custom": "Custom expiry",
     "tokenCustomRequired": "Pick an expiry date and time first",
+    "tokenCustomInPastTitle": "Invalid expiry time",
+    "tokenCustomInPast": "Custom expiry must be later than now. Please pick again.",
     "tokenExpired": "Expired",
     "tokenNeverExpires": "Permanent",
     "tokenValidUntil": "Until {{time}}",

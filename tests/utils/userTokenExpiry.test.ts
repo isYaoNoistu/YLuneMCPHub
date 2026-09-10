@@ -1,5 +1,6 @@
 import {
   isCustomExpiryIncomplete,
+  isCustomExpiryInPast,
   isUserTokenExpired,
   resolveTokenExpiresAt,
   serializeTokenExpiresAt,
@@ -54,6 +55,22 @@ describe('userTokenExpiry', () => {
       }),
     ).toBe(false);
     expect(isCustomExpiryIncomplete({ tokenLifetime: '7d' })).toBe(false);
+  });
+
+  it('rejects a custom expiry in the past', () => {
+    expect(
+      isCustomExpiryInPast({
+        tokenLifetime: 'custom',
+        tokenExpiresAt: new Date(Date.now() - 60_000),
+      }),
+    ).toBe(true);
+    expect(
+      isCustomExpiryInPast({
+        tokenLifetime: 'custom',
+        tokenExpiresAt: new Date(Date.now() + 60_000),
+      }),
+    ).toBe(false);
+    expect(isCustomExpiryInPast({ tokenLifetime: '7d' })).toBe(false);
   });
 
   it('serializes dates to ISO', () => {

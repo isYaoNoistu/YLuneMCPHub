@@ -6,6 +6,7 @@ import DeleteDialog from '@/components/ui/DeleteDialog';
 import { useToast } from '@/contexts/ToastContext';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { formatTokens, percentSaved } from '@/utils/contextCost';
+import { getHubBaseUrl } from '@/utils/userMcpConfig';
 
 interface GroupCardProps {
   group: Group;
@@ -64,7 +65,7 @@ const GroupCard = ({ group, servers, onEdit, onDelete, cost, canManage = false }
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { installConfig, nameSeparator } = useSettingsData();
-  const baseUrl = installConfig?.baseUrl?.replace(/\/+$/, '') || '';
+  const baseUrl = getHubBaseUrl(installConfig?.baseUrl);
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);

@@ -33,6 +33,8 @@ yarn-error.log*
 coverage/
 
 data/
+*.pem
+*.key
 temp-test-config/
 mcp_settings.local.json
 *.local.json

@@ -6,14 +6,22 @@ import {
 } from '../../src/utils/installBaseUrl.js';
 
 describe('installBaseUrl utilities', () => {
-  it('prefers an explicit system config base URL over INSTALL_BASE_URL', () => {
+  it('prefers INSTALL_BASE_URL over a leftover system config base URL', () => {
     expect(
       resolveInstallBaseUrl(
-        { install: { baseUrl: 'https://settings.example.com/mcphub' } },
+        { install: { baseUrl: 'http://203.0.113.10:3000' } },
         DEFAULT_INSTALL_BASE_URL,
         { INSTALL_BASE_URL: 'https://env.example.com/mcphub' },
       ),
-    ).toBe('https://settings.example.com/mcphub');
+    ).toBe('https://env.example.com/mcphub');
+  });
+
+  it('derives https://domain from YLUNE_DOMAIN when INSTALL_BASE_URL is unset', () => {
+    expect(
+      resolveInstallBaseUrl({ install: { baseUrl: 'http://localhost:3000' } }, DEFAULT_INSTALL_BASE_URL, {
+        YLUNE_DOMAIN: 'ylune.example.com',
+      }),
+    ).toBe('https://ylune.example.com');
   });
 
   it('uses INSTALL_BASE_URL when the system config base URL is unset', () => {

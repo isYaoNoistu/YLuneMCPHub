@@ -1088,6 +1088,8 @@
     "tokenLifetime_90d": "90 天",
     "tokenLifetime_custom": "指定到期时间",
     "tokenCustomRequired": "请先选择到期时间",
+    "tokenCustomInPastTitle": "到期时间无效",
+    "tokenCustomInPast": "指定到期时间必须晚于现在，请重新选择。",
     "tokenExpired": "已过期",
     "tokenNeverExpires": "永久",
     "tokenValidUntil": "{{time}} 到期",

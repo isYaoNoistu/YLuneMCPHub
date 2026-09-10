@@ -8,10 +8,12 @@ import EditUserForm from '@/components/EditUserForm';
 import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw, Clock } from 'lucide-react';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
+  isCustomExpiryInPast,
   isCustomExpiryMissing,
   toExpiryPayload,
 } from '@/components/TokenLifetimeFields';
 import DeleteDialog from '@/components/ui/DeleteDialog';
+import PastExpiryAlert from '@/components/ui/PastExpiryAlert';
 import SecretReveal from '@/components/ui/SecretReveal';
 import McpJsonPanel from '@/components/McpJsonPanel';
 
@@ -34,6 +36,7 @@ const UsersPage: React.FC = () => {
   const [renewLifetime, setRenewLifetime] = useState<TokenLifetimeValue>('7d');
   const [renewCustomAt, setRenewCustomAt] = useState('');
   const [renewBusy, setRenewBusy] = useState(false);
+  const [pastAlertOpen, setPastAlertOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
@@ -288,6 +291,10 @@ const UsersPage: React.FC = () => {
                     setUserError(t('users.tokenCustomRequired'));
                     return;
                   }
+                  if (isCustomExpiryInPast(renewLifetime, renewCustomAt)) {
+                    setPastAlertOpen(true);
+                    return;
+                  }
                   setRenewBusy(true);
                   const result = await updateUser(
                     renewingUser.username,
@@ -308,6 +315,8 @@ const UsersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <PastExpiryAlert isOpen={pastAlertOpen} onClose={() => setPastAlertOpen(false)} />
 
       <DeleteDialog
         isOpen={!!userToDelete}

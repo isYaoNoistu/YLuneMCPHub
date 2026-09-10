@@ -46,20 +46,25 @@ export class ActivityRepository {
     if (filter?.group) {
       where.group = Like(`%${filter.group}%`);
     }
-    if (filter?.username) {
-      where.username = Like(`%${filter.username}%`);
-    }
     if (filter?.keyId) {
       where.keyId = filter.keyId;
-    }
-    if (filter?.keyName) {
-      where.keyName = Like(`%${filter.keyName}%`);
     }
     if (filter?.startDate && filter?.endDate) {
       where.timestamp = Between(filter.startDate, filter.endDate);
     }
 
     return where;
+  }
+
+  private applyActorFilter(
+    qb: ReturnType<Repository<Activity>['createQueryBuilder']>,
+    filter?: IActivityFilter,
+  ): void {
+    const actor = filter?.username || filter?.keyName;
+    if (!actor) {
+      return;
+    }
+    qb.andWhere('(activity.username = :actor OR activity.key_name = :actor)', { actor });
   }
 
   /**
@@ -71,8 +76,19 @@ export class ActivityRepository {
     filter?: IActivityFilter,
   ): Promise<{ data: Activity[]; total: number }> {
     const skip = (page - 1) * limit;
-    const where = this.buildWhereClause(filter);
+    const actor = filter?.username || filter?.keyName;
 
+    if (actor) {
+      const qb = this.repository.createQueryBuilder('activity');
+      const where = this.buildWhereClause(filter);
+      qb.where(where);
+      this.applyActorFilter(qb, filter);
+      const total = await qb.getCount();
+      const data = await qb.orderBy('activity.timestamp', 'DESC').skip(skip).take(limit).getMany();
+      return { data, total };
+    }
+
+    const where = this.buildWhereClause(filter);
     const [data, total] = await this.repository.findAndCount({
       where,
       order: { timestamp: 'DESC' },
@@ -118,14 +134,9 @@ export class ActivityRepository {
       if (filter?.group) {
         qb.andWhere('activity.group_name LIKE :group', { group: `%${filter.group}%` });
       }
-      if (filter?.username) {
-        qb.andWhere('activity.username LIKE :username', { username: `%${filter.username}%` });
-      }
+      this.applyActorFilter(qb, filter);
       if (filter?.keyId) {
         qb.andWhere('activity.key_id = :keyId', { keyId: filter.keyId });
-      }
-      if (filter?.keyName) {
-        qb.andWhere('activity.key_name LIKE :keyName', { keyName: `%${filter.keyName}%` });
       }
       if (filter?.startDate && filter?.endDate) {
         qb.andWhere('activity.timestamp BETWEEN :startDate AND :endDate', {

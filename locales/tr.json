@@ -1000,6 +1000,8 @@
     "tokenLifetime_90d": "90 gün",
     "tokenLifetime_custom": "Özel bitiş",
     "tokenCustomRequired": "Önce bir bitiş tarihi seçin",
+    "tokenCustomInPastTitle": "Geçersiz bitiş zamanı",
+    "tokenCustomInPast": "Özel bitiş şu andan sonra olmalı. Lütfen yeniden seçin.",
     "tokenExpired": "Süresi doldu",
     "tokenNeverExpires": "Kalıcı",
     "tokenValidUntil": "{{time}} tarihine kadar",

@@ -34,6 +34,17 @@ export const isCustomExpiryIncomplete = (input: {
   tokenExpiresAt?: string | Date | null;
 }): boolean => input.tokenLifetime === 'custom' && !parseTokenExpiresAt(input.tokenExpiresAt);
 
+export const isCustomExpiryInPast = (input: {
+  tokenLifetime?: string | null;
+  tokenExpiresAt?: string | Date | null;
+}): boolean => {
+  if (input.tokenLifetime && input.tokenLifetime !== 'custom') {
+    return false;
+  }
+  const expiresAt = parseTokenExpiresAt(input.tokenExpiresAt);
+  return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
+};
+
 export const resolveTokenExpiresAt = (input: {
   isAdmin?: boolean;
   tokenLifetime?: string | null;

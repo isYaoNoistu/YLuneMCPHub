@@ -9,9 +9,11 @@ import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
+  isCustomExpiryInPast,
   isCustomExpiryMissing,
   toExpiryPayload,
 } from './TokenLifetimeFields';
+import PastExpiryAlert from './ui/PastExpiryAlert';
 
 interface AddUserFormProps {
   onAdd: () => void;
@@ -29,6 +31,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
   const [grants, setGrants] = useState<IGroupServerConfig[]>([]);
   const [tokenLifetime, setTokenLifetime] = useState<TokenLifetimeValue>('permanent');
   const [tokenCustomAt, setTokenCustomAt] = useState('');
+  const [pastAlertOpen, setPastAlertOpen] = useState(false);
 
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
@@ -51,6 +54,10 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
 
     if (isCustomExpiryMissing(tokenLifetime, tokenCustomAt)) {
       setError(t('users.tokenCustomRequired'));
+      return;
+    }
+    if (isCustomExpiryInPast(tokenLifetime, tokenCustomAt)) {
+      setPastAlertOpen(true);
       return;
     }
 
@@ -180,6 +187,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
           </div>
         </form>
       </div>
+      <PastExpiryAlert isOpen={pastAlertOpen} onClose={() => setPastAlertOpen(false)} />
     </div>
   );
 };

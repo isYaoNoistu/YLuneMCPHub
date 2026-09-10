@@ -35,6 +35,7 @@ import {
   getServerVisibilityOptions,
   normalizeServerVisibility,
 } from '@/utils/serverVisibility';
+import { getHubBaseUrl } from '@/utils/userMcpConfig';
 
 interface ServerCardProps {
   server: Server;
@@ -150,7 +151,7 @@ const ServerCard = ({
   const { showToast } = useToast();
   const { exportMCPSettings, installConfig } = useSettingsData();
   const { auth } = useAuth();
-  const baseUrl = installConfig?.baseUrl?.replace(/\/+$/, '') || '';
+  const baseUrl = getHubBaseUrl(installConfig?.baseUrl);
 
   const [expanded, setExpanded] = useState(false);
   const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'cost' | null>(

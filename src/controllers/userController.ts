@@ -16,7 +16,11 @@ import {
   normalizeUserGrants,
 } from '../services/userService.js';
 import { validatePasswordStrength } from '../utils/passwordValidation.js';
-import { isCustomExpiryIncomplete, resolveTokenExpiresAt } from '../utils/userTokenExpiry.js';
+import {
+  isCustomExpiryIncomplete,
+  isCustomExpiryInPast,
+  resolveTokenExpiresAt,
+} from '../utils/userTokenExpiry.js';
 
 // Admin permission check middleware function
 const requireAdmin = async (req: Request, res: Response): Promise<boolean> => {
@@ -138,6 +142,14 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    if (isCustomExpiryInPast({ tokenLifetime, tokenExpiresAt })) {
+      res.status(400).json({
+        success: false,
+        message: 'Custom token expiry must be in the future',
+      });
+      return;
+    }
+
     const newUser = await createNewUser(
       username.trim(),
       resolvedPassword,
@@ -224,6 +236,13 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
         res.status(400).json({
           success: false,
           message: 'Custom token expiry is required',
+        });
+        return;
+      }
+      if (isCustomExpiryInPast({ tokenLifetime, tokenExpiresAt })) {
+        res.status(400).json({
+          success: false,
+          message: 'Custom token expiry must be in the future',
         });
         return;
       }

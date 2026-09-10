@@ -54,9 +54,7 @@ const ActivityPage: React.FC = () => {
   const [searchServer, setSearchServer] = useState('');
   const [searchTool, setSearchTool] = useState('');
   const [searchStatus, setSearchStatus] = useState<string>('');
-  const [searchGroup, setSearchGroup] = useState('');
   const [searchUsername, setSearchUsername] = useState('');
-  const [searchKeyName, setSearchKeyName] = useState('');
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -150,9 +148,7 @@ const ActivityPage: React.FC = () => {
     if (searchStatus && isValidStatus(searchStatus)) {
       filters.status = searchStatus;
     }
-    if (searchGroup) filters.group = searchGroup;
     if (searchUsername) filters.username = searchUsername;
-    if (searchKeyName) filters.keyName = searchKeyName;
 
     setAppliedFilters(filters);
     setCurrentPage(1);
@@ -163,9 +159,7 @@ const ActivityPage: React.FC = () => {
     setSearchServer('');
     setSearchTool('');
     setSearchStatus('');
-    setSearchGroup('');
     setSearchUsername('');
-    setSearchKeyName('');
     setAppliedFilters({});
     setCurrentPage(1);
   };
@@ -287,28 +281,14 @@ const ActivityPage: React.FC = () => {
             placeholder={t('activity.searchStatus')}
           />
           <FilterSelect
-            id="activity-group"
-            label={t('activity.group')}
-            value={searchGroup}
-            onChange={setSearchGroup}
-            options={toOptions(filterOptions?.groups)}
-            placeholder={t('activity.searchGroup')}
-          />
-          <FilterSelect
             id="activity-username"
             label={t('activity.user')}
             value={searchUsername}
             onChange={setSearchUsername}
-            options={toOptions(filterOptions?.usernames)}
+            options={toOptions([
+              ...new Set([...(filterOptions?.usernames || []), ...(filterOptions?.keyNames || [])]),
+            ])}
             placeholder={t('activity.searchUsername')}
-          />
-          <FilterSelect
-            id="activity-keyname"
-            label={t('activity.key')}
-            value={searchKeyName}
-            onChange={setSearchKeyName}
-            options={toOptions(filterOptions?.keyNames)}
-            placeholder={t('activity.searchKeyName')}
           />
           <div className="activity-filter-actions">
             <button type="button" onClick={handleSearch} className="hub-btn primary">
@@ -345,9 +325,7 @@ const ActivityPage: React.FC = () => {
                   t('activity.tool'),
                   t('activity.duration'),
                   t('activity.status'),
-                  t('activity.group'),
                   t('activity.user'),
-                  t('activity.key'),
                   t('activity.sourceIp'),
                   t('common.actions'),
                 ].map((label) => (
@@ -407,17 +385,7 @@ const ActivityPage: React.FC = () => {
                   <td
                     style={{ padding: '10px 14px', fontSize: 12, color: 'var(--hub-ink-3)' }}
                   >
-                    {activity.group || '—'}
-                  </td>
-                  <td
-                    style={{ padding: '10px 14px', fontSize: 12, color: 'var(--hub-ink-3)' }}
-                  >
-                    {activity.username || '—'}
-                  </td>
-                  <td
-                    style={{ padding: '10px 14px', fontSize: 12, color: 'var(--hub-ink-3)' }}
-                  >
-                    {activity.keyName || '—'}
+                    {activity.username || activity.keyName || '—'}
                   </td>
                   <td
                     className="hub-mono whitespace-nowrap"
@@ -458,9 +426,7 @@ const ActivityPage: React.FC = () => {
       { label: t('activity.duration'), value: formatDuration(selectedActivity.duration), mono: true },
       { label: t('activity.server'), value: selectedActivity.server, mono: true },
       { label: t('activity.tool'), value: selectedActivity.tool, mono: true },
-      { label: t('activity.user'), value: selectedActivity.username || '—' },
-      { label: t('activity.key'), value: selectedActivity.keyName || '—' },
-      { label: t('activity.group'), value: selectedActivity.group || '—' },
+      { label: t('activity.user'), value: selectedActivity.username || selectedActivity.keyName || '—' },
       { label: t('activity.sourceIp'), value: selectedActivity.sourceIp || '—', mono: true },
     ];
 

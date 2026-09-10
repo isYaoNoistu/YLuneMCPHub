@@ -9,11 +9,13 @@ import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
+  isCustomExpiryInPast,
   isCustomExpiryMissing,
   lifetimeFromExpiresAt,
   toExpiryPayload,
   toLocalDateTimeValue,
 } from './TokenLifetimeFields';
+import PastExpiryAlert from './ui/PastExpiryAlert';
 
 interface EditUserFormProps {
   user: User;
@@ -34,6 +36,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
     lifetimeFromExpiresAt(user.tokenExpiresAt),
   );
   const [tokenCustomAt, setTokenCustomAt] = useState(toLocalDateTimeValue(user.tokenExpiresAt));
+  const [pastAlertOpen, setPastAlertOpen] = useState(false);
   const [availableServers, setAvailableServers] = useState(
     allServers.filter((server) => server.enabled !== false),
   );
@@ -49,13 +52,20 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
       setError(t('users.tokenCustomRequired'));
       return;
     }
+    const expiryChanged =
+      tokenLifetime !== lifetimeFromExpiresAt(user.tokenExpiresAt) ||
+      tokenCustomAt !== toLocalDateTimeValue(user.tokenExpiresAt);
+    if (expiryChanged && isCustomExpiryInPast(tokenLifetime, tokenCustomAt)) {
+      setPastAlertOpen(true);
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const result = await updateUser(user.username, {
         remark,
         grants,
-        ...toExpiryPayload(tokenLifetime, tokenCustomAt),
+        ...(expiryChanged ? toExpiryPayload(tokenLifetime, tokenCustomAt) : {}),
       });
       if (result?.success) {
         onEdit();
@@ -146,6 +156,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
           </div>
         </form>
       </div>
+      <PastExpiryAlert isOpen={pastAlertOpen} onClose={() => setPastAlertOpen(false)} />
     </div>
   );
 };

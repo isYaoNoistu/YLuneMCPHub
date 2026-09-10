@@ -1001,6 +1001,8 @@
     "tokenLifetime_90d": "90 jours",
     "tokenLifetime_custom": "Expiration personnalisée",
     "tokenCustomRequired": "Choisissez d'abord une date d'expiration",
+    "tokenCustomInPastTitle": "Date d'expiration invalide",
+    "tokenCustomInPast": "L'expiration personnalisée doit être dans le futur. Veuillez en choisir une autre.",
     "tokenExpired": "Expiré",
     "tokenNeverExpires": "Permanent",
     "tokenValidUntil": "Jusqu'au {{time}}",

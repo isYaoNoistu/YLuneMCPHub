@@ -6,9 +6,9 @@
 # 2) 构建上下文是仓库根目录（本文件 context: ..，用根目录 Dockerfile；apt/npm/pypi 默认国内镜像）
 # 3) docker compose up -d --build
 # 4) 浏览器打开 YLUNE_PORT，管理员登录后立刻改密码
-# 5) 需要反代时再加 --profile proxy
+# 5) 需要 HTTP 反代时再加 --profile proxy；需要 HTTPS 时填域名和证书后加 --profile https
 # 6) 容器固定挂 /opt/mcp（宿主机 MCP_MOUNT_DIR）。空目录即可；二进制由 DevOpsMCP/deploy 写入
-# 勿放密钥：口令、Token、内网地址只写本目录 .env 或宿主机环境变量
+# 勿放密钥：口令、Token、内网地址、证书私钥只写本目录 .env 或宿主机路径，不要提交
 
 name: ylune
 
@@ -47,7 +47,7 @@ services:
     image: ylune:local
     container_name: ylune
     ports:
-      - "${YLUNE_PORT:-3000}:3000"
+      - "${YLUNE_BIND:-0.0.0.0}:${YLUNE_PORT:-3000}:3000"
     environment:
       PORT: 3000
       NODE_ENV: production
@@ -56,6 +56,8 @@ services:
       DB_URL: postgresql://ylune:${DB_PASSWORD}@postgres:5432/ylune
       USE_DB: "true"
       BASE_PATH: ${BASE_PATH:-}
+      YLUNE_DOMAIN: ${YLUNE_DOMAIN:-}
+      INSTALL_BASE_URL: ${INSTALL_BASE_URL:-}
       NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -83,6 +85,30 @@ services:
       - "${NGINX_HTTP_PORT:-80}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      ylune:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ylune
+
+  nginx-https:
+    profiles: ["https"]
+    image: nginx:1.27-alpine
+    container_name: ylune-nginx-https
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    environment:
+      YLUNE_DOMAIN: ${YLUNE_DOMAIN:-}
+    volumes:
+      - ./nginx.https.conf.template:/etc/nginx/templates-src/default.conf:ro
+      - ${TLS_CERT_FILE:-/data/certs/ylune/fullchain.pem}:/etc/nginx/certs/fullchain.pem:ro
+      - ${TLS_KEY_FILE:-/data/certs/ylune/privkey.pem}:/etc/nginx/certs/privkey.pem:ro
+    command:
+      - /bin/sh
+      - -c
+      - envsubst '$$YLUNE_DOMAIN' < /etc/nginx/templates-src/default.conf > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'
     depends_on:
       ylune:
         condition: service_healthy

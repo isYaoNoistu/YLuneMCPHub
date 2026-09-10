@@ -1,5 +1,6 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import PastExpiryAlert from './ui/PastExpiryAlert';
 
 export type TokenLifetimeValue = 'permanent' | '1d' | '7d' | '30d' | '90d' | 'custom';
 
@@ -22,6 +23,7 @@ const TokenLifetimeFields = ({
 }: TokenLifetimeFieldsProps) => {
   const { t } = useTranslation();
   const radioName = useId();
+  const [pastAlertOpen, setPastAlertOpen] = useState(false);
 
   return (
     <div>
@@ -47,10 +49,19 @@ const TokenLifetimeFields = ({
           type="datetime-local"
           className="hub-input"
           value={customAt}
+          min={toLocalDateTimeValue(new Date().toISOString())}
           disabled={disabled}
-          onChange={(event) => onCustomAtChange(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (isCustomExpiryInPast('custom', next)) {
+              setPastAlertOpen(true);
+              return;
+            }
+            onCustomAtChange(next);
+          }}
         />
       ) : null}
+      <PastExpiryAlert isOpen={pastAlertOpen} onClose={() => setPastAlertOpen(false)} />
     </div>
   );
 };
@@ -68,6 +79,12 @@ export const lifetimeFromExpiresAt = (iso?: string | null): TokenLifetimeValue =
 
 export const isCustomExpiryMissing = (lifetime: TokenLifetimeValue, customAt: string): boolean =>
   lifetime === 'custom' && !customAt;
+
+export const isCustomExpiryInPast = (lifetime: TokenLifetimeValue, customAt: string): boolean => {
+  if (lifetime !== 'custom' || !customAt) return false;
+  const date = new Date(customAt);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
+};
 
 export const toExpiryPayload = (
   lifetime: TokenLifetimeValue,

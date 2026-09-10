@@ -21,6 +21,7 @@ import {
   getBearerKeyScopeFilterOptions,
   type BearerKeyScopeFilterValue,
 } from '@/utils/bearerKeyScopeFilter';
+import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
 
 interface BearerKeyRowProps {
   keyData: BearerKey;
@@ -2067,7 +2068,7 @@ const SettingsPage: React.FC = () => {
                     <div className="hub-sect">smart endpoint</div>
                     <EndpointCopy
                       label="SMART"
-                      url={`${(installConfig.baseUrl || '').replace(/\/+$/, '')}/mcp/$smart`}
+                      url={`${getMcpEndpointUrl(installConfig.baseUrl)}/$smart`}
                     />
                   </div>
                 </div>

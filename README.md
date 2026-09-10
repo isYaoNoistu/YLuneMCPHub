@@ -116,13 +116,13 @@
 3. 建组（例如 `jenkins-readonly`），勾需要的工具，把普通用户加进成员。
 4. 用户把控制台给出的 `mcp.json` 贴进 Cursor / WorkBuddy，只连月弦。
 
-Linux 上若目录是 `/data/DevOpsMCP` + `/data/YLuneMCPHub`：月弦 `docker compose up`，再 `DevOpsMCP/deploy/attach.sh`。见 [docs/Linux部署.md](docs/Linux部署.md)。
+Linux 上若目录是 `/data/DevOpsMCP` + `/data/YLuneMCPHub`：月弦 `docker compose up`，再 `DevOpsMCP/deploy/attach.sh`。见 [docs/linux-deploy.md](docs/linux-deploy.md)。
 
 DevOpsMCP 的凭据约定仍然成立：仓库和文档不写 Token；Jenkins / 夜莺 Token、PostgreSQL 口令只放运行环境或 `${ENV}`。
 
 ## 怎么工作
 
-- **配置在 PostgreSQL。** 仓库里的 `mcp_settings.json` 是空种子。本机没有 `DB_URL` 时，开发模式才写 `data/mcp_settings.dev.json`（不进 git）。生产必须设 `DB_URL`，迁走只迁库。见 [配置与数据](docs/配置与数据.md)。
+- **配置在 PostgreSQL。** 仓库里的 `mcp_settings.json` 是空种子。本机没有 `DB_URL` 时，开发模式才写 `data/mcp_settings.dev.json`（不进 git）。生产必须设 `DB_URL`，迁走只迁库。见 [配置与数据](docs/config-and-data.md)。
 - **热更新**：控制台改服务器、分组、开关后即时生效，不必为加一个工具重启网关。
 - **调用权看组成员，不看「公开」标签。** 服务可见性只影响控制台谁能改配置；要让 `test` 调 Jenkins，必须把 `test` 加进包含 Jenkins 的组。
 - **系统 Key** 的 `all` / `groups` / `servers` / `custom` 不跟成员名单走，继续给流水线和机器人用。
@@ -163,7 +163,7 @@ pnpm frontend:dev
 浏览器打开 http://127.0.0.1:5173 。后端 API 与 MCP 在 http://127.0.0.1:3000 。  
 开发默认账号 `admin` / `admin123`，**登录后立刻改密码**。没有 `DB_URL` 时配置才写在 `data/mcp_settings.dev.json`。真用请接 Postgres。
 
-要用 Docker 整套拉起（Postgres + 月弦），见 [deploy/README.md](deploy/README.md)。仓库根目录不再放 compose。两仓都在 `/data`、还要挂 DevOpsMCP 时，见 [docs/Linux部署.md](docs/Linux部署.md)。
+要用 Docker 整套拉起（Postgres + 月弦），见 [deploy/README.md](deploy/README.md)。仓库根目录不再放 compose。两仓都在 `/data`、还要挂 DevOpsMCP 时，见 [docs/linux-deploy.md](docs/linux-deploy.md)。
 
 第一次把 Jenkins 给普通用户用：
 
@@ -171,7 +171,7 @@ pnpm frontend:dev
 2. **用户** → 创建 `test`（不要勾管理员），勾 Jenkins 需要的工具。系统会签发 Key。
 3. 在用户列表随时 **复制 mcp.json** 交给对方。对方的 `/mcp` 只有勾过的工具。
 
-字段怎么填、其它页签怎么用：见 [使用教程](docs/使用教程.md)。
+字段怎么填、其它页签怎么用：见 [使用教程](docs/user-guide.md)。
 
 ## 谁能调用什么
 
@@ -216,11 +216,11 @@ pnpm frontend:dev
 
 | 先看这个                                      | 再往下                                                                                          |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [使用教程](docs/使用教程.md)                      | 登录、加服务器、用户授权、设置里每一项怎么填                                                                    |
-| [配置与数据](docs/配置与数据.md)                    | 配置进 PostgreSQL；JSON 不是运行时存储                                                           |
+| [使用教程](docs/user-guide.md)                      | 登录、加服务器、用户授权、设置里每一项怎么填                                                                    |
+| [配置与数据](docs/config-and-data.md)                    | 配置进 PostgreSQL；JSON 不是运行时存储                                                           |
 | [和 DevOpsMCP](#和-devopsmcp)               | [DevOpsMCP 仓库](https://github.com/isYaoNoistu/DevOpsMCP) · 夜莺 / Jenkins / PostgreSQL 怎么编、怎么拿凭据 |
 | [适配的智能体](#适配的智能体)                         | 控制台用户页给出的 `mcp.json`                                                                         |
-| [Docker 部署](deploy/README.md)             | Compose、环境变量、验收、反代；Linux 两仓示例：[docs/Linux部署.md](docs/Linux部署.md) |
+| [Docker 部署](deploy/README.md)             | Compose、环境变量、验收、反代；Linux 两仓示例：[docs/linux-deploy.md](docs/linux-deploy.md) |
 
 
 ## 仓库布局
@@ -231,10 +231,10 @@ frontend/      控制台（黑底 + 月光青）
 hub/           控制台视觉标尺（静态）
 login/         登录页视觉标尺（静态）
 locales/       文案
-docs/使用教程.md  字段级操作说明
+docs/user-guide.md  字段级操作说明
 docs/images/   控制台截图（README 用）
-docs/配置与数据.md 配置进库、迁库
-docs/Linux部署.md  /data 两仓：月弦 compose + DevOpsMCP attach
+docs/config-and-data.md 配置进库、迁库
+docs/linux-deploy.md  /data 两仓：月弦 compose + DevOpsMCP attach
 deploy/        Docker Compose 整包与部署流程
 examples/      配置样例（无真实凭据）
 README.md      中文（GitHub 默认）

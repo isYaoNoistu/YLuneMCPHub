@@ -24,6 +24,12 @@ describe('hub origin for agent mcp.json', () => {
     ).toBe('https://ylune.example.com');
   });
 
+  it('prefers the console domain over a leftover public IP in settings', () => {
+    expect(
+      resolveHubOrigin('http://203.0.113.10:3000', 'https://ylune.example.com'),
+    ).toBe('https://ylune.example.com');
+  });
+
   it('maps local Vite to the backend MCP port', () => {
     expect(resolveHubOrigin(undefined, 'http://localhost:5173')).toBe('http://localhost:3000');
   });

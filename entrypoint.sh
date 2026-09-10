@@ -17,6 +17,21 @@ if [ -n "$HTTPS_PROXY" ]; then
   export HTTPS_PROXY="$HTTPS_PROXY"
 fi
 
+if [ -z "${INSTALL_BASE_URL:-}" ] && [ -n "${YLUNE_DOMAIN:-}" ]; then
+  domain="${YLUNE_DOMAIN#https://}"
+  domain="${domain#http://}"
+  domain="${domain%%/*}"
+  path="${BASE_PATH:-}"
+  if [ "$path" = "/" ]; then
+    path=""
+  elif [ -n "$path" ]; then
+    path="/${path#/}"
+    path="${path%/}"
+  fi
+  export INSTALL_BASE_URL="https://${domain}${path}"
+  echo "INSTALL_BASE_URL derived from YLUNE_DOMAIN: ${INSTALL_BASE_URL}"
+fi
+
 echo "Using REQUEST_TIMEOUT: $REQUEST_TIMEOUT"
 
 # Auto-start Docker daemon if Docker is installed

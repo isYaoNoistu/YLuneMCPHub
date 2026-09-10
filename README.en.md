@@ -112,13 +112,13 @@ Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools sta
 3. Create a group, tick the tools, add regular users. Do not add admins.
 4. Give each user the generated `mcp.json`. They only connect to YLune.
 
-If both clones live under `/data` and YLune runs in Docker: `docker compose up`, then `DevOpsMCP/deploy/attach.sh`. Chinese: [docs/Linux部署.md](docs/Linux部署.md).
+If both clones live under `/data` and YLune runs in Docker: `docker compose up`, then `DevOpsMCP/deploy/attach.sh`. Chinese: [docs/linux-deploy.md](docs/linux-deploy.md).
 
 DevOpsMCP credential rules still apply: no tokens in git; Jenkins / Nightingale tokens and database passwords stay in the runtime or `${ENV}`.
 
 ## How it works
 
-- **Config lives in PostgreSQL.** The committed `mcp_settings.json` is an empty seed. Without `DB_URL`, dev mode writes `data/mcp_settings.dev.json` (not in git). Production requires `DB_URL`; migrate the database, not a JSON file. See [配置与数据](docs/配置与数据.md).
+- **Config lives in PostgreSQL.** The committed `mcp_settings.json` is an empty seed. Without `DB_URL`, dev mode writes `data/mcp_settings.dev.json` (not in git). Production requires `DB_URL`; migrate the database, not a JSON file. See [配置与数据](docs/config-and-data.md).
 - Console edits apply immediately; you do not restart the gateway to add a tool.
 - **Invoke follows membership, not the “public” flag.** Visibility only affects who can edit config in the console. To let `test` call Jenkins, add `test` to a group that includes Jenkins.
 - System keys (`all` / `groups` / `servers` / `custom`) ignore the member list.
@@ -158,9 +158,9 @@ pnpm frontend:dev
 Open http://127.0.0.1:5173 . API and MCP listen on http://127.0.0.1:3000 .  
 Dev login is `admin` / `admin123` — **change it after first login**. Without `DB_URL`, config is `data/mcp_settings.dev.json`. Use Postgres for real work.
 
-To bring up Postgres + YLune with Docker, follow [deploy/README.en.md](deploy/README.en.md). There is no compose file at the repo root. When both repos are under `/data` and you need DevOpsMCP inside the container, follow [docs/Linux部署.md](docs/Linux部署.md) (Chinese).
+To bring up Postgres + YLune with Docker, follow [deploy/README.en.md](deploy/README.en.md). There is no compose file at the repo root. When both repos are under `/data` and you need DevOpsMCP inside the container, follow [docs/linux-deploy.md](docs/linux-deploy.md) (Chinese).
 
-Field-by-field console guide (Chinese): [docs/使用教程.md](docs/使用教程.md).
+Field-by-field console guide (Chinese): [docs/user-guide.md](docs/user-guide.md).
 
 ## Who can call what
 
@@ -203,10 +203,10 @@ You deploy it and connect real MCP servers. Mis-authorization, bad credentials, 
 
 | Start here                                   | Then                                                                 |
 | -------------------------------------------- | -------------------------------------------------------------------- |
-| [使用教程](docs/使用教程.md)                      | Every console field                                                  |
-| [配置与数据](docs/配置与数据.md)                    | PostgreSQL is the store; JSON is not                                 |
+| [使用教程](docs/user-guide.md)                      | Every console field                                                  |
+| [配置与数据](docs/config-and-data.md)                    | PostgreSQL is the store; JSON is not                                 |
 | [With DevOpsMCP](#with-devopsmcp)            | [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP)                |
-| [Docker deploy](deploy/README.en.md)         | Compose pack. Linux `/data` two-repo example (中文)：[docs/Linux部署.md](docs/Linux部署.md) |
+| [Docker deploy](deploy/README.en.md)         | Compose pack. Linux `/data` two-repo example (中文)：[docs/linux-deploy.md](docs/linux-deploy.md) |
 
 
 ## License

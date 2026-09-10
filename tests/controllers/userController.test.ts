@@ -176,6 +176,22 @@ describe('userController', () => {
       expect(expiresAt.getTime()).toBeLessThan(Date.now() + sevenDays + 2000);
     });
 
+    it('should reject a custom expiry in the past', async () => {
+      const req = makeReq({
+        body: {
+          username: 'temp',
+          tokenLifetime: 'custom',
+          tokenExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockCreateNewUser).not.toHaveBeenCalled();
+    });
+
     it('should reject custom lifetime without a date', async () => {
       const req = makeReq({
         body: { username: 'temp', tokenLifetime: 'custom' },

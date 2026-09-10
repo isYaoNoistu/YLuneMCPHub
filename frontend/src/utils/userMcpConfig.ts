@@ -10,6 +10,17 @@ export const isLoopbackHostname = (hostname: string): boolean => {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0';
 };
 
+export const isIpHostname = (hostname: string): boolean => {
+  const host = hostname.replace(/^\[|\]$/g, '');
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    return true;
+  }
+  return host.includes(':');
+};
+
+const isPublicHostname = (url: URL | null): boolean =>
+  !!url && !isLoopbackHostname(url.hostname) && !isIpHostname(url.hostname);
+
 const parseOrigin = (value?: string): URL | null => {
   const raw = value?.trim();
   if (!raw) return null;
@@ -39,6 +50,12 @@ export const resolveHubOrigin = (installBaseUrl?: string, pageOrigin?: string): 
   const configuredUrl = parseOrigin(configured);
   const pageUrl = parseOrigin(page);
 
+  if (isPublicHostname(configuredUrl)) {
+    return configured;
+  }
+  if (isPublicHostname(pageUrl) && pageUrl) {
+    return rewriteLocalViteOrigin(pageUrl.origin);
+  }
   if (configuredUrl && !isLoopbackHostname(configuredUrl.hostname)) {
     return configured;
   }
