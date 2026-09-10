@@ -233,6 +233,14 @@ jest.mock('../../src/controllers/credentialBrokerController.js', () => ({
   resolveInternalCredentialLease: routeHandler,
 }));
 
+jest.mock('../../src/controllers/credentialBindingController.js', () => ({
+  getCredentialContracts: routeHandler,
+  getUserServerCredentialsHandler: routeHandler,
+  putServerCredentials: routeHandler,
+  putUserServerCredentialsHandler: routeHandler,
+  testServerCredential: routeHandler,
+}));
+
 jest.mock('../../src/controllers/adminAuditController.js', () => ({
   getAdminAuditLogs: routeHandler,
 }));

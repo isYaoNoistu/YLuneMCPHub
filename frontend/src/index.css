@@ -127,7 +127,50 @@
 }
 
 .credentials-table .hub-row {
-  grid-template-columns: minmax(140px, 1.1fr) minmax(120px, 0.8fr) minmax(100px, 0.7fr) minmax(100px, 0.6fr) minmax(90px, 0.5fr) minmax(180px, auto);
+  grid-template-columns: minmax(110px, 0.9fr) minmax(140px, 1.3fr) minmax(120px, 1.1fr) minmax(80px, 0.5fr) minmax(70px, 0.45fr) minmax(220px, auto);
+}
+
+.credentials-table .hub-row > *,
+.targets-table .hub-row > *,
+.resource-groups-table .hub-row > *,
+.audit-table .hub-row > * {
+  min-width: 0;
+}
+
+.targets-table .hub-row {
+  grid-template-columns: minmax(140px, 1.1fr) minmax(220px, 2fr) minmax(80px, 0.5fr) minmax(90px, auto);
+}
+
+.resource-groups-table .hub-row {
+  grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr) minmax(80px, 0.5fr) minmax(90px, auto);
+  align-items: start;
+}
+
+.resource-groups-table .hub-row.head {
+  align-items: center;
+}
+
+.audit-table .hub-row {
+  grid-template-columns: minmax(150px, 1.1fr) minmax(90px, 0.7fr) minmax(160px, 1.1fr) minmax(180px, 1.5fr);
+}
+
+.audit-table .hub-row > div:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-key-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hub-key-chips .hub-kbd {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .token-lifetime-options {

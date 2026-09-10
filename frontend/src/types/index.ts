@@ -497,6 +497,7 @@ export interface User {
   createdAt?: string | null;
   lastCalledAt?: string | null;
   resourceGroupIds?: string[];
+  serverCredentials?: UserServerCredential[];
 }
 
 export interface UserFormData {
@@ -511,6 +512,7 @@ export interface UserFormData {
   grants?: IGroupServerConfig[];
   tokenLifetime?: string;
   tokenExpiresAt?: string | null;
+  serverCredentials?: UserServerCredential[];
 }
 
 export interface UserUpdateData {
@@ -523,6 +525,7 @@ export interface UserUpdateData {
   grants?: IGroupServerConfig[];
   tokenLifetime?: string;
   tokenExpiresAt?: string | null;
+  serverCredentials?: UserServerCredential[];
 }
 
 export interface UserStats {
@@ -531,32 +534,34 @@ export interface UserStats {
   regularUsers: number;
 }
 
-export type CredentialType = 'postgresql' | 'token' | 'basic';
-
 export interface Credential {
   id: string;
   name: string;
-  type: CredentialType;
   enabled: boolean;
-  username?: string;
+  keys: string[];
   secretConfigured: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
   rotatedAt?: string | null;
 }
 
-export type ResourceTargetType = 'postgresql' | 'http' | 'custom';
+export interface UserServerCredential {
+  serverName: string;
+  credentialId: string;
+}
+
+export interface CredentialContract {
+  serverName: string;
+  neededKeys: string[];
+  credentialIds: string[];
+  credentials: Credential[];
+}
 
 export interface ResourceTarget {
   id: string;
   name: string;
-  type: ResourceTargetType;
-  config: {
-    host?: string;
-    port?: number;
-    database?: string;
-    url?: string;
-  };
+  type: string;
+  config: Record<string, string>;
   enabled: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -623,10 +628,7 @@ export interface TemplateDryRunResult {
 
 export interface CredentialFormData {
   name: string;
-  type: CredentialType;
-  username?: string;
-  password?: string;
-  token?: string;
+  fields: Record<string, string>;
   enabled?: boolean;
 }
 

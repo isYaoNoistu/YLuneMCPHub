@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useUserData } from '@/hooks/useUserData';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
-import { IGroupServerConfig, User } from '@/types';
+import { CredentialContract, IGroupServerConfig, ResourceGroup, User, UserServerCredential } from '@/types';
 import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
 import GrantPreview from './GrantPreview';
 import { getResourceGroups, setUserResourceGroups } from '@/services/resourceBindingService';
-import { ResourceGroup } from '@/types';
+import { getCredentialContracts } from '@/services/credentialService';
+import UserCredentialPicker, { missingRequiredCredentials } from './UserCredentialPicker';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -38,6 +39,10 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
   const [grants, setGrants] = useState<IGroupServerConfig[]>(user.grants || []);
   const [resourceGroupIds, setResourceGroupIds] = useState<string[]>(user.resourceGroupIds || []);
   const [resourceGroups, setResourceGroups] = useState<ResourceGroup[]>([]);
+  const [contracts, setContracts] = useState<CredentialContract[]>([]);
+  const [serverCredentials, setServerCredentials] = useState<UserServerCredential[]>(
+    user.serverCredentials || [],
+  );
   const [tokenLifetime, setTokenLifetime] = useState<TokenLifetimeValue>(
     lifetimeFromExpiresAt(user.tokenExpiresAt),
   );
@@ -57,6 +62,11 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
         setResourceGroups(response.data);
       }
     });
+    void getCredentialContracts().then((response) => {
+      if (response?.success && Array.isArray(response.data)) {
+        setContracts(response.data);
+      }
+    });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,13 +84,20 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
       setPastAlertOpen(true);
       return;
     }
+    if (!user.isAdmin) {
+      const missing = missingRequiredCredentials(grants, contracts, serverCredentials);
+      if (missing.length > 0) {
+        setError(t('users.credentialRequired', { server: missing.join(', ') }));
+        return;
+      }
+    }
     setIsSubmitting(true);
 
     try {
       const result = await updateUser(user.username, {
         remark,
         mcpEnabled,
-        ...(user.isAdmin ? {} : { grants }),
+        ...(user.isAdmin ? {} : { grants, serverCredentials }),
         ...(mcpEnabled && expiryChanged ? toExpiryPayload(tokenLifetime, tokenCustomAt) : {}),
       });
       if (result?.success) {
@@ -171,6 +188,13 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
                       serverCosts={serverCosts}
                     />
                     <GrantPreview grants={grants} servers={availableServers} />
+                    <UserCredentialPicker
+                      grants={grants}
+                      contracts={contracts}
+                      value={serverCredentials}
+                      onChange={setServerCredentials}
+                      disabled={isSubmitting}
+                    />
                   </div>
                 )}
                 {user.isAdmin && <p className="ylune-help">{t('users.adminUnrestricted')}</p>}

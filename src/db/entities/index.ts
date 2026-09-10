@@ -17,6 +17,8 @@ import ResourceGroupItem from './ResourceGroupItem.js';
 import UserResourceGroup from './UserResourceGroup.js';
 import AdminAuditLog from './AdminAuditLog.js';
 import ToolInventoryBaseline from './ToolInventoryBaseline.js';
+import ServerCredentialBinding from './ServerCredentialBinding.js';
+import UserServerCredential from './UserServerCredential.js';
 
 // Export all entities
 export default [
@@ -39,6 +41,8 @@ export default [
   UserResourceGroup,
   AdminAuditLog,
   ToolInventoryBaseline,
+  ServerCredentialBinding,
+  UserServerCredential,
 ];
 
 // Export individual entities for direct use
@@ -62,4 +66,6 @@ export {
   UserResourceGroup,
   AdminAuditLog,
   ToolInventoryBaseline,
+  ServerCredentialBinding,
+  UserServerCredential,
 };

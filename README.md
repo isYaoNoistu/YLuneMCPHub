@@ -82,7 +82,7 @@
 - **按用户授权** — 管理员在用户页勾该用户能用的 MCP 和 tools。普通用户默认 `/mcp` = 自己的授权清单；空清单 = 零工具。管理员默认全部已启用服务。
 - **用户与 Access Key** — 创建 MCP 用户后系统才签发 Access Key。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy `mcp.json`，也可以轮换 Key。仅后台管理员没有 Key。
 - **控制台** — 服务器、用户、凭据中心、调试台、操作审计、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。
-- **凭据中心** — 加密保存 PostgreSQL / Token / 用户名密码。主密钥是 `YLUNE_MASTER_KEY`。列表只显示用户名和「已配置」，没有「查看明文」。Targets 存地址，资源组把服务器 / Target / 凭据绑给用户。最终调用权是工具授权 ∩ 资源绑定。命中绑定后，工具参数会带上短时一次性 `credentialLeaseId`（不含密码），供 MCP 运行时兑换。
+- **凭据中心** — 加密保存你自定义的变量名和密文，不按 PostgreSQL / Token 等固定表单。可从已接入 MCP 自动带出需要的变量名；凭据要绑到对应 MCP，创建用户时再给该用户选一条。调用时覆盖该 MCP 的环境变量（Jenkins / 夜莺这类读 env 的进程）。主密钥是 `YLUNE_MASTER_KEY`。列表只显示变量名和「已配置」，没有「查看明文」。Targets 同样是自定义配置；资源组仍用于多 Target。命中绑定后工具参数会带上短时一次性 `credentialLeaseId`（不含密文）。
 - **可选能力** — 智能路由（`$smart` + pgvector）、工具结果压缩、OAuth 2.0 授权服务器、Better Auth 第三方登录、PostgreSQL 配置库、CLI。
 
 不是再写一套夜莺 / Jenkins / PostgreSQL 客户端，也不是 CMDB。具体只读工具在 DevOpsMCP；月弦负责收口、授权、对外。

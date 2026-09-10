@@ -189,6 +189,13 @@ import {
   getPublicCredentialLease,
   resolveInternalCredentialLease,
 } from '../controllers/credentialBrokerController.js';
+import {
+  getCredentialContracts,
+  getUserServerCredentialsHandler,
+  putServerCredentials,
+  putUserServerCredentialsHandler,
+  testServerCredential,
+} from '../controllers/credentialBindingController.js';
 import { getAdminAuditLogs } from '../controllers/adminAuditController.js';
 import { ackToolChanges, getToolChanges } from '../controllers/toolChangeController.js';
 import {
@@ -399,6 +406,12 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
   authenticatedRouter.post('/credentials/:id/secret', replaceExistingCredentialSecret);
   authenticatedRouter.delete('/credentials/:id', deleteExistingCredential);
   authenticatedRouter.post('/credentials/:id/test', testExistingCredential);
+
+  authenticatedRouter.get('/credential-contracts', getCredentialContracts);
+  authenticatedRouter.put('/servers/:serverName/credentials', putServerCredentials);
+  authenticatedRouter.post('/servers/:serverName/test-credential', testServerCredential);
+  authenticatedRouter.get('/users/:username/server-credentials', getUserServerCredentialsHandler);
+  authenticatedRouter.put('/users/:username/server-credentials', putUserServerCredentialsHandler);
 
   authenticatedRouter.get('/resource-targets', getResourceTargets);
   authenticatedRouter.post('/resource-targets', createNewResourceTarget);

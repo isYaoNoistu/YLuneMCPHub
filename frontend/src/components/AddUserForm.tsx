@@ -3,11 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useUserData } from '@/hooks/useUserData';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
-import { IGroupServerConfig, User, UserFormData } from '@/types';
+import { CredentialContract, IGroupServerConfig, User, UserFormData, UserServerCredential } from '@/types';
 import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
 import GrantPreview from './GrantPreview';
+import UserCredentialPicker, { missingRequiredCredentials } from './UserCredentialPicker';
+import { getCredentialContracts } from '@/services/credentialService';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -30,6 +32,8 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdUser, setCreatedUser] = useState<User | null>(null);
   const [grants, setGrants] = useState<IGroupServerConfig[]>([]);
+  const [serverCredentials, setServerCredentials] = useState<UserServerCredential[]>([]);
+  const [contracts, setContracts] = useState<CredentialContract[]>([]);
   const [tokenLifetime, setTokenLifetime] = useState<TokenLifetimeValue>('permanent');
   const [tokenCustomAt, setTokenCustomAt] = useState('');
   const [pastAlertOpen, setPastAlertOpen] = useState(false);
@@ -43,6 +47,14 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
   useEffect(() => {
     setAvailableServers(allServers.filter((server) => server.enabled !== false));
   }, [allServers]);
+
+  useEffect(() => {
+    void getCredentialContracts().then((response) => {
+      if (response?.success && Array.isArray(response.data)) {
+        setContracts(response.data);
+      }
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +74,12 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
       return;
     }
 
+    const missing = missingRequiredCredentials(grants, contracts, serverCredentials);
+    if (missing.length > 0) {
+      setError(t('users.credentialRequired', { server: missing.join(', ') }));
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -72,6 +90,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
         consoleEnabled: false,
         mcpEnabled: true,
         grants,
+        serverCredentials,
         ...toExpiryPayload(tokenLifetime, tokenCustomAt),
       });
       if (result?.success && result.data) {
@@ -180,6 +199,14 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
               />
               <GrantPreview grants={grants} servers={availableServers} />
             </div>
+
+            <UserCredentialPicker
+              grants={grants}
+              contracts={contracts}
+              value={serverCredentials}
+              onChange={setServerCredentials}
+              disabled={isSubmitting}
+            />
           </div>
 
           <div className="ylune-dialog-foot">

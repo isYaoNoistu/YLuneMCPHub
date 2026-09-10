@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { IGroupServerConfig, IUser } from '../types/index.js';
-import { getActivityDao, getBearerKeyDao, getUserDao } from '../dao/index.js';
+import { getActivityDao, getBearerKeyDao, getResourceDao, getUserDao } from '../dao/index.js';
 import { logger } from '../utils/logger.js';
 import { isUserTokenExpired, serializeTokenExpiresAt } from '../utils/userTokenExpiry.js';
 import { isMcpEnabled, resolveAccountFlags } from '../utils/userAccount.js';
@@ -342,6 +342,10 @@ export const deleteUser = async (username: string): Promise<boolean> => {
     const deleted = await userDao.delete(username);
     if (deleted) {
       await getBearerKeyDao().deleteByOwner(username);
+      const resourceDao = getResourceDao();
+      if (resourceDao) {
+        await resourceDao.deleteUserServerCredentials(username);
+      }
     }
     return deleted;
   } catch (error) {

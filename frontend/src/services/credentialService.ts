@@ -1,5 +1,5 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from '@/utils/fetchInterceptor';
-import { ApiResponse, Credential, CredentialFormData } from '@/types';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/utils/fetchInterceptor';
+import { ApiResponse, Credential, CredentialContract, CredentialFormData } from '@/types';
 
 export const checkCredentialAvailable = async (): Promise<boolean> => {
   try {
@@ -24,14 +24,23 @@ export const updateCredential = async (
 
 export const replaceCredentialSecret = async (
   id: string,
-  data: { username?: string; password?: string; token?: string },
+  data: { fields: Record<string, string> },
 ): Promise<ApiResponse<Credential>> => apiPost(`/credentials/${id}/secret`, data);
 
 export const deleteCredential = async (id: string): Promise<ApiResponse<void>> =>
   apiDelete(`/credentials/${id}`);
 
-export const testCredential = async (
-  id: string,
-  probe: { host?: string; port?: number; database?: string },
-): Promise<ApiResponse<{ ok: boolean; kind: string }>> =>
-  apiPost(`/credentials/${id}/test`, probe);
+export const getCredentialContracts = (): Promise<ApiResponse<CredentialContract[]>> =>
+  apiGet('/credential-contracts');
+
+export const setServerCredentials = (
+  serverName: string,
+  credentialIds: string[],
+): Promise<ApiResponse<{ serverName: string; credentialIds: string[] }>> =>
+  apiPut(`/servers/${encodeURIComponent(serverName)}/credentials`, { credentialIds });
+
+export const testServerCredential = (
+  serverName: string,
+  credentialId: string,
+): Promise<ApiResponse<{ ok: boolean; toolCount: number }>> =>
+  apiPost(`/servers/${encodeURIComponent(serverName)}/test-credential`, { credentialId });

@@ -969,6 +969,22 @@ body,
   gap: 14px;
 }
 
+.resource-binding-block .ylune-label {
+  margin-bottom: 8px;
+}
+
+.resource-binding-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .resource-binding-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ylune-disclosure {
   display: flex;
   align-items: center;

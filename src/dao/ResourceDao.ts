@@ -2,10 +2,11 @@ import {
   IResourceGroup,
   IResourceGroupItem,
   IResourceTarget,
-  IResourceTargetConfig,
+  IServerCredentialBinding,
   IUserResourceGroup,
-  ResourceTargetType,
+  IUserServerCredential,
 } from '../types/index.js';
+import { coerceFieldMap } from '../utils/fieldMap.js';
 import { ResourceRepository } from '../db/repositories/ResourceRepository.js';
 
 export interface ResourceDao {
@@ -38,12 +39,21 @@ export interface ResourceDao {
   findAssignmentsByUser(username: string): Promise<IUserResourceGroup[]>;
   findAllAssignments(): Promise<IUserResourceGroup[]>;
   replaceUserAssignments(username: string, groupIds: string[], createdBy?: string): Promise<void>;
+  findServerCredentialBindings(serverName?: string): Promise<IServerCredentialBinding[]>;
+  replaceServerCredentialBindings(serverName: string, credentialIds: string[]): Promise<void>;
+  deleteBindingsForCredential(credentialId: string): Promise<void>;
+  findUserServerCredentials(username?: string): Promise<IUserServerCredential[]>;
+  findUserServerCredential(username: string, serverName: string): Promise<IUserServerCredential | null>;
+  replaceUserServerCredentials(
+    username: string,
+    rows: Array<{ serverName: string; credentialId: string }>,
+  ): Promise<void>;
+  deleteUserServerCredentials(username: string): Promise<void>;
 }
 
-const parseConfig = (raw: string): IResourceTargetConfig => {
+const parseConfig = (raw: string) => {
   try {
-    const parsed = JSON.parse(raw) as IResourceTargetConfig;
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return coerceFieldMap(JSON.parse(raw), { trimValues: true });
   } catch {
     return {};
   }
@@ -60,7 +70,7 @@ const mapTarget = (row: {
 }): IResourceTarget => ({
   id: row.id,
   name: row.name,
-  type: row.type as ResourceTargetType,
+  type: row.type,
   config: parseConfig(row.configJson),
   enabled: row.enabled,
   createdAt: row.createdAt,
@@ -260,5 +270,51 @@ export class ResourceDaoDbImpl implements ResourceDao {
     createdBy?: string,
   ): Promise<void> {
     await this.repository.replaceUserAssignments(username, groupIds, createdBy);
+  }
+
+  async findServerCredentialBindings(serverName?: string): Promise<IServerCredentialBinding[]> {
+    return (await this.repository.findServerCredentialBindings(serverName)).map((row) => ({
+      serverName: row.serverName,
+      credentialId: row.credentialId,
+    }));
+  }
+
+  async replaceServerCredentialBindings(serverName: string, credentialIds: string[]): Promise<void> {
+    await this.repository.replaceServerCredentialBindings(serverName, credentialIds);
+    await this.repository.deleteUserServerCredentialsNotIn(serverName, credentialIds);
+  }
+
+  async deleteBindingsForCredential(credentialId: string): Promise<void> {
+    await this.repository.deleteServerCredentialBindingsForCredential(credentialId);
+    await this.repository.deleteUserServerCredentialsForCredential(credentialId);
+  }
+
+  async findUserServerCredentials(username?: string): Promise<IUserServerCredential[]> {
+    return (await this.repository.findUserServerCredentials(username)).map((row) => ({
+      username: row.username,
+      serverName: row.serverName,
+      credentialId: row.credentialId,
+    }));
+  }
+
+  async findUserServerCredential(
+    username: string,
+    serverName: string,
+  ): Promise<IUserServerCredential | null> {
+    const row = await this.repository.findUserServerCredential(username, serverName);
+    return row
+      ? { username: row.username, serverName: row.serverName, credentialId: row.credentialId }
+      : null;
+  }
+
+  async replaceUserServerCredentials(
+    username: string,
+    rows: Array<{ serverName: string; credentialId: string }>,
+  ): Promise<void> {
+    await this.repository.replaceUserServerCredentials(username, rows);
+  }
+
+  async deleteUserServerCredentials(username: string): Promise<void> {
+    await this.repository.deleteUserServerCredentials(username);
   }
 }

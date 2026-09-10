@@ -13,6 +13,7 @@ import {
   updateCredential,
 } from '../services/credentialService.js';
 import { recordAdminAuditFromRequest } from '../services/adminAuditService.js';
+import { invalidateCredentialClients } from '../services/mcpService.js';
 
 const sendPublic = (res: Response, status: number, body: Record<string, unknown>): void => {
   assertNoSecrets(body);
@@ -68,7 +69,7 @@ export const createNewCredential = async (req: Request, res: Response): Promise<
       action: 'credential.create',
       resourceType: 'credential',
       resourceId: data.id,
-      after: { name: data.name, type: data.type },
+      after: { name: data.name, keys: data.keys },
     });
     sendPublic(res, 201, { success: true, data });
   } catch (error) {
@@ -107,6 +108,7 @@ export const replaceExistingCredentialSecret = async (
       resourceId: updated.id,
       after: { name: updated.name, rotatedAt: updated.rotatedAt },
     });
+    invalidateCredentialClients({ credentialId: updated.id });
     sendPublic(res, 200, { success: true, data: updated });
   } catch (error) {
     handleCredentialError(res, error);
@@ -126,6 +128,7 @@ export const deleteExistingCredential = async (req: Request, res: Response): Pro
       resourceType: 'credential',
       resourceId: req.params.id,
     });
+    invalidateCredentialClients({ credentialId: req.params.id });
     sendPublic(res, 200, { success: true });
   } catch (error) {
     handleCredentialError(res, error);
@@ -135,12 +138,12 @@ export const deleteExistingCredential = async (req: Request, res: Response): Pro
 export const testExistingCredential = async (req: Request, res: Response): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
   try {
-    const result = await testCredential(req.params.id, req.body || {});
+    const result = await testCredential(req.params.id);
     sendPublic(res, result.ok ? 200 : 400, {
       success: result.ok,
       data: {
         ok: result.ok,
-        kind: result.kind,
+        fieldCount: result.fieldCount,
       },
       message: result.message,
     });

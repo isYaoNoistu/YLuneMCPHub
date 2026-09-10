@@ -11,7 +11,7 @@ jest.mock('../../src/utils/requireAdmin.js', () => ({
 jest.mock('../../src/services/credentialService.js', () => ({
   assertNoSecrets: jest.fn((value: unknown) => {
     const text = JSON.stringify(value);
-    if (text && /"password"\s*:|"token"\s*:|"encryptedPayload"\s*:/.test(text)) {
+    if (text && /"password"\s*:|"token"\s*:|"encryptedPayload"\s*:|"fields"\s*:/.test(text)) {
       throw new Error('leaked');
     }
   }),
@@ -33,6 +33,10 @@ jest.mock('../../src/utils/secretBox.js', () => ({
   },
 }));
 
+jest.mock('../../src/services/mcpService.js', () => ({
+  invalidateCredentialClients: jest.fn(),
+}));
+
 import { createNewCredential, getCredentials } from '../../src/controllers/credentialController.js';
 import { MasterKeyMissingError } from '../../src/utils/secretBox.js';
 
@@ -49,14 +53,13 @@ describe('credentialController', () => {
     jest.clearAllMocks();
   });
 
-  it('never returns password or token on GET', async () => {
+  it('never returns field values on GET', async () => {
     listCredentials.mockResolvedValue([
       {
         id: 'c1',
         name: 'prod-pg',
-        type: 'postgresql',
         enabled: true,
-        username: 'ylune_ro',
+        keys: ['PGUSER', 'PGPASSWORD'],
         secretConfigured: true,
         createdAt: '2026-09-10T00:00:00.000Z',
         updatedAt: '2026-09-10T00:00:00.000Z',
@@ -67,8 +70,8 @@ describe('credentialController', () => {
     await getCredentials({} as Request, res);
     const body = res.json.mock.calls[0][0];
     expect(body.success).toBe(true);
-    expect(JSON.stringify(body)).not.toMatch(/"password"|"token"|"encryptedPayload"/);
-    expect(body.data[0].username).toBe('ylune_ro');
+    expect(JSON.stringify(body)).not.toMatch(/"password"\s*:|"token"\s*:|"encryptedPayload"|"fields"\s*:/);
+    expect(body.data[0].keys).toEqual(['PGUSER', 'PGPASSWORD']);
     expect(body.data[0].secretConfigured).toBe(true);
   });
 
@@ -76,7 +79,7 @@ describe('credentialController', () => {
     createCredential.mockRejectedValue(new MasterKeyMissingError());
     const res = makeRes();
     await createNewCredential(
-      { body: { name: 'prod-pg', type: 'postgresql', username: 'ro', password: 's3cret' } } as Request,
+      { body: { name: 'prod-pg', fields: { PGUSER: 'ro', PGPASSWORD: 's3cret' } } } as Request,
       res,
     );
     expect(res.status).toHaveBeenCalledWith(503);

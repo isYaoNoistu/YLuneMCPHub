@@ -65,7 +65,7 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `ADMIN_PASSWORD` | 自己设的强密码 | **是** | 仅在库里还没有管理员时用来创建 `admin`。已经有管理员后，改这个变量**不会**改库里的密码，请在控制台改。 |
 | `DB_PASSWORD` | 自己设 | **是** | 容器内 Postgres 口令，同时写进 `DB_URL`。请用字母数字，不要用 `@` `:` `/` `#`，否则连接串会断。 |
 | `JWT_SECRET` | 长随机串 | 否 | 登录 JWT 签名。不设则每次启动用临时密钥，重启后要重新登录。生产请设。 |
-| `YLUNE_MASTER_KEY` | `openssl rand -base64 32` | 写凭据时是 | 凭据中心 AES-256-GCM 主密钥，只放进程环境。不设时列表仍可读，创建 / 替换 / 试连失败，不会把明文写进库。已有服务器要在 `.env` 里补这项。 |
+| `YLUNE_MASTER_KEY` | `openssl rand -base64 32` | 写凭据时是 | 凭据中心 AES-256-GCM 主密钥，只放进程环境。不设时列表仍可读，创建 / 替换失败，不会把明文写进库。已有服务器要在 `.env` 里补这项。 |
 | `YLUNE_RUNTIME_TOKEN` | 长随机串 | 兑换租约时是 | MCP 运行时调用 `POST /internal/v1/credential-leases/:id/resolve` 的 Bearer。不设则该接口 503。不要提交进 git。 |
 | `BASE_PATH` | 留空 或 `/ylune` | 否 | 只有 Nginx / 网关把月弦挂在子路径时才填。填了必须和 Nginx `location` 一致。 |
 | `NPM_REGISTRY` | `https://registry.npmmirror.com` | 否 | **构建和运行**都用。构建时传给 Dockerfile；容器启动时 `entrypoint.sh` 再设一次。海外可改回 `https://registry.npmjs.org/` |

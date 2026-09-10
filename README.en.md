@@ -57,7 +57,7 @@ Read-only gateway status: online servers, tool count, calls from agents and regu
 
 ### User grants
 
-Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. Key expiry blocks agents, not the console. Credential Center stores encrypted secrets and never shows plaintext. Resource groups bind server + target + credential; final access is capability grant ∩ resource binding.
+Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. Key expiry blocks agents, not the console. Credential Center stores encrypted secrets and never shows plaintext. Bind a credential to an MCP, then pick it when creating the user. Resource groups still cover multi-target cases.
 
 ![User grants: pick servers and tools](docs/images/add-user.png)
 
@@ -82,7 +82,7 @@ One row per tool call: who, which server, which tool, success or failure, durati
 - **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server.
 - **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy mcp.json any time. Console-only admins have no key.
 - **Console** — Servers, users, Credential Center, lab, admin audit, settings, built-in prompts / resources, logs and activity.
-- **Credential Center** — Encrypted PostgreSQL / token / basic secrets. Master key is `YLUNE_MASTER_KEY`. The list shows username and “configured”, never the secret. Targets store addresses; resource groups bind server / target / credential to users. A matching call receives a short-lived `credentialLeaseId` (no password) for the runtime to redeem.
+- **Credential Center** — Encrypted custom key/value bags (you name the variables; the hub does not ship PostgreSQL or token schemas). Prefill names from a connected MCP, bind the credential to that MCP, and pick it when creating a user. Calls overlay the bag onto the MCP process env (Jenkins / Nightingale). Master key is `YLUNE_MASTER_KEY`. The list shows names and “configured”, never values. Resource groups still cover multi-target cases. A matching call also receives a short-lived `credentialLeaseId` (no password).
 - **Optional** — Smart routing (`$smart` + pgvector), result compression, OAuth 2.0 authorization server, Better Auth, PostgreSQL config store, CLI.
 
 Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools stay in DevOpsMCP; YLune is the front door.

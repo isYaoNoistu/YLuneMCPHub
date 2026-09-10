@@ -62,8 +62,11 @@ import {
   getSystemConfigDao,
   getBuiltinPromptDao,
   getBuiltinResourceDao,
+  getCredentialDao,
   ServerConfigWithName,
 } from '../dao/index.js';
+import { openCredentialFields } from './credentialService.js';
+import { overlayCredentialFields } from '../utils/envPreflight.js';
 import { initializeAllOAuthClients } from './oauthService.js';
 import { createOAuthProvider } from './mcpOAuthProvider.js';
 import {
@@ -769,6 +772,181 @@ const sessionIsolatedClients = new Map<string, Map<string, { client: Client; tra
 // Locks to prevent concurrent creation of the same isolated client
 const isolatedClientCreationLocks = new Map<string, Promise<any>>();
 
+type CredentialClientEntry = {
+  client: Client;
+  transport: any;
+  overlayConfig: ServerConfig;
+  credentialId: string;
+  keyVersion: number;
+};
+
+const credentialClients = new Map<string, CredentialClientEntry>();
+const credentialClientLocks = new Map<string, Promise<IsolatedClientContext>>();
+
+const credentialClientKey = (serverName: string, credentialId: string, keyVersion: number): string =>
+  `${serverName}::${credentialId}::${keyVersion}`;
+
+export const invalidateCredentialClients = (filter?: {
+  serverName?: string;
+  credentialId?: string;
+}): void => {
+  for (const [key, entry] of credentialClients) {
+    const [serverName, credentialId] = key.split('::');
+    if (filter?.serverName && serverName !== filter.serverName) {
+      continue;
+    }
+    if (filter?.credentialId && credentialId !== filter.credentialId) {
+      continue;
+    }
+    closeIsolatedClient(serverName || key, entry.client, entry.transport);
+    credentialClients.delete(key);
+  }
+  for (const lockKey of credentialClientLocks.keys()) {
+    if (filter?.serverName && !lockKey.startsWith(`${filter.serverName}::`)) {
+      continue;
+    }
+    if (filter?.credentialId && !lockKey.includes(`::${filter.credentialId}::`)) {
+      continue;
+    }
+    credentialClientLocks.delete(lockKey);
+  }
+};
+
+const getOrCreateCredentialClient = async (
+  serverInfo: ServerInfo,
+  credentialId: string,
+): Promise<IsolatedClientContext> => {
+  const credentialDao = getCredentialDao();
+  const credential = credentialDao ? await credentialDao.findById(credentialId) : null;
+  if (!credential?.enabled) {
+    throw new Error('Assigned credential is no longer available');
+  }
+  const serverConfig = serverInfo.config;
+  if (!serverConfig) {
+    throw new Error(`Server config not found for credential client: ${serverInfo.name}`);
+  }
+  const cacheKey = credentialClientKey(serverInfo.name, credential.id, credential.keyVersion);
+  const existing = credentialClients.get(cacheKey);
+  if (existing) {
+    return {
+      sessionId: `cred:${cacheKey}`,
+      client: existing.client,
+      transport: existing.transport,
+      overlayConfig: existing.overlayConfig,
+      credentialCacheKey: cacheKey,
+    };
+  }
+
+  const existingLock = credentialClientLocks.get(cacheKey);
+  if (existingLock) {
+    return existingLock;
+  }
+
+  const createPromise = (async (): Promise<IsolatedClientContext> => {
+    const again = credentialClients.get(cacheKey);
+    if (again) {
+      return {
+        sessionId: `cred:${cacheKey}`,
+        client: again.client,
+        transport: again.transport,
+        overlayConfig: again.overlayConfig,
+        credentialCacheKey: cacheKey,
+      };
+    }
+
+    const fields = openCredentialFields(credential);
+    const overlayConfig = overlayCredentialFields(serverConfig, fields);
+    const transport = await createTransportFromConfig(serverInfo.name, overlayConfig);
+    const client = createUpstreamMcpClient(serverInfo.name, () => serverInfo);
+    try {
+      await connectClientWithDiagnostics(client, transport, serverInfo.options || {});
+    } catch (connectError) {
+      closeIsolatedClient(serverInfo.name, client, transport);
+      throw connectError;
+    }
+
+    credentialClients.set(cacheKey, {
+      client,
+      transport,
+      overlayConfig,
+      credentialId: credential.id,
+      keyVersion: credential.keyVersion,
+    });
+    logger.log(`Created credential client for ${serverInfo.name} :: ${credential.id}`);
+    return {
+      sessionId: `cred:${cacheKey}`,
+      client,
+      transport,
+      overlayConfig,
+      credentialCacheKey: cacheKey,
+    };
+  })();
+
+  credentialClientLocks.set(cacheKey, createPromise);
+  try {
+    return await createPromise;
+  } finally {
+    credentialClientLocks.delete(cacheKey);
+  }
+};
+
+export const probeServerWithCredential = async (
+  serverName: string,
+  credentialId: string,
+): Promise<{ ok: boolean; toolCount: number; message: string }> => {
+  const server = await getServerDao().findById(serverName);
+  if (!server) {
+    throw new Error('Server not found');
+  }
+  if (server.type === 'openapi') {
+    return {
+      ok: false,
+      toolCount: 0,
+      message: 'OpenAPI servers are not probed with env overlay; bind and assign the credential, then call a tool.',
+    };
+  }
+  const credentialDao = getCredentialDao();
+  const credential = credentialDao ? await credentialDao.findById(credentialId) : null;
+  if (!credential?.enabled) {
+    throw new Error('Credential not found');
+  }
+  const fields = openCredentialFields(credential);
+  const overlayConfig = overlayCredentialFields(server, fields);
+  const live = getServerByName(serverName);
+  const stub: ServerInfo = {
+    name: serverName,
+    status: 'connecting',
+    error: null,
+    tools: [],
+    prompts: [],
+    resources: [],
+    createTime: Date.now(),
+    enabled: true,
+    config: overlayConfig,
+    options: live?.options || { timeout: 20_000 },
+  };
+  const transport = await createTransportFromConfig(serverName, overlayConfig);
+  const client = createUpstreamMcpClient(serverName, () => stub);
+  try {
+    await connectClientWithDiagnostics(client, transport, stub.options || {});
+    const listed = await client.listTools({}, stub.options || {});
+    const toolCount = Array.isArray(listed?.tools) ? listed.tools.length : 0;
+    return {
+      ok: true,
+      toolCount,
+      message: `Connected; listed ${toolCount} tools`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      toolCount: 0,
+      message: formatErrorForLogging(error),
+    };
+  } finally {
+    closeIsolatedClient(serverName, client, transport);
+  }
+};
+
 export const connectClientWithDiagnostics = async (
   client: Client,
   transport: Transport,
@@ -1284,10 +1462,15 @@ const stripAuthorizationHeader = (headers: Record<string, string>): Record<strin
 
 export const createTransportFromConfig = async (name: string, conf: ServerConfig): Promise<any> => {
   let transport;
-  const env: Record<string, string> = {
+  const envSource: Record<string, string> = {
     ...(process.env as Record<string, string>),
-    ...replaceEnvVars(conf.env || {}),
+    ...(conf.env || {}),
   };
+  const env: Record<string, string> = {
+    ...envSource,
+    ...replaceEnvVars(conf.env || {}, envSource),
+  };
+  const resolvedUrl = conf.url ? replaceEnvVars(conf.url, env) : '';
 
   // SSRF guard: block URL/streamable-http transports from reaching
   // loopback / RFC1918 / link-local targets (e.g. cloud metadata service).
@@ -1297,8 +1480,8 @@ export const createTransportFromConfig = async (name: string, conf: ServerConfig
   const ownerUser = conf.owner ? await getUserDao().findByUsername(conf.owner) : null;
   const allowInternal = !!ownerUser?.isAdmin;
 
-  if (conf.url) {
-    await assertSafeUrl(conf.url, { allowInternal });
+  if (resolvedUrl) {
+    await assertSafeUrl(resolvedUrl, { allowInternal });
   }
 
   if (conf.type === 'streamable-http') {
@@ -1332,8 +1515,8 @@ export const createTransportFromConfig = async (name: string, conf: ServerConfig
 
     options.fetch = requestAwareFetch;
 
-    transport = new StreamableHTTPClientTransport(new URL(conf.url || ''), options);
-  } else if (conf.url) {
+    transport = new StreamableHTTPClientTransport(new URL(resolvedUrl), options);
+  } else if (resolvedUrl) {
     // SSE transport
     const options: any = {};
     let headers = conf.headers ? replaceEnvVars(conf.headers, env) : {};
@@ -1368,7 +1551,7 @@ export const createTransportFromConfig = async (name: string, conf: ServerConfig
 
     options.fetch = requestAwareFetch;
 
-    transport = new SSEClientTransport(new URL(conf.url), options);
+    transport = new SSEClientTransport(new URL(resolvedUrl), options);
   } else if (conf.command) {
     // Stdio transport
     env['PATH'] = expandEnvVars(process.env.PATH as string) || '';
@@ -1395,7 +1578,7 @@ export const createTransportFromConfig = async (name: string, conf: ServerConfig
     }
 
     // Apply proxychains4 wrapper if proxy is configured (Linux/macOS only)
-    let resolvedArgs = replaceEnvVars(conf.args ?? []) as string[];
+    let resolvedArgs = replaceEnvVars(conf.args ?? [], env) as string[];
 
     // If this server is pending a reinstall, inject cache-busting flags (uvx only).
     // For npx, the cache directory was already cleared before reconnect.
@@ -1407,7 +1590,7 @@ export const createTransportFromConfig = async (name: string, conf: ServerConfig
 
     const { command: finalCommand, args: finalArgs } = wrapWithProxychains(
       name,
-      conf.command,
+      replaceEnvVars(conf.command, env),
       resolvedArgs,
       conf.proxy,
     );
@@ -1439,6 +1622,8 @@ type IsolatedClientContext = {
   sessionId: string;
   client: Client;
   transport: any;
+  overlayConfig?: ServerConfig;
+  credentialCacheKey?: string;
 };
 
 // Helper function to handle client.callTool with reconnection logic
@@ -1475,12 +1660,13 @@ const callToolWithReconnect = async (
         );
 
         try {
-          const server = await getServerDao().findById(serverInfo.name);
-          if (!server) {
+          const reconnectConfig =
+            isolated?.overlayConfig || (await getServerDao().findById(serverInfo.name));
+          if (!reconnectConfig) {
             throw new Error(`Server configuration not found for: ${serverInfo.name}`);
           }
 
-          const newTransport = await createTransportFromConfig(serverInfo.name, server);
+          const newTransport = await createTransportFromConfig(serverInfo.name, reconnectConfig);
           const newClient = createUpstreamMcpClient(serverInfo.name, () => serverInfo);
 
           // Reconnect with new transport
@@ -1501,7 +1687,17 @@ const callToolWithReconnect = async (
               /* empty */
             }
 
-            setSessionIsolatedClient(isolated.sessionId, serverInfo.name, newClient, newTransport);
+            if (isolated.credentialCacheKey && isolated.overlayConfig) {
+              credentialClients.set(isolated.credentialCacheKey, {
+                client: newClient,
+                transport: newTransport,
+                overlayConfig: isolated.overlayConfig,
+                credentialId: isolated.credentialCacheKey.split('::')[1] || '',
+                keyVersion: Number(isolated.credentialCacheKey.split('::')[2] || 0),
+              });
+            } else {
+              setSessionIsolatedClient(isolated.sessionId, serverInfo.name, newClient, newTransport);
+            }
           } else {
             // Shared path: tear down and replace the shared connection.
             if (serverInfo.keepAliveIntervalId) {
@@ -3218,6 +3414,19 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
     resourceChain = { requestId, ...access.chain };
     return access.sanitizedArgs;
   };
+  const resolveCallClient = async (serverInfo: ServerInfo): Promise<IsolatedClientContext | undefined> => {
+    if (resourceChain.credentialId) {
+      return getOrCreateCredentialClient(serverInfo, resourceChain.credentialId);
+    }
+    if (serverInfo.config?.perSessionClient && sessionId) {
+      const isolated = await getOrCreateIsolatedClient(sessionId, serverInfo);
+      return { sessionId, client: isolated.client, transport: isolated.transport };
+    }
+    if (!serverInfo.client) {
+      throw new Error(`Client not found for server: ${serverInfo.name}`);
+    }
+    return undefined;
+  };
   const logToolCall = (params: Parameters<typeof activityLogger.logToolCall>[0]) =>
     activityLogger.logToolCall({ ...params, ...resourceChain });
   let hostedReservation: HostedCreditReservation | null = null;
@@ -3304,19 +3513,6 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
         );
       }
 
-      // If the target is an on-demand server that is not yet running, wake it up now.
-      // Concurrent callers are serialised via ensureServerReady's singleton promise.
-      if (targetServerInfo.config?.startOnDemand && targetServerInfo.status !== 'connected') {
-        await ensureServerReady(targetServerInfo);
-        // Re-read status from the mutated serverInfo after async spawn
-        const freshStatus = (targetServerInfo as ServerInfo).status;
-        if (freshStatus !== 'connected') {
-          throw new Error(
-            `Failed to start on-demand server '${targetServerInfo.name}' — check server logs`,
-          );
-        }
-      }
-
       // Record activity timestamp for on-demand servers
       targetServerInfo.lastUsedAt = Date.now();
 
@@ -3330,6 +3526,9 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
       // Handle OpenAPI servers differently
       if (targetServerInfo.openApiClient) {
+        if (targetServerInfo.config?.startOnDemand && targetServerInfo.status !== 'connected') {
+          await ensureServerReady(targetServerInfo);
+        }
         // For OpenAPI servers, use the OpenAPI client
         const openApiClient = targetServerInfo.openApiClient;
 
@@ -3429,20 +3628,25 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       }
 
       // Call the tool on the target server (MCP servers)
-      // For servers with perSessionClient: true, use a per-session dedicated client
-      let isolatedCtx: IsolatedClientContext | undefined;
-      if (targetServerInfo.config?.perSessionClient && sessionId) {
-        const isolated = await getOrCreateIsolatedClient(sessionId, targetServerInfo);
-        isolatedCtx = { sessionId, client: isolated.client, transport: isolated.transport };
-      } else if (!targetServerInfo.client) {
-        throw new Error(`Client not found for server: ${targetServerInfo.name}`);
-      }
-
-      // Use toolArgs if it has properties, otherwise fallback to request.params.arguments
+      // Apply resource/credential access first so a bound credential can spawn
+      // an env-overlaid client instead of the shared hub process.
       const finalArgs = await applyResourceAccess(
         targetServerInfo.name,
         toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
       );
+      if (
+        !resourceChain.credentialId &&
+        targetServerInfo.config?.startOnDemand &&
+        targetServerInfo.status !== 'connected'
+      ) {
+        await ensureServerReady(targetServerInfo);
+        if ((targetServerInfo as ServerInfo).status !== 'connected') {
+          throw new Error(
+            `Failed to start on-demand server '${targetServerInfo.name}' — check server logs`,
+          );
+        }
+      }
+      const isolatedCtx = await resolveCallClient(targetServerInfo);
 
       logger.log('Invoking tool', {
         toolName: targetToolName,
@@ -3530,16 +3734,13 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
     }
     assertToolAvailableForRoute(tool, appsRouteContext);
 
-    // Wake the on-demand server before invoking the tool. It may be asleep with
-    // a cached tool list (visible above) but no live client. Mirrors the
-    // $smart call_tool path. See #1029.
-    if (serverInfo.config?.startOnDemand && serverInfo.status !== 'connected') {
-      await ensureServerReady(serverInfo);
-    }
     serverInfo.lastUsedAt = Date.now();
 
     // Handle OpenAPI servers differently
     if (serverInfo.openApiClient) {
+      if (serverInfo.config?.startOnDemand && serverInfo.status !== 'connected') {
+        await ensureServerReady(serverInfo);
+      }
       // For OpenAPI servers, use the OpenAPI client
       const openApiClient = serverInfo.openApiClient;
 
@@ -3634,17 +3835,16 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
     }
 
     // Handle MCP servers
-    // For servers with perSessionClient: true, use a per-session dedicated client
-    let isolatedCtx: IsolatedClientContext | undefined;
-    if (serverInfo.config?.perSessionClient && sessionId) {
-      const isolated = await getOrCreateIsolatedClient(sessionId, serverInfo);
-      isolatedCtx = { sessionId, client: isolated.client, transport: isolated.transport };
-    } else if (!serverInfo.client) {
-      throw new Error(`Client not found for server: ${serverInfo.name}`);
-    }
-
     const cleanToolName = normalizeToolNameForServer(serverInfo.name, routeToolName);
     const finalArgs = await applyResourceAccess(serverInfo.name, request.params.arguments);
+    if (
+      !resourceChain.credentialId &&
+      serverInfo.config?.startOnDemand &&
+      serverInfo.status !== 'connected'
+    ) {
+      await ensureServerReady(serverInfo);
+    }
+    const isolatedCtx = await resolveCallClient(serverInfo);
     await reserveHostedIfNeeded(serverInfo.name, cleanToolName);
     const result = await callToolWithReconnect(
       serverInfo,

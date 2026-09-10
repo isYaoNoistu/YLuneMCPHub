@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { jest } from '@jest/globals';
-import { MASTER_KEY_ENV } from '../../src/utils/secretBox.js';
+import { MASTER_KEY_ENV, encryptJson } from '../../src/utils/secretBox.js';
 
 const findAll = jest.fn();
 const findById = jest.fn();
@@ -23,6 +23,7 @@ jest.mock('../../src/dao/DaoFactory.js', () => ({
 import {
   createCredential,
   listCredentials,
+  openCredentialFields,
   replaceCredentialSecret,
   toPublicCredential,
 } from '../../src/services/credentialService.js';
@@ -44,15 +45,15 @@ describe('credentialService', () => {
     }
   });
 
-  it('never puts password or token on the public view', () => {
+  it('never puts field values on the public view', () => {
     const publicView = toPublicCredential({
       id: 'c1',
       name: 'prod-pg',
-      type: 'postgresql',
+      type: 'fields',
       encryptedPayload: '{"data":"cipher"}',
       keyVersion: 1,
       enabled: true,
-      username: 'ylune_ro',
+      fieldKeys: ['PGUSER', 'PGPASSWORD'],
       createdAt: new Date('2026-09-10T00:00:00.000Z'),
       updatedAt: new Date('2026-09-10T00:00:00.000Z'),
       rotatedAt: null,
@@ -61,12 +62,13 @@ describe('credentialService', () => {
       expect.objectContaining({
         id: 'c1',
         name: 'prod-pg',
-        type: 'postgresql',
-        username: 'ylune_ro',
+        keys: ['PGUSER', 'PGPASSWORD'],
         secretConfigured: true,
       }),
     );
-    expect(JSON.stringify(publicView)).not.toMatch(/password|token|encryptedPayload|cipher/i);
+    expect(JSON.stringify(publicView)).not.toMatch(
+      /"password"\s*:|"token"\s*:|"encryptedPayload"|"fields"\s*:|cipher/,
+    );
   });
 
   it('lists credentials without secret fields', async () => {
@@ -74,18 +76,18 @@ describe('credentialService', () => {
       {
         id: 'c1',
         name: 'prod-pg',
-        type: 'postgresql',
+        type: 'fields',
         encryptedPayload: 'sealed',
         keyVersion: 1,
         enabled: true,
-        username: 'ylune_ro',
+        fieldKeys: ['PGUSER', 'PGPASSWORD'],
         createdAt: new Date(),
         updatedAt: new Date(),
       },
     ]);
     const rows = await listCredentials();
-    expect(rows[0]?.username).toBe('ylune_ro');
-    expect(JSON.stringify(rows)).not.toMatch(/"password"|"token"|"encryptedPayload"/);
+    expect(rows[0]?.keys).toEqual(['PGUSER', 'PGPASSWORD']);
+    expect(JSON.stringify(rows)).not.toMatch(/"password"\s*:|"token"\s*:|"encryptedPayload"|"fields"\s*:/);
   });
 
   it('refuses to write when the master key is missing', async () => {
@@ -94,9 +96,7 @@ describe('credentialService', () => {
     await expect(
       createCredential({
         name: 'prod-pg',
-        type: 'postgresql',
-        username: 'ylune_ro',
-        password: 's3cret',
+        fields: { PGUSER: 'ylune_ro', PGPASSWORD: 's3cret' },
       }),
     ).rejects.toBeInstanceOf(MasterKeyMissingError);
     expect(create).not.toHaveBeenCalled();
@@ -112,33 +112,57 @@ describe('credentialService', () => {
     }));
     const publicView = await createCredential({
       name: 'prod-pg',
-      type: 'postgresql',
-      username: 'ylune_ro',
-      password: 's3cret',
+      fields: { PGUSER: 'ylune_ro', PGPASSWORD: 's3cret' },
     });
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'prod-pg',
-        username: 'ylune_ro',
+        type: 'fields',
+        fieldKeys: ['PGUSER', 'PGPASSWORD'],
       }),
     );
     const stored = create.mock.calls[0]?.[0] as { encryptedPayload: string };
     expect(stored.encryptedPayload).not.toContain('s3cret');
     expect(JSON.stringify(publicView)).not.toContain('s3cret');
+    expect(publicView.keys).toEqual(['PGUSER', 'PGPASSWORD']);
+  });
+
+  it('rejects empty or illegal field names', async () => {
+    findByName.mockResolvedValue(null);
+    await expect(createCredential({ name: 'x', fields: {} })).rejects.toThrow(/at least one field/i);
+    await expect(
+      createCredential({ name: 'x', fields: { 'pg-user': 'ro' } }),
+    ).rejects.toThrow(/Invalid field name/);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('opens legacy username/password payloads as a field map', () => {
+    const sealed = encryptJson({ username: 'ylune_ro', password: 's3cret' });
+    expect(
+      openCredentialFields({
+        id: 'c1',
+        name: 'legacy',
+        type: 'postgresql',
+        encryptedPayload: sealed.payload,
+        keyVersion: sealed.keyVersion,
+        enabled: true,
+      }),
+    ).toEqual({ username: 'ylune_ro', password: 's3cret' });
   });
 
   it('refuses replaceSecret without a master key', async () => {
     findById.mockResolvedValue({
       id: 'c1',
       name: 'prod-pg',
-      type: 'postgresql',
+      type: 'fields',
       encryptedPayload: 'sealed',
       keyVersion: 1,
       enabled: true,
+      fieldKeys: ['PGPASSWORD'],
     });
     delete process.env[MASTER_KEY_ENV];
     await expect(
-      replaceCredentialSecret('c1', { username: 'ylune_ro', password: 'new-secret' }),
+      replaceCredentialSecret('c1', { fields: { PGPASSWORD: 'new-secret' } }),
     ).rejects.toBeInstanceOf(MasterKeyMissingError);
     expect(update).not.toHaveBeenCalled();
   });

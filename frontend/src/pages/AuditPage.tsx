@@ -36,7 +36,7 @@ const AuditPage = () => {
           <p className="hub-sub">{t('audit.hint')}</p>
         </div>
       </div>
-      <div className="hub-card overflow-hidden">
+      <div className="hub-card overflow-hidden audit-table">
         <div className="hub-row head hub-mono">
           <div>{t('activity.timestamp')}</div>
           <div>{t('audit.actor')}</div>
@@ -49,7 +49,7 @@ const AuditPage = () => {
           </div>
         ) : (
           rows.map((row) => (
-            <div key={row.id} className="hub-row">
+            <div key={row.id} className="hub-row hover">
               <div>{new Date(row.timestamp).toLocaleString()}</div>
               <div className="hub-mono">{row.actor}</div>
               <div>{row.action}</div>

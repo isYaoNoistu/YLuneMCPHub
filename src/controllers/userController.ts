@@ -17,6 +17,12 @@ import {
   normalizeUserGrants,
 } from '../services/userService.js';
 import { attachResourceGroupIds } from '../services/resourceService.js';
+import {
+  attachUserServerCredentials,
+  listUserServerCredentials,
+  saveUserServerCredentials,
+  validateUserServerCredentials,
+} from '../services/credentialBindingService.js';
 import { recordAdminAuditFromRequest } from '../services/adminAuditService.js';
 import { validatePasswordStrength } from '../utils/passwordValidation.js';
 import {
@@ -43,9 +49,11 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
   try {
-    const users = await attachResourceGroupIds(
-      await attachLastCalledAt(
-        await Promise.all((await getAllUsers()).map((user) => toPublicUser(user))),
+    const users = await attachUserServerCredentials(
+      await attachResourceGroupIds(
+        await attachLastCalledAt(
+          await Promise.all((await getAllUsers()).map((user) => toPublicUser(user))),
+        ),
       ),
     );
     const response: ApiResponse = {
@@ -86,7 +94,7 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
 
     const response: ApiResponse = {
       success: true,
-      data: await toPublicUser(user),
+      data: (await attachUserServerCredentials([await toPublicUser(user)]))[0],
     };
     res.json(response);
   } catch (error) {
@@ -176,13 +184,19 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const grantList = grants !== undefined ? normalizeUserGrants(grants) : [];
+    await validateUserServerCredentials(username.trim(), req.body, {
+      grants: grantList,
+      isAdmin: creatingAdmin,
+    });
+
     const newUser = await createNewUser(
       username.trim(),
       resolvedPassword,
       Boolean(isAdmin) || creatingAdmin,
       email,
       typeof remark === 'string' ? remark : undefined,
-      grants !== undefined ? normalizeUserGrants(grants) : [],
+      grantList,
       resolveTokenExpiresAt({
         mcpEnabled: wantsMcp,
         tokenLifetime,
@@ -207,9 +221,13 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         typeof token === 'string' ? token : undefined,
       );
     }
+    await saveUserServerCredentials(newUser.username, req.body, {
+      grants: newUser.grants || [],
+      isAdmin: Boolean(newUser.isAdmin),
+    });
     const response: ApiResponse = {
       success: true,
-      data: await toPublicUser(newUser),
+      data: (await attachUserServerCredentials([await toPublicUser(newUser)]))[0],
       message: 'User created successfully',
     };
     await recordAdminAuditFromRequest(req, {
@@ -220,6 +238,25 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     });
     res.status(201).json(response);
   } catch (error) {
+    if (error instanceof Error && error.name === 'ResourceStoreUnavailableError') {
+      res.status(404).json({
+        success: false,
+        message: 'api.errors.resource_store_unavailable',
+      });
+      return;
+    }
+    if (
+      error instanceof Error &&
+      (error.message.startsWith('MCP requires an assigned credential') ||
+        error.message.includes('not bound to MCP') ||
+        error.message.includes('Each assignment needs'))
+    ) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -233,8 +270,18 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
 
   try {
     const { username } = req.params;
-    const { isAdmin, consoleEnabled, mcpEnabled, newPassword, email, remark, grants, tokenLifetime, tokenExpiresAt } =
-      req.body;
+    const {
+      isAdmin,
+      consoleEnabled,
+      mcpEnabled,
+      newPassword,
+      email,
+      remark,
+      grants,
+      tokenLifetime,
+      tokenExpiresAt,
+      serverCredentials,
+    } = req.body;
 
     if (!username) {
       res.status(400).json({
@@ -308,16 +355,19 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
       updateData.newPassword = newPassword;
     }
 
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && serverCredentials === undefined) {
       res.status(400).json({
         success: false,
         message:
-          'At least one field (isAdmin, consoleEnabled, mcpEnabled, email, remark, grants, tokenLifetime, tokenExpiresAt, or newPassword) is required to update',
+          'At least one field (isAdmin, consoleEnabled, mcpEnabled, email, remark, grants, tokenLifetime, tokenExpiresAt, newPassword, or serverCredentials) is required to update',
       });
       return;
     }
 
-    const updatedUser = await updateUser(username, updateData);
+    const updatedUser =
+      Object.keys(updateData).length > 0
+        ? await updateUser(username, updateData)
+        : await getUserByUsername(username);
     if (!updatedUser) {
       res.status(404).json({
         success: false,
@@ -330,9 +380,18 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
       await ensureUserAccessToken(updatedUser.username);
     }
 
+    const assignmentSource =
+      serverCredentials !== undefined
+        ? serverCredentials
+        : await listUserServerCredentials(updatedUser.username);
+    await saveUserServerCredentials(updatedUser.username, assignmentSource, {
+      grants: updatedUser.grants || [],
+      isAdmin: Boolean(updatedUser.isAdmin),
+    });
+
     const response: ApiResponse = {
       success: true,
-      data: await toPublicUser(updatedUser),
+      data: (await attachUserServerCredentials([await toPublicUser(updatedUser)]))[0],
       message: 'User updated successfully',
     };
     await recordAdminAuditFromRequest(req, {
@@ -347,6 +406,25 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
     });
     res.json(response);
   } catch (error) {
+    if (error instanceof Error && error.name === 'ResourceStoreUnavailableError') {
+      res.status(404).json({
+        success: false,
+        message: 'api.errors.resource_store_unavailable',
+      });
+      return;
+    }
+    if (
+      error instanceof Error &&
+      (error.message.startsWith('MCP requires an assigned credential') ||
+        error.message.includes('not bound to MCP') ||
+        error.message.includes('Each assignment needs'))
+    ) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: 'Internal server error',

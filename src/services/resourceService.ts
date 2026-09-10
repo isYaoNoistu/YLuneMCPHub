@@ -5,12 +5,12 @@ import {
   IResourceGroupItem,
   IResourceTarget,
   IResourceTargetConfig,
-  ResourceTargetType,
 } from '../types/index.js';
+import { coerceFieldMap, sanitizeFieldMap } from '../utils/fieldMap.js';
 import { getUserByUsername } from './userService.js';
 import { createCredentialLease } from './credentialBrokerService.js';
+import { findUserServerCredential, serverHasCredentialBindings } from './credentialBindingService.js';
 
-const TARGET_TYPES: ResourceTargetType[] = ['postgresql', 'http', 'custom'];
 const SECRET_ARG_KEYS = new Set([
   'password',
   'token',
@@ -43,36 +43,23 @@ export const requireResourceDao = () => {
   return dao;
 };
 
-const isTargetType = (value: unknown): value is ResourceTargetType =>
-  typeof value === 'string' && TARGET_TYPES.includes(value as ResourceTargetType);
-
-const sanitizeTargetConfig = (input: unknown): IResourceTargetConfig => {
-  if (!input || typeof input !== 'object') {
-    return {};
+const normalizeTargetType = (value: unknown): string => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim().slice(0, 32);
   }
-  const raw = input as Record<string, unknown>;
-  const config: IResourceTargetConfig = {};
-  if (typeof raw.host === 'string') {
-    config.host = raw.host.trim();
-  }
-  if (raw.port !== undefined) {
-    const port = Number(raw.port);
-    if (Number.isFinite(port)) {
-      config.port = port;
-    }
-  }
-  if (typeof raw.database === 'string') {
-    config.database = raw.database.trim();
-  }
-  if (typeof raw.url === 'string') {
-    config.url = raw.url.trim();
-  }
-  return config;
+  return 'custom';
 };
+
+export const sanitizeTargetConfig = (input: unknown): IResourceTargetConfig =>
+  sanitizeFieldMap(input, { trimValues: true });
+
+export const readTargetConfig = (input: unknown): IResourceTargetConfig =>
+  coerceFieldMap(input, { trimValues: true });
 
 const publicTarget = (target: IResourceTarget): IResourceTarget => ({
   ...target,
-  config: sanitizeTargetConfig(target.config),
+  type: normalizeTargetType(target.type),
+  config: readTargetConfig(target.config),
 });
 
 export const listResourceTargets = async (): Promise<IResourceTarget[]> =>
@@ -88,9 +75,6 @@ export const createResourceTarget = async (input: {
   if (!name) {
     throw new Error('Name is required');
   }
-  if (!isTargetType(input.type)) {
-    throw new Error('Type must be postgresql, http, or custom');
-  }
   const dao = requireResourceDao();
   if (await dao.findTargetByName(name)) {
     throw new Error('A target with this name already exists');
@@ -98,7 +82,7 @@ export const createResourceTarget = async (input: {
   return publicTarget(
     await dao.createTarget({
       name,
-      type: input.type,
+      type: normalizeTargetType(input.type),
       config: sanitizeTargetConfig(input.config),
       enabled: input.enabled !== false,
     }),
@@ -127,10 +111,7 @@ export const updateResourceTarget = async (
     patch.name = name;
   }
   if (input.type !== undefined) {
-    if (!isTargetType(input.type)) {
-      throw new Error('Type must be postgresql, http, or custom');
-    }
-    patch.type = input.type;
+    patch.type = normalizeTargetType(input.type);
   }
   if (input.config !== undefined) {
     patch.config = sanitizeTargetConfig(input.config);
@@ -358,6 +339,41 @@ export const findResourceBinding = async (input: {
   return null;
 };
 
+const leaseFromCredential = async (input: {
+  username: string;
+  serverName: string;
+  credentialId: string;
+  sanitizedArgs: Record<string, unknown>;
+  chainBase?: IActivityChain;
+}): Promise<{ sanitizedArgs: Record<string, unknown>; chain: IActivityChain } | null> => {
+  const credentialDao = getCredentialDao();
+  const credential = credentialDao ? await credentialDao.findById(input.credentialId) : null;
+  if (!credential?.enabled) {
+    return null;
+  }
+  const lease = createCredentialLease({
+    username: input.username,
+    serverName: input.serverName,
+    targetId: '',
+    targetName: input.serverName,
+    credentialId: credential.id,
+    credentialName: credential.name,
+    credentialVersion: credential.keyVersion,
+  });
+  return {
+    sanitizedArgs: {
+      ...input.sanitizedArgs,
+      credentialLeaseId: lease.id,
+    },
+    chain: {
+      ...input.chainBase,
+      credentialId: credential.id,
+      credentialName: credential.name,
+      credentialVersion: credential.keyVersion,
+    },
+  };
+};
+
 export const authorizeToolResourceAccess = async (input: {
   username?: string;
   serverName: string;
@@ -380,18 +396,43 @@ export const authorizeToolResourceAccess = async (input: {
   const assigned = await listUserResourceGroupIds(input.username);
   const hasBindings = assigned.length > 0;
 
-  if (!targetRef) {
-    return { sanitizedArgs, chain };
-  }
+  if (targetRef) {
+    const match = await findResourceBinding({
+      username: input.username,
+      serverName: input.serverName,
+      targetRef,
+      groupIds: isAdmin ? undefined : hasBindings ? assigned : [],
+    });
 
-  const match = await findResourceBinding({
-    username: input.username,
-    serverName: input.serverName,
-    targetRef,
-    groupIds: isAdmin ? undefined : hasBindings ? assigned : [],
-  });
+    if (match) {
+      const lease = createCredentialLease({
+        username: input.username,
+        serverName: input.serverName,
+        targetId: match.target.id,
+        targetName: match.target.name,
+        credentialId: match.credentialId,
+        credentialName: match.credentialName,
+        credentialVersion: match.credentialVersion,
+        resourceGroupId: match.group.id,
+        resourceGroupName: match.group.name,
+      });
+      return {
+        sanitizedArgs: {
+          ...sanitizedArgs,
+          credentialLeaseId: lease.id,
+        },
+        chain: {
+          targetId: match.target.id,
+          targetName: match.target.name,
+          credentialId: match.credentialId,
+          credentialName: match.credentialName,
+          credentialVersion: match.credentialVersion,
+          resourceGroupId: match.group.id,
+          resourceGroupName: match.group.name,
+        },
+      };
+    }
 
-  if (!match) {
     if (hasBindings && !isAdmin) {
       throw new ResourceBindingDeniedError();
     }
@@ -401,34 +442,25 @@ export const authorizeToolResourceAccess = async (input: {
       chain.targetId = byId.id;
       chain.targetName = byId.name;
     }
-    return { sanitizedArgs, chain };
   }
 
-  const lease = createCredentialLease({
-    username: input.username,
-    serverName: input.serverName,
-    targetId: match.target.id,
-    targetName: match.target.name,
-    credentialId: match.credentialId,
-    credentialName: match.credentialName,
-    credentialVersion: match.credentialVersion,
-    resourceGroupId: match.group.id,
-    resourceGroupName: match.group.name,
-  });
+  const userCred = await findUserServerCredential(input.username, input.serverName);
+  if (userCred) {
+    const leased = await leaseFromCredential({
+      username: input.username,
+      serverName: input.serverName,
+      credentialId: userCred.credentialId,
+      sanitizedArgs,
+      chainBase: chain,
+    });
+    if (leased) {
+      return leased;
+    }
+  }
 
-  return {
-    sanitizedArgs: {
-      ...sanitizedArgs,
-      credentialLeaseId: lease.id,
-    },
-    chain: {
-      targetId: match.target.id,
-      targetName: match.target.name,
-      credentialId: match.credentialId,
-      credentialName: match.credentialName,
-      credentialVersion: match.credentialVersion,
-      resourceGroupId: match.group.id,
-      resourceGroupName: match.group.name,
-    },
-  };
+  if (!isAdmin && (await serverHasCredentialBindings(input.serverName))) {
+    throw new ResourceBindingDeniedError('This MCP requires an assigned credential');
+  }
+
+  return { sanitizedArgs, chain };
 };

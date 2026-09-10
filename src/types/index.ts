@@ -24,21 +24,18 @@ export interface IUser {
   createdAt?: Date | string | null;
 }
 
-export type CredentialType = 'postgresql' | 'token' | 'basic';
-
-export interface ICredentialSecret {
-  username?: string;
-  password?: string;
-  token?: string;
-}
+export type ICredentialFields = Record<string, string>;
 
 export interface ICredential {
   id: string;
   name: string;
-  type: CredentialType;
+  /** Stored as `fields` for new rows. Legacy rows may still say postgresql/token/basic. */
+  type: string;
   encryptedPayload: string;
   keyVersion: number;
   enabled: boolean;
+  /** Non-secret field names for list views. Values stay in encryptedPayload. */
+  fieldKeys?: string[] | null;
   username?: string | null;
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
@@ -48,23 +45,17 @@ export interface ICredential {
 export interface ICredentialPublic {
   id: string;
   name: string;
-  type: CredentialType;
   enabled: boolean;
-  username?: string;
+  keys: string[];
   secretConfigured: boolean;
   createdAt: string | null;
   updatedAt: string | null;
   rotatedAt: string | null;
 }
 
-export type ResourceTargetType = 'postgresql' | 'http' | 'custom';
+export type ResourceTargetType = string;
 
-export interface IResourceTargetConfig {
-  host?: string;
-  port?: number;
-  database?: string;
-  url?: string;
-}
+export type IResourceTargetConfig = Record<string, string>;
 
 export interface IResourceTarget {
   id: string;
@@ -100,6 +91,24 @@ export interface IUserResourceGroup {
   groupId: string;
   createdAt?: Date | string | null;
   createdBy?: string | null;
+}
+
+export interface IServerCredentialBinding {
+  serverName: string;
+  credentialId: string;
+}
+
+export interface IUserServerCredential {
+  username: string;
+  serverName: string;
+  credentialId: string;
+}
+
+export interface ICredentialContract {
+  serverName: string;
+  neededKeys: string[];
+  credentialIds: string[];
+  credentials?: ICredentialPublic[];
 }
 
 export interface IActivityChain {

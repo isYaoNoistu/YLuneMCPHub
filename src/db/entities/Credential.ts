@@ -8,7 +8,7 @@ import {
 
 /**
  * Encrypted credential store. Secrets live only in encrypted_payload.
- * username is a non-secret hint for the console list.
+ * fieldKeys lists variable names for the console; values are never stored in the clear.
  */
 @Entity({ name: 'credentials' })
 export class Credential {
@@ -29,6 +29,9 @@ export class Credential {
 
   @Column({ type: 'boolean', default: true })
   enabled: boolean;
+
+  @Column({ type: 'simple-json', name: 'field_keys', nullable: true })
+  fieldKeys?: string[] | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   username?: string | null;

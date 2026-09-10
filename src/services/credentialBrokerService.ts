@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { openCredentialSecret } from './credentialService.js';
+import { openCredentialFields } from './credentialService.js';
 import { getCredentialDao } from '../dao/DaoFactory.js';
-import { ICredential, ICredentialSecret, IResourceTarget } from '../types/index.js';
+import { ICredential, IResourceTarget } from '../types/index.js';
 
 export const RUNTIME_TOKEN_ENV = 'YLUNE_RUNTIME_TOKEN';
 export const LEASE_TTL_MS = 45_000;
@@ -23,14 +23,13 @@ export interface CredentialLease {
 
 export interface ResolvedLease {
   leaseId: string;
-  target: IResourceTarget;
+  target: IResourceTarget | null;
   credential: {
     id: string;
     name: string;
-    type: ICredential['type'];
-    username?: string;
     keyVersion: number;
-  } & ICredentialSecret;
+    fields: Record<string, string>;
+  };
 }
 
 const leases = new Map<string, CredentialLease>();
@@ -104,25 +103,25 @@ export const resolveCredentialLease = async (
   if (!lease || lease.consumed || lease.expiresAt <= Date.now()) {
     throw new Error('Lease not found or expired');
   }
-  if (!target || target.id !== lease.targetId) {
-    throw new Error('Lease target is no longer available');
+  if (lease.targetId) {
+    if (!target || target.id !== lease.targetId) {
+      throw new Error('Lease target is no longer available');
+    }
   }
   if (!credential || credential.id !== lease.credentialId) {
     throw new Error('Lease credential is no longer available');
   }
-  const secret = openCredentialSecret(credential);
+  const fields = openCredentialFields(credential);
   lease.consumed = true;
   leases.delete(id);
   return {
     leaseId: lease.id,
-    target,
+    target: lease.targetId ? target : null,
     credential: {
       id: credential.id,
       name: credential.name,
-      type: credential.type,
-      username: secret.username || credential.username || undefined,
       keyVersion: credential.keyVersion,
-      ...secret,
+      fields,
     },
   };
 };

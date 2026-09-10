@@ -1,5 +1,6 @@
 import {
   extractTargetRef,
+  sanitizeTargetConfig,
   stripSecretArgs,
 } from '../../src/services/resourceService.js';
 
@@ -20,5 +21,15 @@ describe('resourceService helpers', () => {
     });
     expect(sanitized).toEqual({ target: 'energy-prod', sql: 'select 1' });
     expect(JSON.stringify(sanitized)).not.toMatch(/secret|tok/);
+  });
+
+  it('keeps arbitrary target config keys', () => {
+    expect(
+      sanitizeTargetConfig({ HOST: 'db.internal', PORT: 5432, DATABASE: 'energy' }),
+    ).toEqual({
+      HOST: 'db.internal',
+      PORT: '5432',
+      DATABASE: 'energy',
+    });
   });
 });

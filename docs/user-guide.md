@@ -9,7 +9,7 @@
 ## 1. 先搞清三件事
 
 1. **月弦是网关**，不是夜莺 / Jenkins / PostgreSQL 客户端。那些只读工具在 DevOpsMCP。
-2. **三个词不要混：** **控制台账号**用密码登录后台；**Access Key** 是智能体调 `/mcp` 的 Bearer；**Credential** 是凭据中心加密保存的库口令 / Token，既不是登录密码，也不是 Access Key。
+2. **三个词不要混：** **控制台账号**用密码登录后台；**Access Key** 是智能体调 `/mcp` 的 Bearer；**Credential** 是凭据中心加密保存的自定义键值包，既不是登录密码，也不是 Access Key。
 3. **普通用户能调什么，只看这个用户勾了哪些 MCP 和工具。** 服务标成「公开」不会单独放开 MCP 调用。管理员默认全部已启用服务，不必再勾。运行配置在 PostgreSQL，不在仓库 JSON。详见 [config-and-data.md](config-and-data.md)。
 
 建议顺序：启动 → 管理员改密码 → 加服务器 → 建 MCP 用户并勾工具 → 在用户页复制 `mcp.json` 交给智能体。需要存只读库口令时再打开凭据中心。随时可以再复制 `mcp.json`。
@@ -95,7 +95,7 @@ docker compose up -d --build
 | `ADMIN_PASSWORD` | 强密码 | 首次创建管理员 |
 | `BASE_PATH` | 留空 | 只有反代挂在子路径时才填，例如 `/ylune` |
 | `DB_URL` | `postgresql://user:pass@host:5432/ylune` | **生产必填**。服务器 / 用户 / 组 / Key / 凭据都在这个库 |
-| `YLUNE_MASTER_KEY` | `openssl rand -base64 32` | 凭据中心主密钥。不设时列表可读，写入和试连失败 |
+| `YLUNE_MASTER_KEY` | `openssl rand -base64 32` | 凭据中心主密钥。不设时列表可读，写入失败 |
 | `USE_DB` | `true` | 有 `DB_URL` 时自动开启；要强制文件模式才设 `false`（仅本地/测试） |
 | `YLUNE_IMPORT_SETTINGS_FILE` | `data/mcp_settings.local.json` | 仅空库灌一次旧 JSON，成功后删文件、去掉变量 |
 | `BETTER_AUTH_*` | 见第 10 节 | 第三方登录，用不到全部留注释 |
@@ -328,17 +328,20 @@ WorkBuddy：写入它的 MCP 配置或界面粘贴。
 
 ### 6.6 凭据中心
 
-侧栏 **凭据中心** 只给管理员。这里存的是库口令或 API Token（Credential），**不是**控制台密码，也**不是**智能体 Access Key。
+侧栏 **凭据中心** 只给管理员。这里存的是自定义变量名和密文（Credential），**不是**控制台密码，也**不是**智能体 Access Key。平台不按 PostgreSQL / Jenkins / 夜莺做固定表单：你写 `PGUSER`、`PGPASSWORD`、`JENKINS_TOKEN` 或任意环境变量名，运行时兑换到的就是这个键值包。
 
 | 能做 | 不能做 |
 | --- | --- |
-| 创建 postgresql / token / basic | 查看已保存的明文密码或 Token |
-| 替换密文、试连、启用/停用、删除 | 把试连用的 host/port/database 写进凭据 |
-| 列表看到名称、类型、用户名、是否已配置 | 缺 `YLUNE_MASTER_KEY` 时写入或试连（列表仍可读） |
+| 从已接入的 MCP 带出变量名，再填密文 | 查看已保存的明文 |
+| 把凭据绑到需要它的 MCP，并用该凭据实测 `listTools` | 缺 `YLUNE_MASTER_KEY` 时写入（列表仍可读） |
+| 创建用户时，给需要凭据的 MCP 选一条已绑定凭据 | 把密码写进 Target |
+| Target 同样用自定义配置（HOST / PORT / URL 等） |  |
 
-试连参数只在当次请求里用。成功或失败都不会把密码写进活动日志。现有 Server 上的 `env` / `headers` 明文不会自动迁进凭据库。
+保存后看不到明文。现有 Server 上的 `env` / `headers` 明文不会自动迁进凭据库。旧的 postgresql / token / basic 行仍能解密，会当成 `username`/`password`/`token` 这些键读出。
 
-**Targets** 只填地址（host/port/database 或 URL），不含密码。**资源组**把「某个 MCP 服务器 + Target + 凭据」绑成一条，再赋给用户。最终调用权是 **工具授权 ∩ 资源绑定**。用户还没赋任何资源组时，行为与以前一样，只看工具授权。智能体参数里只应出现 target 别名（例如 `energy-prod`），不要传密码。命中资源绑定后，平台会发 45 秒一次性租约，并把 `credentialLeaseId` 放进工具参数（不含密码）。MCP 运行时用 `YLUNE_RUNTIME_TOKEN` 调 `POST /internal/v1/credential-leases/:id/resolve` 兑换；控制台和活动日志都不回显密文。本阶段 PostgreSQL MCP 还不会去兑换，等下一阶段再接。
+**和 MCP 关联：** 平台从该 MCP 的 `env`、headers、url、args 里的 `${VAR}` 检测需要哪些变量。凭据仍是通用键值包，不按产品做表单。绑定之后，普通用户必须在创建/编辑用户时选一条；调用时平台用这条凭据覆盖该 MCP 进程的环境变量（适合 Jenkins / 夜莺这类读 env 的 stdio MCP）。管理员可在凭据行上点「测试」，用现有凭据拉起一次临时连接并 `listTools`，不替换正在跑的共享进程。
+
+**资源组**仍然用于「同一个 MCP、多个 Target」（例如多套库、`target=energy-prod`）。最终调用权是 **工具授权 ∩（用户 MCP 凭据 或 资源绑定）**。智能体参数里不要传密码。命中绑定后仍会发 45 秒一次性租约 `credentialLeaseId`。MCP 若自己去兑换，用 `YLUNE_RUNTIME_TOKEN` 调 `POST /internal/v1/credential-leases/:id/resolve` 拿到 `{ fields }`。本阶段 PostgreSQL MCP 如果只读 pgpass、不读环境变量，仅靠覆盖 env 可能测不通，需要上游去兑换租约或改读字段。
 
 用户页可搜索、按到期/未授权过滤，并把另一个用户的工具授权复制过来（不复制 Key）。服务器菜单可一键复制成新名称，并可做 ENV 预检（只显示 `${ENV}` 是否已设置，不回显值）。工具清单变化改由服务端指纹计算，并列出受影响用户。管理操作（改授权、转 Key、改服务器/凭据/资源）记在侧栏 **操作审计**，与工具调用活动分开。导入备份前先看 +/~/- 预检，确认后才真正导入；导入只会新建，不会删已有项。
 

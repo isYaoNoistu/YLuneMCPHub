@@ -49,6 +49,7 @@ export class CredentialDaoDbImpl implements CredentialDao {
       encryptedPayload: input.encryptedPayload,
       keyVersion: input.keyVersion,
       enabled: input.enabled,
+      fieldKeys: input.fieldKeys ?? null,
       username: input.username ?? null,
       rotatedAt: toDateOrNull(input.rotatedAt),
     });
@@ -65,6 +66,7 @@ export class CredentialDaoDbImpl implements CredentialDao {
     if (patch.encryptedPayload !== undefined) existing.encryptedPayload = patch.encryptedPayload;
     if (patch.keyVersion !== undefined) existing.keyVersion = patch.keyVersion;
     if (patch.enabled !== undefined) existing.enabled = patch.enabled;
+    if (patch.fieldKeys !== undefined) existing.fieldKeys = patch.fieldKeys;
     if (patch.username !== undefined) existing.username = patch.username;
     if (patch.rotatedAt !== undefined) existing.rotatedAt = toDateOrNull(patch.rotatedAt);
     return mapCredential(await this.repository.save(existing));
@@ -82,6 +84,7 @@ const mapCredential = (row: {
   encryptedPayload: string;
   keyVersion: number;
   enabled: boolean;
+  fieldKeys?: string[] | null;
   username?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -89,10 +92,11 @@ const mapCredential = (row: {
 }): ICredential => ({
   id: row.id,
   name: row.name,
-  type: row.type as ICredential['type'],
+  type: row.type,
   encryptedPayload: row.encryptedPayload,
   keyVersion: row.keyVersion,
   enabled: row.enabled,
+  fieldKeys: Array.isArray(row.fieldKeys) ? row.fieldKeys : null,
   username: row.username ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,

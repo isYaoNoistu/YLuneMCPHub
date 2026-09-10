@@ -5,7 +5,7 @@
 | 东西 | 放哪 | 不要放哪 |
 | --- | --- | --- |
 | 服务器、分组、用户、Bearer Key、系统设置、内置提示词 / 资源 | Postgres（`servers`、`groups`、`users`、`bearer_keys`、`system_config` 等表） | 仓库里的 `mcp_settings.json`、镜像层、git |
-| 凭据中心（PostgreSQL / Token / 用户名密码） | Postgres `credentials` 表，密文 AES-256-GCM；主密钥是进程环境 `YLUNE_MASTER_KEY` | 控制台回显、活动日志、仓库、`mcp_settings.json` |
+| 凭据中心（自定义键值包） | Postgres `credentials` 表，密文 AES-256-GCM；主密钥是进程环境 `YLUNE_MASTER_KEY` | 控制台回显、活动日志、仓库、`mcp_settings.json` |
 | Target、资源组、用户-资源组绑定 | Postgres `resource_targets`、`resource_groups`、`resource_group_items`、`user_resource_groups` | 旧的 `IGroup` 分组、工具参数里的密码 |
 | 管理操作审计 | Postgres `admin_audit_logs`（脱敏后的前后快照） | 工具调用活动表、明文密钥 |
 | 工具清单基线 | Postgres `tool_inventory_baselines` | 浏览器 localStorage |
