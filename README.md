@@ -19,7 +19,7 @@
 
 <p>
   <b><a href="#快速开始">快速开始</a></b> ·
-  <a href="#长什么样">界面</a> ·
+  <a href="#界面">界面</a> ·
   <a href="#和-devopsmcp">和 DevOpsMCP</a> ·
   <a href="#它做什么">它做什么</a> ·
   <a href="#怎么工作">怎么工作</a> ·
@@ -39,21 +39,33 @@
 
 一个人接 Cursor 时，可以直接跑 DevOpsMCP 的三个二进制。人一多、要按人裁工具、要统一入口时，才上月弦。
 
-## 长什么样
+## 界面
 
-控制台是黑底 + 月光青。单看文字不容易建立印象，下面四张是现在的界面：登录、仪表盘、活动记录、给用户勾 MCP 工具。
+控制台是黑底 + 月光青。按功能看一眼就知道月弦管什么。
 
-<p align="center">
-  <img src="docs/images/login.jpg" alt="月弦登录页" width="48%" />
-  <img src="docs/images/dashboard.png" alt="月弦仪表盘" width="48%" />
-</p>
-<p align="center"><sub>登录 · 仪表盘（管理员看网关和智能体调用，本页只读）</sub></p>
+### 登录
 
-<p align="center">
-  <img src="docs/images/activity.png" alt="月弦活动记录" width="48%" />
-  <img src="docs/images/add-user.png" alt="添加用户并勾选 MCP 工具" width="48%" />
-</p>
-<p align="center"><sub>活动 · 添加用户时按人勾服务器和 tools</sub></p>
+内部入口，没有公开注册。账号由管理员签发。智能体不走这页，人打开控制台才登录。
+
+![登录](docs/images/login.jpg)
+
+### 仪表盘
+
+网关只读总览：在线服务、工具数、智能体 / 普通用户的调用，不是管理员自己在调工具。本页不复制 mcp.json、不授权、不加服务器。
+
+![仪表盘](docs/images/dashboard.png)
+
+### 用户权限
+
+管理员按人勾 MCP 和 **具体 tools**。先勾服务器（例如 `jenkins`），再勾这个用户能用的工具；不勾则这个 Key 连 `/mcp` 看不到任何工具。管理员默认全部已启用服务，不必再勾。
+
+![用户权限：按人勾选服务器和工具](docs/images/add-user.png)
+
+### 调用日志
+
+每次工具调用一条记录：谁、哪个服务、哪个工具、成功或失败、耗时、来源 IP。点详情可再看入参出参（若设置里打开了存储调用内容）。
+
+![调用日志](docs/images/activity.png)
 
 
 | 现场     | 只接 DevOpsMCP                         | 前面再加月弦                                      |

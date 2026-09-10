@@ -19,7 +19,7 @@ Credentials stay in the deploy environment. This repo has no tokens, passwords, 
 
 <p>
   <b><a href="#quick-start">Quick start</a></b> ·
-  <a href="#what-it-looks-like">Screenshots</a> ·
+  <a href="#console">Console</a> ·
   <a href="#with-devopsmcp">With DevOpsMCP</a> ·
   <a href="#what-it-does">What it does</a> ·
   <a href="#how-it-works">How it works</a> ·
@@ -39,21 +39,33 @@ On-call tools live in [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP): rea
 
 A single operator can run the three DevOpsMCP binaries directly. Use YLune when several people share one entrypoint and you need to slice tools per user.
 
-## What it looks like
+## Console
 
-The console is black with a teal accent. Screenshots of login, the dashboard, activity, and per-user tool grants:
+Black console, teal accent. One screen per job.
 
-<p align="center">
-  <img src="docs/images/login.jpg" alt="YLune login" width="48%" />
-  <img src="docs/images/dashboard.png" alt="YLune dashboard" width="48%" />
-</p>
-<p align="center"><sub>Login · Dashboard (gateway and agent traffic; view only)</sub></p>
+### Login
 
-<p align="center">
-  <img src="docs/images/activity.png" alt="YLune activity" width="48%" />
-  <img src="docs/images/add-user.png" alt="Add a user and grant MCP tools" width="48%" />
-</p>
-<p align="center"><sub>Activity · Tick servers and tools when creating a user</sub></p>
+Internal only. No public signup. Admins issue accounts. Agents do not use this page; people do.
+
+![Login](docs/images/login.jpg)
+
+### Dashboard
+
+Read-only gateway status: online servers, tool count, calls from agents and regular users. Admins rarely call tools themselves. This page does not copy mcp.json, grant tools, or add servers.
+
+![Dashboard](docs/images/dashboard.png)
+
+### User grants
+
+Admins tick MCP servers **and individual tools** per user. Enable a server (for example `jenkins`), then pick that user's tools. An empty list means that user's `/mcp` exposes nothing. Admins already have every enabled server.
+
+![User grants: pick servers and tools](docs/images/add-user.png)
+
+### Call log
+
+One row per tool call: who, which server, which tool, success or failure, duration, source IP. Open a row to copy input / output JSON when call-body storage is on.
+
+![Call log](docs/images/activity.png)
 
 
 | Situation        | DevOpsMCP only                         | In front of YLune                                      |
