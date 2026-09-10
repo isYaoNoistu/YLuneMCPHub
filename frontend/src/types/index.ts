@@ -484,6 +484,8 @@ export interface User {
   remark?: string;
   token?: string;
   grants?: IGroupServerConfig[];
+  tokenExpiresAt?: string | null;
+  expired?: boolean;
 }
 
 export interface UserFormData {
@@ -494,6 +496,8 @@ export interface UserFormData {
   isAdmin?: boolean;
   email?: string;
   grants?: IGroupServerConfig[];
+  tokenLifetime?: string;
+  tokenExpiresAt?: string | null;
 }
 
 export interface UserUpdateData {
@@ -502,6 +506,8 @@ export interface UserUpdateData {
   email?: string;
   remark?: string;
   grants?: IGroupServerConfig[];
+  tokenLifetime?: string;
+  tokenExpiresAt?: string | null;
 }
 
 export interface UserStats {
@@ -536,6 +542,7 @@ export interface AuthResponse {
   token?: string;
   user?: IUser;
   message?: string;
+  error?: string;
   isUsingDefaultPassword?: boolean;
 }
 

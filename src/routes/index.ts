@@ -172,6 +172,7 @@ import {
 import { auth } from '../middlewares/auth.js';
 import { getBetterAuthRuntimeConfig } from '../services/betterAuthConfig.js';
 import {
+  authAccountRateLimiter,
   authAttemptRateLimiter,
   authenticatedRouteRateLimiter,
   hostedInternalEventRateLimiter,
@@ -424,19 +425,16 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
   router.post(
     '/auth/login',
     [
-      check('username', 'Username is required').not().isEmpty(),
-      check('password', 'Password is required').not().isEmpty(),
+      check('username', 'Username is required').trim().not().isEmpty().isLength({ max: 128 }),
+      check('password', 'Password is required').not().isEmpty().isLength({ max: 128 }),
     ],
     authAttemptRateLimiter,
+    authAccountRateLimiter,
     login,
   );
 
   router.post(
     '/auth/register',
-    [
-      check('username', 'Username is required').not().isEmpty(),
-      check('password', 'Password must be at least 6 characters').isLength({ min: 6 }),
-    ],
     authAttemptRateLimiter,
     register,
   );

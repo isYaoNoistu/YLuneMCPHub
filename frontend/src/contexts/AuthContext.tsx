@@ -17,7 +17,12 @@ const AuthContext = createContext<{
   login: (
     username: string,
     password: string,
-  ) => Promise<{ success: boolean; isUsingDefaultPassword?: boolean; message?: string }>;
+  ) => Promise<{
+    success: boolean;
+    isUsingDefaultPassword?: boolean;
+    message?: string;
+    error?: string;
+  }>;
   register: (username: string, password: string, isAdmin?: boolean) => Promise<boolean>;
   logout: () => void;
 }>({
@@ -127,7 +132,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (
     username: string,
     password: string,
-  ): Promise<{ success: boolean; isUsingDefaultPassword?: boolean; message?: string }> => {
+  ): Promise<{
+    success: boolean;
+    isUsingDefaultPassword?: boolean;
+    message?: string;
+    error?: string;
+  }> => {
     try {
       const response = await authService.login({ username, password });
 
@@ -148,7 +158,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           loading: false,
           error: response.message || 'Authentication failed',
         });
-        return { success: false, message: response.message };
+        return { success: false, message: response.message, error: response.error };
       }
     } catch (error) {
       setAuth({

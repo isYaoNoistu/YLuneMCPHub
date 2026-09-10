@@ -70,6 +70,11 @@ jest.mock('../../src/utils/rateLimit.js', () => ({
   __esModule: true,
   mcpConnectionRateLimiter: mcpConnectionRateLimiterMock,
   spaPageRateLimiter: mcpConnectionRateLimiterMock,
+  authAttemptRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authAccountRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticatedRouteRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  hostedInternalEventRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  templateRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 import { AppServer } from '../../src/server.js';

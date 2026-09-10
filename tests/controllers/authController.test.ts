@@ -2,11 +2,13 @@ import { Request, Response } from 'express';
 import { jest } from '@jest/globals';
 
 const createUserMock = jest.fn();
+const findUserByUsernameMock = jest.fn();
+const verifyPasswordMock = jest.fn();
 
 jest.mock('../../src/models/User.js', () => ({
   createUser: createUserMock,
-  findUserByUsername: jest.fn(),
-  verifyPassword: jest.fn(),
+  findUserByUsername: findUserByUsernameMock,
+  verifyPassword: verifyPasswordMock,
   updateUserPassword: jest.fn(),
 }));
 
@@ -29,38 +31,98 @@ jest.mock('../../src/utils/version.js', () => ({
   getPackageVersion: jest.fn(() => 'dev'),
 }));
 
-import { register } from '../../src/controllers/authController.js';
+import { login, register } from '../../src/controllers/authController.js';
+import { DUMMY_PASSWORD_HASH } from '../../src/utils/loginGuard.js';
+
+const makeRes = () => {
+  const res = {
+    json: jest.fn().mockReturnThis(),
+    status: jest.fn().mockReturnThis(),
+    setHeader: jest.fn().mockReturnThis(),
+  };
+  return res as unknown as Response & {
+    json: jest.Mock;
+    status: jest.Mock;
+    setHeader: jest.Mock;
+  };
+};
+
+const makeReq = (body: Record<string, unknown> = {}) =>
+  ({
+    body,
+    ip: '203.0.113.10',
+    t: (value: string) => value,
+  }) as unknown as Request;
 
 describe('authController.register', () => {
-  it('forces self-registration to create a non-admin user', async () => {
-    createUserMock.mockResolvedValue({
+  it('rejects self-registration', async () => {
+    const req = makeReq({
       username: 'alice',
       password: 'secret123',
-      isAdmin: false,
+      isAdmin: true,
     });
-
-    const req = {
-      body: {
-        username: 'alice',
-        password: 'secret123',
-        isAdmin: true,
-      },
-      t: (value: string) => value,
-    } as unknown as Request;
-
-    const json = jest.fn();
-    const status = jest.fn(() => ({ json }));
-    const res = {
-      json,
-      status,
-    } as unknown as Response;
+    const res = makeRes();
 
     await register(req, res);
 
-    expect(createUserMock).toHaveBeenCalledWith({
-      username: 'alice',
-      password: 'secret123',
-      isAdmin: false,
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: 'api.errors.registration_disabled',
+      }),
+    );
+  });
+});
+
+describe('authController.login', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('still verifies a dummy hash when the user is missing', async () => {
+    findUserByUsernameMock.mockResolvedValue(undefined);
+    verifyPasswordMock.mockResolvedValue(false);
+
+    const req = makeReq({ username: 'nobody', password: 'wrong-pass' });
+    const res = makeRes();
+
+    await login(req, res);
+
+    expect(verifyPasswordMock).toHaveBeenCalledWith('wrong-pass', DUMMY_PASSWORD_HASH);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: 'api.errors.invalid_credentials',
+      }),
+    );
+  });
+
+  it('rejects overlong credentials before hashing', async () => {
+    const req = makeReq({
+      username: 'ops',
+      password: 'x'.repeat(129),
     });
+    const res = makeRes();
+
+    await login(req, res);
+
+    expect(findUserByUsernameMock).not.toHaveBeenCalled();
+    expect(verifyPasswordMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('trims the username before lookup', async () => {
+    findUserByUsernameMock.mockResolvedValue(undefined);
+    verifyPasswordMock.mockResolvedValue(false);
+
+    const req = makeReq({ username: '  ops  ', password: 'secret' });
+    const res = makeRes();
+
+    await login(req, res);
+
+    expect(findUserByUsernameMock).toHaveBeenCalledWith('ops');
   });
 });

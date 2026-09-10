@@ -16,6 +16,10 @@ export const validatePasswordStrength = (password: string): PasswordValidationRe
     errors.push('passwordMinLength');
   }
 
+  if (password.length > 128) {
+    errors.push('passwordMaxLength');
+  }
+
   // Check for at least one letter
   if (!/[a-zA-Z]/.test(password)) {
     errors.push('passwordRequireLetter');
@@ -41,6 +45,7 @@ export const validatePasswordStrength = (password: string): PasswordValidationRe
 // Unknown messages are passed through unchanged so they can still be displayed.
 const backendErrorKeyMap: Record<string, string> = {
   'Password must be at least 8 characters long': 'auth.passwordMinLength',
+  'Password must be at most 128 characters long': 'auth.passwordMaxLength',
   'Password must contain at least one letter': 'auth.passwordRequireLetter',
   'Password must contain at least one number': 'auth.passwordRequireNumber',
   'Password must contain at least one special character': 'auth.passwordRequireSpecial',

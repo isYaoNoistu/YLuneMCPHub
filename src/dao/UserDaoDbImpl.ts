@@ -23,6 +23,7 @@ export class UserDaoDbImpl implements UserDao {
       ssoUserId: u.ssoUserId ?? undefined,
       remark: u.remark ?? undefined,
       grants: Array.isArray(u.grants) ? u.grants : undefined,
+      tokenExpiresAt: u.tokenExpiresAt ?? null,
     };
   }
 
@@ -62,6 +63,7 @@ export class UserDaoDbImpl implements UserDao {
       ssoUserId: entity.ssoUserId ?? null,
       remark: entity.remark ?? null,
       grants: entity.grants ?? [],
+      tokenExpiresAt: entity.tokenExpiresAt ?? null,
     });
     return this.toIUser(user);
   }
@@ -74,6 +76,7 @@ export class UserDaoDbImpl implements UserDao {
     ssoUserId?: string,
     remark?: string,
     grants?: IGroupServerConfig[],
+    tokenExpiresAt?: Date | null,
   ): Promise<IUser> {
     const hashedPassword = await bcrypt.hash(password, 10);
     return await this.create({
@@ -84,6 +87,7 @@ export class UserDaoDbImpl implements UserDao {
       ssoUserId,
       remark,
       grants: grants ?? [],
+      tokenExpiresAt: tokenExpiresAt ?? null,
     });
   }
 
@@ -95,6 +99,7 @@ export class UserDaoDbImpl implements UserDao {
     if (entity.ssoUserId !== undefined) updateData.ssoUserId = entity.ssoUserId ?? null;
     if (entity.remark !== undefined) updateData.remark = entity.remark ?? null;
     if (entity.grants !== undefined) updateData.grants = entity.grants ?? [];
+    if (entity.tokenExpiresAt !== undefined) updateData.tokenExpiresAt = entity.tokenExpiresAt ?? null;
 
     const user = await this.repository.update(username, updateData);
     if (!user) return null;

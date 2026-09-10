@@ -15,6 +15,7 @@ import {
   normalizeUserGrants,
 } from '../services/userService.js';
 import { validatePasswordStrength } from '../utils/passwordValidation.js';
+import { isCustomExpiryIncomplete, resolveTokenExpiresAt } from '../utils/userTokenExpiry.js';
 
 // Admin permission check middleware function
 const requireAdmin = async (req: Request, res: Response): Promise<boolean> => {
@@ -89,7 +90,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   if (!(await requireAdmin(req, res))) return;
 
   try {
-    const { username, password, isAdmin, email, remark, token, grants } = req.body;
+    const { username, password, isAdmin, email, remark, token, grants, tokenLifetime, tokenExpiresAt } =
+      req.body;
 
     if (!username || typeof username !== 'string' || !username.trim()) {
       res.status(400).json({
@@ -125,6 +127,14 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    if (isCustomExpiryIncomplete({ tokenLifetime, tokenExpiresAt })) {
+      res.status(400).json({
+        success: false,
+        message: 'Custom token expiry is required',
+      });
+      return;
+    }
+
     const newUser = await createNewUser(
       username.trim(),
       resolvedPassword,
@@ -132,6 +142,11 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       email,
       typeof remark === 'string' ? remark : undefined,
       grants !== undefined ? normalizeUserGrants(grants) : [],
+      resolveTokenExpiresAt({
+        isAdmin: Boolean(isAdmin),
+        tokenLifetime,
+        tokenExpiresAt,
+      }),
     );
     if (!newUser) {
       res.status(400).json({
@@ -165,7 +180,7 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
 
   try {
     const { username } = req.params;
-    const { isAdmin, newPassword, email, remark, grants } = req.body;
+    const { isAdmin, newPassword, email, remark, grants, tokenLifetime, tokenExpiresAt } = req.body;
 
     if (!username) {
       res.status(400).json({
@@ -201,6 +216,20 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
     if (email !== undefined) updateData.email = email;
     if (remark !== undefined) updateData.remark = remark;
     if (grants !== undefined) updateData.grants = normalizeUserGrants(grants);
+    if (tokenLifetime !== undefined || tokenExpiresAt !== undefined) {
+      if (isCustomExpiryIncomplete({ tokenLifetime, tokenExpiresAt })) {
+        res.status(400).json({
+          success: false,
+          message: 'Custom token expiry is required',
+        });
+        return;
+      }
+      updateData.tokenExpiresAt = resolveTokenExpiresAt({
+        isAdmin: Boolean(isAdmin ?? (await getUserByUsername(username))?.isAdmin),
+        tokenLifetime,
+        tokenExpiresAt,
+      });
+    }
     if (newPassword) {
       // Validate new password strength
       const validationResult = validatePasswordStrength(newPassword);
@@ -218,7 +247,8 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
     if (Object.keys(updateData).length === 0) {
       res.status(400).json({
         success: false,
-        message: 'At least one field (isAdmin, email, remark, grants, or newPassword) is required to update',
+        message:
+          'At least one field (isAdmin, email, remark, grants, tokenLifetime, tokenExpiresAt, or newPassword) is required to update',
       });
       return;
     }

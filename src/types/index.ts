@@ -15,6 +15,8 @@ export interface IUser {
   remark?: string | null;
   /** Per-user MCP server/tool allowlist. null/undefined = not set yet (may fall back to groups). */
   grants?: IGroupServerConfig[] | null;
+  /** When set, this user's MCP Key stops working after this time. null = never expires. */
+  tokenExpiresAt?: Date | string | null;
 }
 
 // Group interface for server grouping

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { IGroupServerConfig, IUser } from '../types/index.js';
 import { getBearerKeyDao, getUserDao } from '../dao/index.js';
 import { logger } from '../utils/logger.js';
+import { isUserTokenExpired, serializeTokenExpiresAt } from '../utils/userTokenExpiry.js';
 
 export const USER_ACCESS_TOKEN_PREFIX = 'ylune_';
 const USER_ACCESS_TOKEN_PATTERN = /^(ylune|mcphub)_[a-fA-F0-9]{64}$/;
@@ -50,10 +51,12 @@ export const ensureUserAccessToken = async (
 
 export const toPublicUser = async (
   user: IUser,
-): Promise<Omit<IUser, 'password'> & { token?: string }> => {
+): Promise<Omit<IUser, 'password'> & { token?: string; expired: boolean; tokenExpiresAt: string | null }> => {
   const { password: _, ...rest } = user;
   return {
     ...rest,
+    tokenExpiresAt: serializeTokenExpiresAt(user.tokenExpiresAt),
+    expired: isUserTokenExpired(user),
     token: await getUserAccessToken(user.username),
   };
 };
@@ -121,6 +124,7 @@ export const createNewUser = async (
   email?: string,
   remark?: string,
   grants?: IGroupServerConfig[],
+  tokenExpiresAt?: Date | null,
 ): Promise<IUser | null> => {
   try {
     const reservedError = checkReservedUsername(username);
@@ -143,6 +147,7 @@ export const createNewUser = async (
       undefined,
       remark?.trim() || undefined,
       grants ?? [],
+      isAdmin ? null : tokenExpiresAt ?? null,
     );
   } catch (error) {
     logger.error('Failed to create user:', error);
@@ -159,6 +164,7 @@ export const updateUser = async (
     email?: string;
     remark?: string;
     grants?: IGroupServerConfig[];
+    tokenExpiresAt?: Date | null;
   },
 ): Promise<IUser | null> => {
   try {
@@ -194,6 +200,15 @@ export const updateUser = async (
 
     if (data.grants !== undefined) {
       const result = await userDao.update(username, { grants: data.grants });
+      if (!result) {
+        return null;
+      }
+    }
+
+    if (data.tokenExpiresAt !== undefined) {
+      const result = await userDao.update(username, {
+        tokenExpiresAt: user.isAdmin || data.isAdmin ? null : data.tokenExpiresAt,
+      });
       if (!result) {
         return null;
       }

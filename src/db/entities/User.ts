@@ -41,6 +41,9 @@ export class User {
     resources?: string[] | 'all';
   }> | null;
 
+  @Column({ type: 'timestamp', nullable: true, name: 'token_expires_at' })
+  tokenExpiresAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 

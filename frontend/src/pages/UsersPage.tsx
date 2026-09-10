@@ -5,7 +5,12 @@ import { useUserData } from '@/hooks/useUserData';
 import { useAuth } from '@/contexts/AuthContext';
 import AddUserForm from '@/components/AddUserForm';
 import EditUserForm from '@/components/EditUserForm';
-import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw } from 'lucide-react';
+import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw, Clock } from 'lucide-react';
+import TokenLifetimeFields, {
+  TokenLifetimeValue,
+  isCustomExpiryMissing,
+  toExpiryPayload,
+} from '@/components/TokenLifetimeFields';
 import DeleteDialog from '@/components/ui/DeleteDialog';
 import SecretReveal from '@/components/ui/SecretReveal';
 import McpJsonPanel from '@/components/McpJsonPanel';
@@ -20,10 +25,15 @@ const UsersPage: React.FC = () => {
     error: userError,
     setError: setUserError,
     deleteUser,
+    updateUser,
     triggerRefresh,
   } = useUserData();
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [renewingUser, setRenewingUser] = useState<User | null>(null);
+  const [renewLifetime, setRenewLifetime] = useState<TokenLifetimeValue>('7d');
+  const [renewCustomAt, setRenewCustomAt] = useState('');
+  const [renewBusy, setRenewBusy] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
@@ -102,16 +112,18 @@ const UsersPage: React.FC = () => {
           <div className="hub-row head hub-mono">
             <div>{t('users.username')}</div>
             <div>{t('users.remark')}</div>
+            <div>{t('users.tokenLifetime')}</div>
             <div>{t('users.token')}</div>
             <div>mcp.json</div>
             <div className="text-right">{t('users.actions')}</div>
           </div>
           {users.map((user) => {
             const isCurrentUser = currentUser?.username === user.username;
+            const expired = user.expired === true;
             return (
               <div
                 key={user.username}
-                className="hub-row hover"
+                className={`hub-row hover${expired ? ' is-expired' : ''}`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
@@ -140,6 +152,11 @@ const UsersPage: React.FC = () => {
                       {t('users.currentUser')}
                     </span>
                   )}
+                  {expired && (
+                    <span className="hub-tag muted" style={{ fontSize: 10 }}>
+                      {t('users.tokenExpired')}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center min-w-0">
                   <span
@@ -147,6 +164,21 @@ const UsersPage: React.FC = () => {
                     style={{ fontSize: 13, color: user.remark ? 'var(--hub-ink)' : 'var(--hub-ink-3)' }}
                   >
                     {user.remark || '—'}
+                  </span>
+                </div>
+                <div className="flex items-center min-w-0">
+                  <span
+                    className="truncate"
+                    style={{
+                      fontSize: 12,
+                      color: expired ? 'var(--hub-err)' : 'var(--hub-ink-3)',
+                    }}
+                  >
+                    {user.isAdmin || !user.tokenExpiresAt
+                      ? t('users.tokenNeverExpires')
+                      : t('users.tokenValidUntil', {
+                          time: new Date(user.tokenExpiresAt).toLocaleString(),
+                        })}
                   </span>
                 </div>
                 <div className="min-w-0">
@@ -160,6 +192,19 @@ const UsersPage: React.FC = () => {
                   <McpJsonPanel username={user.username} token={user.token} compact />
                 </div>
                 <div className="flex justify-end gap-1">
+                  {!user.isAdmin && (
+                    <button
+                      onClick={() => {
+                        setRenewingUser(user);
+                        setRenewLifetime(expired ? '7d' : '30d');
+                        setRenewCustomAt('');
+                      }}
+                      className="hub-icon-btn sm"
+                      title={t('users.renew')}
+                    >
+                      <Clock size={13} />
+                    </button>
+                  )}
                   <button
                     onClick={() => setEditingUser(user)}
                     className="hub-icon-btn sm"
@@ -203,6 +248,65 @@ const UsersPage: React.FC = () => {
           }}
           onCancel={() => setEditingUser(null)}
         />
+      )}
+
+      {renewingUser && (
+        <div className="ylune-dialog-backdrop">
+          <div className="ylune-dialog">
+            <div className="ylune-dialog-head">
+              <h2 className="ylune-dialog-title">
+                {t('users.renew')} · {renewingUser.username}
+              </h2>
+            </div>
+            <div className="ylune-dialog-body">
+              <p className="ylune-help" style={{ marginTop: 0 }}>
+                {t('users.renewHint')}
+              </p>
+              <TokenLifetimeFields
+                lifetime={renewLifetime}
+                customAt={renewCustomAt}
+                onLifetimeChange={setRenewLifetime}
+                onCustomAtChange={setRenewCustomAt}
+                disabled={renewBusy}
+              />
+            </div>
+            <div className="ylune-dialog-foot">
+              <button
+                type="button"
+                className="hub-btn"
+                disabled={renewBusy}
+                onClick={() => setRenewingUser(null)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="hub-btn primary"
+                disabled={renewBusy}
+                onClick={async () => {
+                  if (isCustomExpiryMissing(renewLifetime, renewCustomAt)) {
+                    setUserError(t('users.tokenCustomRequired'));
+                    return;
+                  }
+                  setRenewBusy(true);
+                  const result = await updateUser(
+                    renewingUser.username,
+                    toExpiryPayload(renewLifetime, renewCustomAt),
+                  );
+                  setRenewBusy(false);
+                  if (result?.success) {
+                    setRenewingUser(null);
+                    triggerRefresh();
+                  } else {
+                    setUserError(result?.message || t('users.updateError'));
+                  }
+                }}
+              >
+                {t('users.renew')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <DeleteDialog

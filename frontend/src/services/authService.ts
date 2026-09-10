@@ -24,6 +24,7 @@ export const login = async (credentials: LoginCredentials): Promise<AuthResponse
 
     return {
       success: false,
+      error: response.error,
       message: response.message || 'Login failed',
     };
   } catch (error) {

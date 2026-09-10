@@ -7,6 +7,11 @@ import { IGroupServerConfig, User, UserFormData } from '@/types';
 import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
+import TokenLifetimeFields, {
+  TokenLifetimeValue,
+  isCustomExpiryMissing,
+  toExpiryPayload,
+} from './TokenLifetimeFields';
 
 interface AddUserFormProps {
   onAdd: () => void;
@@ -22,6 +27,8 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdUser, setCreatedUser] = useState<User | null>(null);
   const [grants, setGrants] = useState<IGroupServerConfig[]>([]);
+  const [tokenLifetime, setTokenLifetime] = useState<TokenLifetimeValue>('permanent');
+  const [tokenCustomAt, setTokenCustomAt] = useState('');
 
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
@@ -42,6 +49,11 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
       return;
     }
 
+    if (isCustomExpiryMissing(tokenLifetime, tokenCustomAt)) {
+      setError(t('users.tokenCustomRequired'));
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -49,6 +61,7 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
         username: formData.username.trim(),
         remark: formData.remark?.trim() || undefined,
         grants,
+        ...toExpiryPayload(tokenLifetime, tokenCustomAt),
       });
       if (result?.success && result.data) {
         setCreatedUser(result.data);
@@ -136,6 +149,14 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
                 disabled={isSubmitting}
               />
             </div>
+
+            <TokenLifetimeFields
+              lifetime={tokenLifetime}
+              customAt={tokenCustomAt}
+              onLifetimeChange={setTokenLifetime}
+              onCustomAtChange={setTokenCustomAt}
+              disabled={isSubmitting}
+            />
 
             <div>
               <label className="ylune-label">{t('users.grants')}</label>

@@ -193,8 +193,17 @@ export const auth = async (req: Request, res: Response, next: NextFunction): Pro
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Add user from payload to request
-    (req as any).user = (decoded as any).user;
+    const payloadUser = (decoded as any).user;
+    if (payloadUser?.username && !payloadUser.isAdmin) {
+      const { findUserByUsername } = await import('../models/User.js');
+      const stored = await findUserByUsername(payloadUser.username);
+      const { isUserTokenExpired } = await import('../utils/userTokenExpiry.js');
+      if (stored && isUserTokenExpired(stored)) {
+        res.status(401).json({ success: false, message: 'User token has expired' });
+        return;
+      }
+    }
+    (req as any).user = payloadUser;
     next();
   } catch (error) {
     res.status(401).json({ success: false, message: 'Token is not valid' });

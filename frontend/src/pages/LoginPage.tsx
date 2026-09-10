@@ -176,7 +176,13 @@ const LoginPage: React.FC = () => {
         else redirectAfterLogin();
       } else {
         const message = result.message;
-        setError(isServerUnavailableError(message) ? t('auth.serverUnavailable') : t('auth.loginFailed'));
+        setError(
+          result.error === 'rate_limited'
+            ? t('auth.tooManyAttempts')
+            : isServerUnavailableError(message)
+              ? t('auth.serverUnavailable')
+              : t('auth.loginFailed'),
+        );
         shakeForm();
       }
     } catch (err) {
@@ -293,6 +299,7 @@ const LoginPage: React.FC = () => {
                   type="text"
                   autoComplete="username"
                   spellCheck={false}
+                  maxLength={128}
                   placeholder={t('auth.username')}
                   required
                   autoFocus
@@ -316,6 +323,7 @@ const LoginPage: React.FC = () => {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
+                    maxLength={128}
                     placeholder={t('auth.password')}
                     required
                     value={password}

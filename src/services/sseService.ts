@@ -17,6 +17,7 @@ import { UserContextService } from './userContextService.js';
 import { isGroupRouteAllowed } from './groupAccessService.js';
 import { RequestContextService } from './requestContextService.js';
 import { IUser, BearerKey, BearerKeyKind } from '../types/index.js';
+import { isUserTokenExpired } from '../utils/userTokenExpiry.js';
 import { resolveOAuthUserFromToken } from '../utils/oauthBearer.js';
 import { safeCompare } from '../utils/safeCompare.js';
 import { getBearerAuthHeaderValue, getBearerTokenFromHeaders } from '../utils/bearerAuth.js';
@@ -132,7 +133,7 @@ type BearerAuthResult =
     }
   | {
       valid: false;
-      reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable';
+      reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable' | 'expired';
     };
 
 /**
@@ -308,6 +309,9 @@ const resolveUserLevelKeyUser = async (req: Request, key: BearerKey): Promise<Be
   const user = await getUserDao().findByUsername(key.owner);
   if (!user) {
     return { valid: false, reason: 'invalid' };
+  }
+  if (isUserTokenExpired(user)) {
+    return { valid: false, reason: 'expired' };
   }
 
   const requestedUsername = req.params.user;
@@ -528,8 +532,16 @@ const buildResourceMetadataUrl = (req: Request): string | undefined => {
 const sendBearerAuthError = (
   req: Request,
   res: Response,
-  reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable',
+  reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable' | 'expired',
 ): void => {
+  if (reason === 'expired') {
+    res.status(401).json({
+      error: 'invalid_token',
+      error_description: 'User token has expired',
+    });
+    return;
+  }
+
   if (reason === 'forbidden') {
     res.status(403).json({
       error: 'forbidden',

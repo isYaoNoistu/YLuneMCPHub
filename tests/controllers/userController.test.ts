@@ -85,6 +85,7 @@ describe('userController', () => {
         'new@example.com',
         undefined,
         [],
+        null,
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(
@@ -115,6 +116,7 @@ describe('userController', () => {
         undefined,
         undefined,
         [],
+        null,
       );
     });
 
@@ -139,9 +141,50 @@ describe('userController', () => {
         undefined,
         '值班账号',
         [],
+        null,
       );
       expect(mockEnsureUserAccessToken).toHaveBeenCalledWith('ops', undefined);
       expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('should persist a 7-day token lifetime', async () => {
+      mockCreateNewUser.mockResolvedValue({
+        username: 'temp',
+        isAdmin: false,
+      });
+
+      const req = makeReq({
+        body: { username: 'temp', tokenLifetime: '7d' },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(mockCreateNewUser).toHaveBeenCalledWith(
+        'temp',
+        'A1!generated-internal-pass',
+        false,
+        undefined,
+        undefined,
+        [],
+        expect.any(Date),
+      );
+      const expiresAt = mockCreateNewUser.mock.calls[0][6] as Date;
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      expect(expiresAt.getTime()).toBeGreaterThan(Date.now() + sevenDays - 2000);
+      expect(expiresAt.getTime()).toBeLessThan(Date.now() + sevenDays + 2000);
+    });
+
+    it('should reject custom lifetime without a date', async () => {
+      const req = makeReq({
+        body: { username: 'temp', tokenLifetime: 'custom' },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockCreateNewUser).not.toHaveBeenCalled();
     });
 
     it('should require username', async () => {

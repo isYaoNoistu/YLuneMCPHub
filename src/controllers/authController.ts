@@ -1,17 +1,19 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
-import {
-  findUserByUsername,
-  verifyPassword,
-  createUser,
-  updateUserPassword,
-} from '../models/User.js';
+import { findUserByUsername, verifyPassword, updateUserPassword } from '../models/User.js';
 import { getDataService } from '../services/services.js';
 import { DataService } from '../services/dataService.js';
 import { JWT_SECRET } from '../config/jwt.js';
 import { validatePasswordStrength, isDefaultPassword } from '../utils/passwordValidation.js';
 import { getPackageVersion } from '../utils/version.js';
+import { isUserTokenExpired } from '../utils/userTokenExpiry.js';
+import {
+  DUMMY_PASSWORD_HASH,
+  LOGIN_PASSWORD_MAX,
+  LOGIN_USERNAME_MAX,
+  normalizeLoginUsername,
+} from '../utils/loginGuard.js';
 import { logger } from '../utils/logger.js';
 
 const dataService: DataService = getDataService();
@@ -34,13 +36,31 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { username, password } = req.body;
+  const username = normalizeLoginUsername(
+    typeof req.body.username === 'string' ? req.body.username : '',
+  );
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+
+  if (
+    !username ||
+    username.length > LOGIN_USERNAME_MAX ||
+    !password ||
+    password.length > LOGIN_PASSWORD_MAX
+  ) {
+    res.status(400).json({
+      success: false,
+      message: t('api.errors.validation_failed'),
+    });
+    return;
+  }
 
   try {
-    // Find user by username
     const user = await findUserByUsername(username);
+    const isPasswordValid = await verifyPassword(password, user?.password || DUMMY_PASSWORD_HASH);
 
-    if (!user) {
+    if (!user || !isPasswordValid) {
+      logger.warn('Login failed', { username, ip: req.ip });
+      res.setHeader('Cache-Control', 'no-store');
       res.status(401).json({
         success: false,
         message: t('api.errors.invalid_credentials'),
@@ -48,13 +68,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Verify password
-    const isPasswordValid = await verifyPassword(password, user.password);
-
-    if (!isPasswordValid) {
+    if (isUserTokenExpired(user)) {
+      res.setHeader('Cache-Control', 'no-store');
       res.status(401).json({
         success: false,
-        message: t('api.errors.invalid_credentials'),
+        message: t('api.errors.user_token_expired'),
       });
       return;
     }
@@ -74,6 +92,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY }, (err, token) => {
       if (err) throw err;
+      res.setHeader('Cache-Control', 'no-store');
       res.json({
         success: true,
         message: t('api.success.login_successful'),
@@ -98,55 +117,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 // Register new user
 export const register = async (req: Request, res: Response): Promise<void> => {
-  // Get translation function from request
   const t = (req as any).t;
-
-  // Validate request
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    res.status(400).json({
-      success: false,
-      message: t('api.errors.validation_failed'),
-      errors: errors.array(),
-    });
-    return;
-  }
-
-  const { username, password } = req.body;
-
-  try {
-    // Create new user
-    const newUser = await createUser({ username, password, isAdmin: false });
-
-    if (!newUser) {
-      res.status(400).json({ success: false, message: 'User already exists' });
-      return;
-    }
-
-    // Generate JWT token
-    const payload = {
-      user: {
-        username: newUser.username,
-        isAdmin: newUser.isAdmin || false,
-      },
-    };
-
-    jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY }, (err, token) => {
-      if (err) throw err;
-      res.json({
-        success: true,
-        token,
-        user: {
-          username: newUser.username,
-          isAdmin: newUser.isAdmin,
-          permissions: dataService.getPermissions(newUser),
-        },
-      });
-    });
-  } catch (error) {
-    logger.error('Registration error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+  res.status(403).json({
+    success: false,
+    message:
+      typeof t === 'function'
+        ? t('api.errors.registration_disabled')
+        : 'Self-registration is disabled',
+  });
 };
 
 // Get current user

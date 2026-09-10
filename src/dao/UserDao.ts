@@ -38,6 +38,7 @@ export interface UserDao extends BaseDao<IUser, string> {
     ssoUserId?: string,
     remark?: string,
     grants?: IGroupServerConfig[],
+    tokenExpiresAt?: Date | null,
   ): Promise<IUser>;
 
   /**
@@ -118,6 +119,7 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
     ssoUserId?: string,
     remark?: string,
     grants?: IGroupServerConfig[],
+    tokenExpiresAt?: Date | null,
   ): Promise<IUser> {
     const users = await this.getAll();
 
@@ -135,6 +137,7 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
       ssoUserId,
       remark: remark || undefined,
       grants: grants ?? [],
+      tokenExpiresAt: tokenExpiresAt ?? null,
     };
 
     users.push(newUser);

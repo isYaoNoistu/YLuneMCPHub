@@ -65,6 +65,7 @@ describe('userService', () => {
         undefined,
         undefined,
         [],
+        null,
       );
     });
 
@@ -85,6 +86,7 @@ describe('userService', () => {
         undefined,
         undefined,
         [],
+        null,
       );
     });
 
@@ -106,6 +108,30 @@ describe('userService', () => {
         undefined,
         '值班',
         [],
+        null,
+      );
+    });
+
+    it('should persist token expiry when provided', async () => {
+      mockFindByUsername.mockResolvedValue(undefined);
+      const expires = new Date('2026-09-17T00:00:00.000Z');
+      mockCreateWithHashedPassword.mockResolvedValue({
+        username: 'temp',
+        isAdmin: false,
+        tokenExpiresAt: expires,
+      });
+
+      await createNewUser('temp', 'pass123', false, undefined, undefined, [], expires);
+
+      expect(mockCreateWithHashedPassword).toHaveBeenCalledWith(
+        'temp',
+        'pass123',
+        false,
+        undefined,
+        undefined,
+        undefined,
+        [],
+        expires,
       );
     });
 

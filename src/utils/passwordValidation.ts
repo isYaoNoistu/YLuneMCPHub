@@ -20,6 +20,10 @@ export const validatePasswordStrength = (password: string): PasswordValidationRe
     errors.push('Password must be at least 8 characters long');
   }
 
+  if (password.length > 128) {
+    errors.push('Password must be at most 128 characters long');
+  }
+
   // Check for at least one letter
   if (!/[a-zA-Z]/.test(password)) {
     errors.push('Password must contain at least one letter');

@@ -57,7 +57,7 @@ Read-only gateway status: online servers, tool count, calls from agents and regu
 
 ### User grants
 
-Admins tick MCP servers **and individual tools** per user. Enable a server (for example `jenkins`), then pick that user's tools. An empty list means that user's `/mcp` exposes nothing. Admins already have every enabled server.
+Admins tick MCP servers **and individual tools** per user. Enable a server (for example `jenkins`), then pick that user's tools. An empty list means that user's `/mcp` exposes nothing. Tokens can be permanent or time-limited; expired rows go gray and can be renewed or deleted. Admins already have every enabled server.
 
 ![User grants: pick servers and tools](docs/images/add-user.png)
 

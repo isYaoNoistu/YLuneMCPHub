@@ -119,7 +119,27 @@
 }
 
 .users-table .hub-row {
-  grid-template-columns: minmax(140px, 1.1fr) minmax(120px, 1fr) minmax(200px, 1.5fr) minmax(148px, auto) minmax(88px, auto);
+  grid-template-columns: minmax(140px, 1.1fr) minmax(100px, 0.8fr) minmax(140px, 0.9fr) minmax(180px, 1.3fr) minmax(132px, auto) minmax(110px, auto);
+}
+
+.users-table .hub-row.is-expired {
+  opacity: 0.45;
+}
+
+.token-lifetime-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 8px 0 10px;
+}
+
+.token-lifetime-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--hub-ink-2);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .logs-toolbar {

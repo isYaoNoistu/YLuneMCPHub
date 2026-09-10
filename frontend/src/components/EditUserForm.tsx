@@ -7,6 +7,13 @@ import { IGroupServerConfig, User } from '@/types';
 import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
+import TokenLifetimeFields, {
+  TokenLifetimeValue,
+  isCustomExpiryMissing,
+  lifetimeFromExpiresAt,
+  toExpiryPayload,
+  toLocalDateTimeValue,
+} from './TokenLifetimeFields';
 
 interface EditUserFormProps {
   user: User;
@@ -23,6 +30,10 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remark, setRemark] = useState(user.remark || '');
   const [grants, setGrants] = useState<IGroupServerConfig[]>(user.grants || []);
+  const [tokenLifetime, setTokenLifetime] = useState<TokenLifetimeValue>(
+    lifetimeFromExpiresAt(user.tokenExpiresAt),
+  );
+  const [tokenCustomAt, setTokenCustomAt] = useState(toLocalDateTimeValue(user.tokenExpiresAt));
   const [availableServers, setAvailableServers] = useState(
     allServers.filter((server) => server.enabled !== false),
   );
@@ -34,10 +45,18 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (isCustomExpiryMissing(tokenLifetime, tokenCustomAt)) {
+      setError(t('users.tokenCustomRequired'));
+      return;
+    }
     setIsSubmitting(true);
 
     try {
-      const result = await updateUser(user.username, { remark, grants });
+      const result = await updateUser(user.username, {
+        remark,
+        grants,
+        ...toExpiryPayload(tokenLifetime, tokenCustomAt),
+      });
       if (result?.success) {
         onEdit();
       } else {
@@ -91,6 +110,16 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
             </div>
 
             <McpJsonPanel username={user.username} token={user.token} />
+
+            {!user.isAdmin && (
+              <TokenLifetimeFields
+                lifetime={tokenLifetime}
+                customAt={tokenCustomAt}
+                onLifetimeChange={setTokenLifetime}
+                onCustomAtChange={setTokenCustomAt}
+                disabled={isSubmitting}
+              />
+            )}
 
             {!user.isAdmin && (
               <div>
