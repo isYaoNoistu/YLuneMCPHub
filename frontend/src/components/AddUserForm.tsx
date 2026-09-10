@@ -68,6 +68,9 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
       const result = await createUser({
         username: formData.username.trim(),
         remark: formData.remark?.trim() || undefined,
+        isAdmin: false,
+        consoleEnabled: false,
+        mcpEnabled: true,
         grants,
         ...toExpiryPayload(tokenLifetime, tokenCustomAt),
       });

@@ -16,6 +16,8 @@ import {
   attachLastCalledAt,
   normalizeUserGrants,
 } from '../services/userService.js';
+import { attachResourceGroupIds } from '../services/resourceService.js';
+import { recordAdminAuditFromRequest } from '../services/adminAuditService.js';
 import { validatePasswordStrength } from '../utils/passwordValidation.js';
 import {
   isCustomExpiryIncomplete,
@@ -41,8 +43,10 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   if (!(await requireAdmin(req, res))) return;
 
   try {
-    const users = await attachLastCalledAt(
-      await Promise.all((await getAllUsers()).map((user) => toPublicUser(user))),
+    const users = await attachResourceGroupIds(
+      await attachLastCalledAt(
+        await Promise.all((await getAllUsers()).map((user) => toPublicUser(user))),
+      ),
     );
     const response: ApiResponse = {
       success: true,
@@ -98,8 +102,19 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   if (!(await requireAdmin(req, res))) return;
 
   try {
-    const { username, password, isAdmin, email, remark, token, grants, tokenLifetime, tokenExpiresAt } =
-      req.body;
+    const {
+      username,
+      password,
+      isAdmin,
+      consoleEnabled,
+      mcpEnabled,
+      email,
+      remark,
+      token,
+      grants,
+      tokenLifetime,
+      tokenExpiresAt,
+    } = req.body;
 
     if (!username || typeof username !== 'string' || !username.trim()) {
       res.status(400).json({
@@ -109,8 +124,18 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const creatingAdmin = Boolean(isAdmin) || consoleEnabled === true;
+    const wantsMcp = mcpEnabled !== false && (mcpEnabled === true || !creatingAdmin);
     const resolvedPassword =
       typeof password === 'string' && password.trim() ? password : generateInternalPassword();
+
+    if (creatingAdmin && !(typeof password === 'string' && password.trim())) {
+      res.status(400).json({
+        success: false,
+        message: 'Password is required for console administrators',
+      });
+      return;
+    }
 
     // Optional password is still validated when the caller supplies one
     if (typeof password === 'string' && password.trim()) {
@@ -154,15 +179,19 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     const newUser = await createNewUser(
       username.trim(),
       resolvedPassword,
-      isAdmin || false,
+      Boolean(isAdmin) || creatingAdmin,
       email,
       typeof remark === 'string' ? remark : undefined,
       grants !== undefined ? normalizeUserGrants(grants) : [],
       resolveTokenExpiresAt({
-        isAdmin: Boolean(isAdmin),
+        mcpEnabled: wantsMcp,
         tokenLifetime,
         tokenExpiresAt,
       }),
+      {
+        consoleEnabled: creatingAdmin,
+        mcpEnabled: wantsMcp,
+      },
     );
     if (!newUser) {
       res.status(400).json({
@@ -172,15 +201,23 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    await ensureUserAccessToken(
-      newUser.username,
-      typeof token === 'string' ? token : undefined,
-    );
+    if (wantsMcp) {
+      await ensureUserAccessToken(
+        newUser.username,
+        typeof token === 'string' ? token : undefined,
+      );
+    }
     const response: ApiResponse = {
       success: true,
       data: await toPublicUser(newUser),
       message: 'User created successfully',
     };
+    await recordAdminAuditFromRequest(req, {
+      action: 'user.create',
+      resourceType: 'user',
+      resourceId: newUser.username,
+      after: { username: newUser.username, isAdmin: newUser.isAdmin, mcpEnabled: wantsMcp },
+    });
     res.status(201).json(response);
   } catch (error) {
     res.status(500).json({
@@ -196,7 +233,8 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
 
   try {
     const { username } = req.params;
-    const { isAdmin, newPassword, email, remark, grants, tokenLifetime, tokenExpiresAt } = req.body;
+    const { isAdmin, consoleEnabled, mcpEnabled, newPassword, email, remark, grants, tokenLifetime, tokenExpiresAt } =
+      req.body;
 
     if (!username) {
       res.status(400).json({
@@ -229,6 +267,8 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
 
     const updateData: any = {};
     if (isAdmin !== undefined) updateData.isAdmin = isAdmin;
+    if (consoleEnabled !== undefined) updateData.consoleEnabled = Boolean(consoleEnabled);
+    if (mcpEnabled !== undefined) updateData.mcpEnabled = Boolean(mcpEnabled);
     if (email !== undefined) updateData.email = email;
     if (remark !== undefined) updateData.remark = remark;
     if (grants !== undefined) updateData.grants = normalizeUserGrants(grants);
@@ -247,8 +287,9 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
         });
         return;
       }
+      const current = await getUserByUsername(username);
       updateData.tokenExpiresAt = resolveTokenExpiresAt({
-        isAdmin: Boolean(isAdmin ?? (await getUserByUsername(username))?.isAdmin),
+        mcpEnabled: Boolean(mcpEnabled ?? current?.mcpEnabled ?? true),
         tokenLifetime,
         tokenExpiresAt,
       });
@@ -271,7 +312,7 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
       res.status(400).json({
         success: false,
         message:
-          'At least one field (isAdmin, email, remark, grants, tokenLifetime, tokenExpiresAt, or newPassword) is required to update',
+          'At least one field (isAdmin, consoleEnabled, mcpEnabled, email, remark, grants, tokenLifetime, tokenExpiresAt, or newPassword) is required to update',
       });
       return;
     }
@@ -285,11 +326,25 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    if (updatedUser.mcpEnabled) {
+      await ensureUserAccessToken(updatedUser.username);
+    }
+
     const response: ApiResponse = {
       success: true,
       data: await toPublicUser(updatedUser),
       message: 'User updated successfully',
     };
+    await recordAdminAuditFromRequest(req, {
+      action: grants !== undefined ? 'user.update_grants' : 'user.update',
+      resourceType: 'user',
+      resourceId: username,
+      after: {
+        isAdmin: updatedUser.isAdmin,
+        mcpEnabled: updatedUser.mcpEnabled,
+        grants: updatedUser.grants,
+      },
+    });
     res.json(response);
   } catch (error) {
     res.status(500).json({
@@ -332,6 +387,11 @@ export const deleteExistingUser = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    await recordAdminAuditFromRequest(req, {
+      action: 'user.delete',
+      resourceType: 'user',
+      resourceId: username,
+    });
     res.json({
       success: true,
       message: 'User deleted successfully',
@@ -361,6 +421,11 @@ export const rotateUserToken = async (req: Request, res: Response): Promise<void
     }
 
     const user = await getUserByUsername(username);
+    await recordAdminAuditFromRequest(req, {
+      action: 'user.rotate_token',
+      resourceType: 'user',
+      resourceId: username,
+    });
     res.json({
       success: true,
       data: user ? { ...(await toPublicUser(user)), token } : { username, token },
@@ -369,6 +434,50 @@ export const rotateUserToken = async (req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       message: 'Failed to rotate user token',
+    });
+  }
+};
+
+export const copyExistingUserGrants = async (req: Request, res: Response): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const { username } = req.params;
+    const fromUsername = typeof req.body?.fromUsername === 'string' ? req.body.fromUsername.trim() : '';
+    if (!username || !fromUsername) {
+      res.status(400).json({ success: false, message: 'fromUsername is required' });
+      return;
+    }
+    if (username === fromUsername) {
+      res.status(400).json({ success: false, message: 'Cannot copy grants from the same user' });
+      return;
+    }
+    const source = await getUserByUsername(fromUsername);
+    const target = await getUserByUsername(username);
+    if (!source || !target) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    const grants = normalizeUserGrants(source.grants || []);
+    const updatedUser = await updateUser(username, { grants });
+    if (!updatedUser) {
+      res.status(400).json({ success: false, message: 'Failed to copy grants' });
+      return;
+    }
+    await recordAdminAuditFromRequest(req, {
+      action: 'user.copy_grants',
+      resourceType: 'user',
+      resourceId: username,
+      before: { grants: target.grants || [] },
+      after: { grants, fromUsername },
+    });
+    res.json({
+      success: true,
+      data: await toPublicUser(updatedUser),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to copy grants',
     });
   }
 };

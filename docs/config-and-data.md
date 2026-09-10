@@ -5,7 +5,11 @@
 | 东西 | 放哪 | 不要放哪 |
 | --- | --- | --- |
 | 服务器、分组、用户、Bearer Key、系统设置、内置提示词 / 资源 | Postgres（`servers`、`groups`、`users`、`bearer_keys`、`system_config` 等表） | 仓库里的 `mcp_settings.json`、镜像层、git |
-| 上游 Token、库口令、夜莺 / Jenkins 地址 | 进程环境变量或 `${ENV}` 引用；值在运行环境 | 提交到 git 的任何文件 |
+| 凭据中心（PostgreSQL / Token / 用户名密码） | Postgres `credentials` 表，密文 AES-256-GCM；主密钥是进程环境 `YLUNE_MASTER_KEY` | 控制台回显、活动日志、仓库、`mcp_settings.json` |
+| Target、资源组、用户-资源组绑定 | Postgres `resource_targets`、`resource_groups`、`resource_group_items`、`user_resource_groups` | 旧的 `IGroup` 分组、工具参数里的密码 |
+| 管理操作审计 | Postgres `admin_audit_logs`（脱敏后的前后快照） | 工具调用活动表、明文密钥 |
+| 工具清单基线 | Postgres `tool_inventory_baselines` | 浏览器 localStorage |
+| 上游 Token、库口令、夜莺 / Jenkins 地址 | 进程环境变量或 `${ENV}` 引用；值在运行环境。新口令也可进凭据中心，但现有 Server `env`/`headers` 本阶段不自动迁入 | 提交到 git 的任何文件 |
 | 管理员首次口令 | `ADMIN_PASSWORD`（只在库里还没有管理员时用一次） | 文档、截图、compose 默认值 |
 | 向量索引（智能路由） | 同一套 Postgres（pgvector） | 单独再备一份 JSON |
 

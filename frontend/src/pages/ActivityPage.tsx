@@ -428,6 +428,10 @@ const ActivityPage: React.FC = () => {
       { label: t('activity.tool'), value: selectedActivity.tool, mono: true },
       { label: t('activity.user'), value: selectedActivity.username || selectedActivity.keyName || '—' },
       { label: t('activity.sourceIp'), value: selectedActivity.sourceIp || '—', mono: true },
+      { label: t('activity.requestId'), value: selectedActivity.requestId || '—', mono: true },
+      { label: t('activity.target'), value: selectedActivity.targetName || '—', mono: true },
+      { label: t('activity.credential'), value: selectedActivity.credentialName || '—', mono: true },
+      { label: t('activity.resourceGroup'), value: selectedActivity.resourceGroupName || '—' },
     ];
 
     return (

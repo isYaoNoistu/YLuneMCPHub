@@ -50,6 +50,14 @@ export class ActivityLoggingService {
     keyName?: string;
     sourceIp?: string;
     errorMessage?: string;
+    requestId?: string;
+    targetId?: string;
+    targetName?: string;
+    credentialId?: string;
+    credentialName?: string;
+    credentialVersion?: number;
+    resourceGroupId?: string;
+    resourceGroupName?: string;
   }): Promise<void> {
     if (!this.isEnabled()) {
       return;
@@ -78,6 +86,14 @@ export class ActivityLoggingService {
         errorMessage: params.errorMessage
           ? sanitizeStringForLogging(params.errorMessage)
           : undefined,
+        requestId: params.requestId,
+        targetId: params.targetId,
+        targetName: params.targetName,
+        credentialId: params.credentialId,
+        credentialName: params.credentialName,
+        credentialVersion: params.credentialVersion,
+        resourceGroupId: params.resourceGroupId,
+        resourceGroupName: params.resourceGroupName,
       };
 
       await activityDao.create(activity);

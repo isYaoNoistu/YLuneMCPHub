@@ -152,13 +152,11 @@ export const uploadMcpbFile = async (req: Request, res: Response): Promise<void>
         safeServerName,
       );
 
-      // Clean up any existing version of this server
       cleanupOldMcpbServer(safeServerName);
-      if (!fs.existsSync(finalExtractDir)) {
-        fs.mkdirSync(finalExtractDir, { recursive: true });
+      if (fs.existsSync(finalExtractDir)) {
+        fs.rmSync(finalExtractDir, { recursive: true, force: true });
       }
 
-      // Move the temporary directory to the final location
       fs.renameSync(tempExtractDir, finalExtractDir);
       logger.log(`MCPB server extracted to: ${finalExtractDir}`);
 

@@ -6,11 +6,13 @@ import {
   getAllSettings,
   getServerConfig,
   getServerShareCandidates,
+  getServerEnvPreflight,
   createServer,
   batchCreateServers,
   previewOpenApiToolStatsHandler,
   updateServer,
   deleteServer,
+  cloneServer,
   toggleServer,
   reloadServer,
   reinstallServerHandler,
@@ -54,6 +56,7 @@ import {
   deleteExistingUser,
   getUserStats,
   rotateUserToken,
+  copyExistingUserGrants,
 } from '../controllers/userController.js';
 import {
   getAllMarketServers,
@@ -162,6 +165,33 @@ import {
   deleteOldActivities,
 } from '../controllers/activityController.js';
 import {
+  checkCredentialAvailable,
+  createNewCredential,
+  deleteExistingCredential,
+  getCredentials,
+  replaceExistingCredentialSecret,
+  testExistingCredential,
+  updateExistingCredential,
+} from '../controllers/credentialController.js';
+import {
+  createNewResourceGroup,
+  createNewResourceTarget,
+  deleteExistingResourceGroup,
+  deleteExistingResourceTarget,
+  getResourceGroups,
+  getResourceTargets,
+  getUserResourceGroups,
+  updateExistingResourceGroup,
+  updateExistingResourceTarget,
+  updateUserResourceGroups,
+} from '../controllers/resourceController.js';
+import {
+  getPublicCredentialLease,
+  resolveInternalCredentialLease,
+} from '../controllers/credentialBrokerController.js';
+import { getAdminAuditLogs } from '../controllers/adminAuditController.js';
+import { ackToolChanges, getToolChanges } from '../controllers/toolChangeController.js';
+import {
   getHostedInternalRuntimeCatalog,
   receiveHostedInternalEvent,
 } from '../controllers/hostedInternalController.js';
@@ -169,6 +199,7 @@ import {
   exportConfigTemplate,
   exportGroupAsTemplate,
   importConfigTemplate,
+  dryRunConfigTemplate,
 } from '../controllers/templateController.js';
 import { auth } from '../middlewares/auth.js';
 import { getBetterAuthRuntimeConfig } from '../services/betterAuthConfig.js';
@@ -212,6 +243,11 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
     hostedInternalEventRateLimiter,
     getHostedInternalRuntimeCatalog,
   );
+  app.post(
+    '/internal/v1/credential-leases/:id/resolve',
+    hostedInternalEventRateLimiter,
+    resolveInternalCredentialLease,
+  );
 
   // OAuth callback endpoint (no auth required, public callback URL)
   app.get('/oauth/callback', mcpConnectionRateLimiter, handleOAuthCallback);
@@ -250,12 +286,14 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
   // API routes protected by auth middleware in middlewares/index.ts and rate limited here
   authenticatedRouter.get('/servers', getAllServers);
   authenticatedRouter.get('/servers/:name/share-candidates', getServerShareCandidates);
+  authenticatedRouter.get('/servers/:name/env-preflight', getServerEnvPreflight);
   authenticatedRouter.get('/servers/:name', getServerConfig);
   authenticatedRouter.get('/settings', getAllSettings);
   authenticatedRouter.post('/servers', createServer);
   authenticatedRouter.post('/servers/batch', batchCreateServers);
   authenticatedRouter.post('/servers/openapi/tool-stats', previewOpenApiToolStatsHandler);
   authenticatedRouter.put('/servers/:name', updateServer);
+  authenticatedRouter.post('/servers/:name/clone', cloneServer);
   authenticatedRouter.delete('/servers/:name', deleteServer);
   authenticatedRouter.post('/servers/:name/toggle', toggleServer);
   authenticatedRouter.post('/servers/:name/reload', reloadServer);
@@ -319,6 +357,9 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
   authenticatedRouter.put('/users/:username', updateExistingUser);
   authenticatedRouter.delete('/users/:username', deleteExistingUser);
   authenticatedRouter.post('/users/:username/rotate-token', rotateUserToken);
+  authenticatedRouter.post('/users/:username/copy-grants', copyExistingUserGrants);
+  authenticatedRouter.get('/users/:username/resource-groups', getUserResourceGroups);
+  authenticatedRouter.put('/users/:username/resource-groups', updateUserResourceGroups);
   authenticatedRouter.get('/users-stats', getUserStats);
 
   // OAuth Client management routes (admin only)
@@ -351,6 +392,27 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
   authenticatedRouter.get('/activities/:id', getActivityById);
   authenticatedRouter.delete('/activities/cleanup', deleteOldActivities);
 
+  authenticatedRouter.get('/credentials/available', checkCredentialAvailable);
+  authenticatedRouter.get('/credentials', getCredentials);
+  authenticatedRouter.post('/credentials', createNewCredential);
+  authenticatedRouter.patch('/credentials/:id', updateExistingCredential);
+  authenticatedRouter.post('/credentials/:id/secret', replaceExistingCredentialSecret);
+  authenticatedRouter.delete('/credentials/:id', deleteExistingCredential);
+  authenticatedRouter.post('/credentials/:id/test', testExistingCredential);
+
+  authenticatedRouter.get('/resource-targets', getResourceTargets);
+  authenticatedRouter.post('/resource-targets', createNewResourceTarget);
+  authenticatedRouter.patch('/resource-targets/:id', updateExistingResourceTarget);
+  authenticatedRouter.delete('/resource-targets/:id', deleteExistingResourceTarget);
+  authenticatedRouter.get('/resource-groups', getResourceGroups);
+  authenticatedRouter.post('/resource-groups', createNewResourceGroup);
+  authenticatedRouter.patch('/resource-groups/:id', updateExistingResourceGroup);
+  authenticatedRouter.delete('/resource-groups/:id', deleteExistingResourceGroup);
+  authenticatedRouter.get('/credential-leases/:id', getPublicCredentialLease);
+  authenticatedRouter.get('/admin-audit', getAdminAuditLogs);
+  authenticatedRouter.get('/tool-changes', getToolChanges);
+  authenticatedRouter.post('/tool-changes/ack', ackToolChanges);
+
   // Configuration template routes
   authenticatedRouter.post('/templates/export', templateRateLimiter, auth, exportConfigTemplate);
   authenticatedRouter.get(
@@ -360,6 +422,12 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
     exportGroupAsTemplate,
   );
   authenticatedRouter.post('/templates/import', templateRateLimiter, auth, importConfigTemplate);
+  authenticatedRouter.post(
+    '/templates/import/dry-run',
+    templateRateLimiter,
+    auth,
+    dryRunConfigTemplate,
+  );
 
   // Tool management routes
   authenticatedRouter.post('/tools/call/:server', callTool);

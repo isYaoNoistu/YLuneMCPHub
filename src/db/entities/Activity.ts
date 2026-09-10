@@ -54,6 +54,30 @@ export class Activity {
 
   @Column({ type: 'text', nullable: true, name: 'error_message' })
   errorMessage?: string;
+
+  @Column({ type: 'varchar', length: 64, nullable: true, name: 'request_id' })
+  requestId?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'target_id' })
+  targetId?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'target_name' })
+  targetName?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'credential_id' })
+  credentialId?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'credential_name' })
+  credentialName?: string;
+
+  @Column({ type: 'int', nullable: true, name: 'credential_version' })
+  credentialVersion?: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'resource_group_id' })
+  resourceGroupId?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'resource_group_name' })
+  resourceGroupName?: string;
 }
 
 export default Activity;

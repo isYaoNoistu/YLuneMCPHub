@@ -89,6 +89,8 @@ export class AppServer {
 
       // Initialize default admin user if no users exist
       await initializeDefaultUser();
+      const { backfillAccountFlags } = await import('./services/userService.js');
+      await backfillAccountFlags();
 
       // Initialize OAuth provider if configured (for proxying upstream MCP OAuth)
       await initOAuthProvider();

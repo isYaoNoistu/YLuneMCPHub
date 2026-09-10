@@ -24,12 +24,15 @@ const useCrumbs = (): { trail: string; here: string } => {
       if (path.startsWith('/prompts')) return t('nav.prompts');
       if (path.startsWith('/resources')) return t('nav.resources');
       if (path.startsWith('/users')) return t('nav.users');
+      if (path.startsWith('/credentials')) return t('nav.credentials');
+      if (path.startsWith('/lab')) return t('nav.lab');
       if (path.startsWith('/market')) {
         const serverName = (params as { serverName?: string }).serverName;
         return serverName ? `${t('nav.market')} / ${serverName}` : t('nav.market');
       }
       if (path.startsWith('/logs')) return t('nav.logs');
       if (path.startsWith('/activity')) return t('nav.activity');
+      if (path.startsWith('/audit')) return t('nav.audit');
       if (path.startsWith('/settings')) return t('nav.settings');
       return root;
     })();

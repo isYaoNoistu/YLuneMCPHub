@@ -31,6 +31,21 @@ jest.mock('../../src/utils/version.js', () => ({
   getPackageVersion: jest.fn(() => 'dev'),
 }));
 
+jest.mock('../../src/services/userService.js', () => ({
+  toSessionUser: jest.fn(async (user: { username: string; isAdmin?: boolean }) => ({
+    username: user.username,
+    isAdmin: Boolean(user.isAdmin),
+    permissions: [],
+    grants: [],
+    consoleEnabled: true,
+    mcpEnabled: true,
+    tokenExpiresAt: null,
+    expired: false,
+    createdAt: null,
+    lastCalledAt: null,
+  })),
+}));
+
 import { login, register } from '../../src/controllers/authController.js';
 import { DUMMY_PASSWORD_HASH } from '../../src/utils/loginGuard.js';
 
@@ -124,5 +139,55 @@ describe('authController.login', () => {
     await login(req, res);
 
     expect(findUserByUsernameMock).toHaveBeenCalledWith('ops');
+  });
+
+  it('rejects MCP-only users from the console even with a valid password', async () => {
+    findUserByUsernameMock.mockResolvedValue({
+      username: 'agent',
+      password: 'hash',
+      isAdmin: false,
+      consoleEnabled: false,
+      mcpEnabled: true,
+    });
+    verifyPasswordMock.mockResolvedValue(true);
+
+    const req = makeReq({ username: 'agent', password: 'secret123' });
+    const res = makeRes();
+
+    await login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: 'api.errors.console_login_disabled',
+      }),
+    );
+  });
+
+  it('lets a console admin log in after their MCP key expired', async () => {
+    findUserByUsernameMock.mockResolvedValue({
+      username: 'ops',
+      password: 'hash',
+      isAdmin: true,
+      consoleEnabled: true,
+      mcpEnabled: true,
+      tokenExpiresAt: new Date(Date.now() - 60_000),
+    });
+    verifyPasswordMock.mockResolvedValue(true);
+
+    const req = makeReq({ username: 'ops', password: 'secret123' });
+    const res = makeRes();
+
+    await login(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(401);
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        token: expect.any(String),
+      }),
+    );
   });
 });

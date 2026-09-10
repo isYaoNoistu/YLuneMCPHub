@@ -472,6 +472,8 @@ export interface BearerKey {
 export interface IUser {
   username: string;
   isAdmin?: boolean;
+  consoleEnabled?: boolean;
+  mcpEnabled?: boolean;
   permissions?: string[];
   grants?: IGroupServerConfig[];
   tokenExpiresAt?: string | null;
@@ -484,6 +486,8 @@ export interface IUser {
 export interface User {
   username: string;
   isAdmin: boolean;
+  consoleEnabled?: boolean;
+  mcpEnabled?: boolean;
   email?: string;
   remark?: string;
   token?: string;
@@ -492,6 +496,7 @@ export interface User {
   expired?: boolean;
   createdAt?: string | null;
   lastCalledAt?: string | null;
+  resourceGroupIds?: string[];
 }
 
 export interface UserFormData {
@@ -500,6 +505,8 @@ export interface UserFormData {
   token?: string;
   password?: string;
   isAdmin?: boolean;
+  consoleEnabled?: boolean;
+  mcpEnabled?: boolean;
   email?: string;
   grants?: IGroupServerConfig[];
   tokenLifetime?: string;
@@ -508,6 +515,8 @@ export interface UserFormData {
 
 export interface UserUpdateData {
   isAdmin?: boolean;
+  consoleEnabled?: boolean;
+  mcpEnabled?: boolean;
   newPassword?: string;
   email?: string;
   remark?: string;
@@ -520,6 +529,105 @@ export interface UserStats {
   totalUsers: number;
   adminUsers: number;
   regularUsers: number;
+}
+
+export type CredentialType = 'postgresql' | 'token' | 'basic';
+
+export interface Credential {
+  id: string;
+  name: string;
+  type: CredentialType;
+  enabled: boolean;
+  username?: string;
+  secretConfigured: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  rotatedAt?: string | null;
+}
+
+export type ResourceTargetType = 'postgresql' | 'http' | 'custom';
+
+export interface ResourceTarget {
+  id: string;
+  name: string;
+  type: ResourceTargetType;
+  config: {
+    host?: string;
+    port?: number;
+    database?: string;
+    url?: string;
+  };
+  enabled: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ResourceGroupItem {
+  id?: string;
+  groupId?: string;
+  serverName: string;
+  targetId: string;
+  credentialId: string;
+  alias?: string | null;
+  enabled?: boolean;
+}
+
+export interface ResourceGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  createdAt?: string | null;
+  items: ResourceGroupItem[];
+}
+
+export interface AdminAuditLog {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action: string;
+  resourceType: string;
+  resourceId?: string | null;
+  beforeJson?: string | null;
+  afterJson?: string | null;
+  sourceIp?: string | null;
+}
+
+export interface ToolChangeRow {
+  server: string;
+  added: string[];
+  removed: string[];
+  changed: string[];
+  impactedUsers: Array<{ username: string; reason: 'grant' | 'admin' }>;
+}
+
+export interface EnvPreflightItem {
+  name: string;
+  referenced: boolean;
+  resolved: boolean;
+}
+
+export interface TemplateDryRunResult {
+  success: boolean;
+  added: number;
+  changed: number;
+  removed: number;
+  unchanged: number;
+  details: Array<{
+    type: 'server' | 'group';
+    name: string;
+    action: string;
+    message?: string;
+  }>;
+}
+
+export interface CredentialFormData {
+  name: string;
+  type: CredentialType;
+  username?: string;
+  password?: string;
+  token?: string;
+  enabled?: boolean;
 }
 
 export interface AuthState {
@@ -715,6 +823,10 @@ export interface Activity {
   keyName?: string;
   sourceIp?: string;
   errorMessage?: string;
+  requestId?: string;
+  targetName?: string;
+  credentialName?: string;
+  resourceGroupName?: string;
 }
 
 export interface ActivityStats {

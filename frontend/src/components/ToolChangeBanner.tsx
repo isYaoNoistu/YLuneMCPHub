@@ -1,25 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Server } from '@/types';
-import { diffToolInventory, rememberToolInventory, ToolChange } from '@/utils/toolInventory';
+import { ackToolChanges, getToolChanges } from '@/services/opsService';
+import { ToolChangeRow } from '@/types';
 
-interface ToolChangeBannerProps {
-  servers: Server[];
-}
-
-const ToolChangeBanner = ({ servers }: ToolChangeBannerProps) => {
+const ToolChangeBanner = () => {
   const { t } = useTranslation();
-  const [changes, setChanges] = useState<ToolChange[]>([]);
+  const [changes, setChanges] = useState<ToolChangeRow[]>([]);
+
+  const load = async () => {
+    const response = await getToolChanges();
+    if (response?.success && Array.isArray(response.data)) {
+      setChanges(response.data);
+    }
+  };
 
   useEffect(() => {
-    if (servers.length === 0) return;
-    const next = diffToolInventory(servers);
-    if (next.length === 0 && !localStorage.getItem('ylune.toolInventory.v1')) {
-      rememberToolInventory(servers);
-      return;
-    }
-    setChanges(next);
-  }, [servers]);
+    void load();
+  }, []);
 
   const summary = useMemo(
     () =>
@@ -31,7 +28,14 @@ const ToolChangeBanner = ({ servers }: ToolChangeBannerProps) => {
         if (change.removed.length) {
           parts.push(t('pages.servers.toolRemoved', { tools: change.removed.join(', ') }));
         }
-        return `${change.server}: ${parts.join('；')}`;
+        if (change.changed.length) {
+          parts.push(t('pages.servers.toolChanged', { tools: change.changed.join(', ') }));
+        }
+        const users = change.impactedUsers.map((user) => user.username).join(', ');
+        const impact = users
+          ? t('pages.servers.toolImpacted', { users })
+          : t('pages.servers.toolImpactedNone');
+        return `${change.server}: ${parts.join('；')} — ${impact}`;
       }),
     [changes, t],
   );
@@ -54,8 +58,8 @@ const ToolChangeBanner = ({ servers }: ToolChangeBannerProps) => {
         <button
           type="button"
           className="hub-btn"
-          onClick={() => {
-            rememberToolInventory(servers);
+          onClick={async () => {
+            await ackToolChanges();
             setChanges([]);
           }}
         >

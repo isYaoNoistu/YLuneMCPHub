@@ -22,6 +22,10 @@ import { BearerKeyDaoDbImpl } from './BearerKeyDaoDbImpl.js';
 import { BuiltinPromptDaoDbImpl } from './BuiltinPromptDaoDbImpl.js';
 import { BuiltinResourceDaoDbImpl } from './BuiltinResourceDaoDbImpl.js';
 import { ActivityDao, ActivityDaoDbImpl } from './ActivityDao.js';
+import { CredentialDao, CredentialDaoDbImpl } from './CredentialDao.js';
+import { ResourceDao, ResourceDaoDbImpl } from './ResourceDao.js';
+import { AdminAuditDao, AdminAuditDaoDbImpl } from './AdminAuditDao.js';
+import { ToolInventoryDao, ToolInventoryDaoDbImpl } from './ToolInventoryDao.js';
 
 /**
  * Database-backed DAO factory implementation
@@ -40,6 +44,10 @@ export class DatabaseDaoFactory implements DaoFactory {
   private builtinPromptDao: BuiltinPromptDao | null = null;
   private builtinResourceDao: BuiltinResourceDao | null = null;
   private activityDao: ActivityDao | null = null;
+  private credentialDao: CredentialDao | null = null;
+  private resourceDao: ResourceDao | null = null;
+  private adminAuditDao: AdminAuditDao | null = null;
+  private toolInventoryDao: ToolInventoryDao | null = null;
 
   /**
    * Get singleton instance
@@ -132,6 +140,34 @@ export class DatabaseDaoFactory implements DaoFactory {
     return this.activityDao!;
   }
 
+  getCredentialDao(): CredentialDao {
+    if (!this.credentialDao) {
+      this.credentialDao = new CredentialDaoDbImpl();
+    }
+    return this.credentialDao!;
+  }
+
+  getResourceDao(): ResourceDao {
+    if (!this.resourceDao) {
+      this.resourceDao = new ResourceDaoDbImpl();
+    }
+    return this.resourceDao!;
+  }
+
+  getAdminAuditDao(): AdminAuditDao {
+    if (!this.adminAuditDao) {
+      this.adminAuditDao = new AdminAuditDaoDbImpl();
+    }
+    return this.adminAuditDao!;
+  }
+
+  getToolInventoryDao(): ToolInventoryDao {
+    if (!this.toolInventoryDao) {
+      this.toolInventoryDao = new ToolInventoryDaoDbImpl();
+    }
+    return this.toolInventoryDao!;
+  }
+
   /**
    * Reset all cached DAO instances (useful for testing)
    */
@@ -147,5 +183,9 @@ export class DatabaseDaoFactory implements DaoFactory {
     this.builtinPromptDao = null;
     this.builtinResourceDao = null;
     this.activityDao = null;
+    this.credentialDao = null;
+    this.resourceDao = null;
+    this.adminAuditDao = null;
+    this.toolInventoryDao = null;
   }
 }

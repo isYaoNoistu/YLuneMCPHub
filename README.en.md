@@ -7,8 +7,8 @@
 <p><a href="README.md">简体中文</a> · <b>English</b></p>
 
 Point **WorkBuddy** or **Cursor** at a single HTTP MCP and use every tool you have already wired up.  
-YLune runs on **your** machines: admins add servers, create users, and grant tools per user; agents only talk to `/mcp`.  
-Credentials stay in the deploy environment. This repo has no tokens, passwords, or real hostnames.
+YLune runs on **your** machines: **console accounts** add servers and grant tools; agents use that user's **Access Key** on `/mcp`.  
+**Credentials** (DB passwords, API tokens) go in Credential Center, encrypted. This repo has no tokens, passwords, or real hostnames.
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?labelColor=1f2937" alt="Apache 2.0"></a>
@@ -45,7 +45,7 @@ Black console, teal accent. One screen per job.
 
 ### Login
 
-Internal only. No public signup. Admins issue accounts. Agents do not use this page; people do.
+Internal only. No public signup. **Only console accounts can sign in.** MCP users receive an Access Key, not a login. Agents do not use this page.
 
 ![Login](docs/images/login.jpg)
 
@@ -57,7 +57,7 @@ Read-only gateway status: online servers, tool count, calls from agents and regu
 
 ### User grants
 
-Admins tick MCP servers **and individual tools** per user. Enable a server (for example `jenkins`), then pick that user's tools. An empty list means that user's `/mcp` exposes nothing. Tokens can be permanent or time-limited; expired rows go gray and can be renewed or deleted. Admins already have every enabled server.
+Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. Key expiry blocks agents, not the console. Credential Center stores encrypted secrets and never shows plaintext. Resource groups bind server + target + credential; final access is capability grant ∩ resource binding.
 
 ![User grants: pick servers and tools](docs/images/add-user.png)
 
@@ -80,8 +80,9 @@ One row per tool call: who, which server, which tool, success or failure, durati
 
 - **Gateway** — `/mcp`, `/mcp/{server}`, `/mcp/$smart`. Upstream: stdio, HTTP, SSE, OpenAPI.
 - **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server.
-- **Users and keys** — Creating a user issues a token. Copy mcp.json from the user list any time, not only once.
-- **Console** — Servers, users, settings, built-in prompts / resources, logs and activity. Private deploys hide the external market by default.
+- **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy mcp.json any time. Console-only admins have no key.
+- **Console** — Servers, users, Credential Center, lab, admin audit, settings, built-in prompts / resources, logs and activity.
+- **Credential Center** — Encrypted PostgreSQL / token / basic secrets. Master key is `YLUNE_MASTER_KEY`. The list shows username and “configured”, never the secret. Targets store addresses; resource groups bind server / target / credential to users. A matching call receives a short-lived `credentialLeaseId` (no password) for the runtime to redeem.
 - **Optional** — Smart routing (`$smart` + pgvector), result compression, OAuth 2.0 authorization server, Better Auth, PostgreSQL config store, CLI.
 
 Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools stay in DevOpsMCP; YLune is the front door.

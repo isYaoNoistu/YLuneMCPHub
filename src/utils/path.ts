@@ -250,8 +250,12 @@ export const getConfigFilePath = (filename: string, description = 'Configuration
   // even if the configuration file is missing. This fallback is particularly useful in
   // development environments or when the file is optional.
   const defaultPath = path.resolve(process.cwd(), filename);
-  logger.debug(
-    `${description} file not found at any expected location, using default path: ${defaultPath}`,
-  );
+  const databaseMode =
+    process.env.USE_DB !== undefined ? process.env.USE_DB === 'true' : Boolean(process.env.DB_URL);
+  if (!(filename === 'mcp_settings.json' && databaseMode)) {
+    logger.debug(
+      `${description} file not found at any expected location, using default path: ${defaultPath}`,
+    );
+  }
   return defaultPath;
 };

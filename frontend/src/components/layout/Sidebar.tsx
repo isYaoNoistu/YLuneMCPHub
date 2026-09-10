@@ -46,9 +46,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
 
   const systemItems: MenuItem[] = [
     ...(userCanManageUsers ? [{ path: '/users', label: t('nav.users'), ico: '◉' }] : []),
+    ...(auth.user?.isAdmin ? [{ path: '/credentials', label: t('nav.credentials'), ico: '▣' }] : []),
     ...(activityAvailable && auth.user?.isAdmin
       ? [{ path: '/activity', label: t('nav.activity'), ico: '◎' }]
       : []),
+    ...(auth.user?.isAdmin ? [{ path: '/audit', label: t('nav.audit'), ico: '▣' }] : []),
     ...(canViewSystemLogs(auth.user) ? [{ path: '/logs', label: t('nav.logs'), ico: '≣' }] : []),
     { path: '/settings', label: t('nav.settings'), ico: '⚙' },
   ];

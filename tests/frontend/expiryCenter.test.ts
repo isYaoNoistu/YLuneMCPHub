@@ -8,9 +8,24 @@ const user = (overrides: Partial<User>): User => ({
 });
 
 describe('expiryCenter', () => {
-  it('treats admins and permanent tokens as not expired', () => {
-    expect(isExpiredUser(user({ isAdmin: true, expired: true }))).toBe(false);
+  it('treats permanent tokens and MCP-disabled accounts as not expired', () => {
     expect(isExpiredUser(user({ tokenExpiresAt: null }))).toBe(false);
+    expect(isExpiredUser(user({ mcpEnabled: false, expired: true, tokenExpiresAt: '2020-01-01T00:00:00.000Z' }))).toBe(
+      false,
+    );
+  });
+
+  it('expires an admin MCP key when the timestamp is past', () => {
+    expect(
+      isExpiredUser(
+        user({
+          isAdmin: true,
+          mcpEnabled: true,
+          expired: true,
+          tokenExpiresAt: '2020-01-01T00:00:00.000Z',
+        }),
+      ),
+    ).toBe(true);
   });
 
   it('flags already-expired users', () => {

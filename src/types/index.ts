@@ -10,6 +10,10 @@ export interface IUser {
   username: string;
   password: string;
   isAdmin?: boolean;
+  /** May log into the console. Independent from MCP Access Key. */
+  consoleEnabled?: boolean;
+  /** May call /mcp with this user's Access Key. Independent from console login. */
+  mcpEnabled?: boolean;
   email?: string | null;
   ssoUserId?: string | null;
   remark?: string | null;
@@ -18,6 +22,107 @@ export interface IUser {
   /** When set, this user's MCP Key stops working after this time. null = never expires. */
   tokenExpiresAt?: Date | string | null;
   createdAt?: Date | string | null;
+}
+
+export type CredentialType = 'postgresql' | 'token' | 'basic';
+
+export interface ICredentialSecret {
+  username?: string;
+  password?: string;
+  token?: string;
+}
+
+export interface ICredential {
+  id: string;
+  name: string;
+  type: CredentialType;
+  encryptedPayload: string;
+  keyVersion: number;
+  enabled: boolean;
+  username?: string | null;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+  rotatedAt?: Date | string | null;
+}
+
+export interface ICredentialPublic {
+  id: string;
+  name: string;
+  type: CredentialType;
+  enabled: boolean;
+  username?: string;
+  secretConfigured: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  rotatedAt: string | null;
+}
+
+export type ResourceTargetType = 'postgresql' | 'http' | 'custom';
+
+export interface IResourceTargetConfig {
+  host?: string;
+  port?: number;
+  database?: string;
+  url?: string;
+}
+
+export interface IResourceTarget {
+  id: string;
+  name: string;
+  type: ResourceTargetType;
+  config: IResourceTargetConfig;
+  enabled: boolean;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+}
+
+export interface IResourceGroupItem {
+  id: string;
+  groupId: string;
+  serverName: string;
+  targetId: string;
+  credentialId: string;
+  alias?: string | null;
+  enabled: boolean;
+}
+
+export interface IResourceGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  createdAt?: Date | string | null;
+  items: IResourceGroupItem[];
+}
+
+export interface IUserResourceGroup {
+  username: string;
+  groupId: string;
+  createdAt?: Date | string | null;
+  createdBy?: string | null;
+}
+
+export interface IActivityChain {
+  requestId?: string;
+  targetId?: string;
+  targetName?: string;
+  credentialId?: string;
+  credentialName?: string;
+  credentialVersion?: number;
+  resourceGroupId?: string;
+  resourceGroupName?: string;
+}
+
+export interface IAdminAuditLog {
+  id: string;
+  timestamp: Date;
+  actor: string;
+  action: string;
+  resourceType: string;
+  resourceId?: string | null;
+  beforeJson?: string | null;
+  afterJson?: string | null;
+  sourceIp?: string | null;
 }
 
 // Group interface for server grouping
@@ -736,6 +841,14 @@ export interface IActivity {
   keyName?: string; // Bearer key name for display purposes
   sourceIp?: string; // Source IP address of the caller
   errorMessage?: string; // Error message if status is 'error'
+  requestId?: string;
+  targetId?: string;
+  targetName?: string;
+  credentialId?: string;
+  credentialName?: string;
+  credentialVersion?: number;
+  resourceGroupId?: string;
+  resourceGroupName?: string;
 }
 
 // Activity statistics interface
@@ -836,8 +949,17 @@ export interface TemplateImportResult {
 export interface TemplateImportDetail {
   type: 'server' | 'group';
   name: string;
-  action: 'created' | 'skipped' | 'failed';
+  action: 'created' | 'skipped' | 'failed' | 'added' | 'changed' | 'removed' | 'unchanged';
   message?: string;
+}
+
+export interface TemplateDryRunResult {
+  success: boolean;
+  added: number;
+  changed: number;
+  removed: number;
+  unchanged: number;
+  details: TemplateImportDetail[];
 }
 
 // ─── Context Footprint (token cost) feature ───────────────────────────────

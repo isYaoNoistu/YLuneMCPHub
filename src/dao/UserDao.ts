@@ -1,6 +1,7 @@
 import { IGroupServerConfig, IUser } from '../types/index.js';
 import { BaseDao } from './base/BaseDao.js';
 import { JsonFileBaseDao } from './base/JsonFileBaseDao.js';
+import { resolveAccountFlags } from '../utils/userAccount.js';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -39,6 +40,7 @@ export interface UserDao extends BaseDao<IUser, string> {
     remark?: string,
     grants?: IGroupServerConfig[],
     tokenExpiresAt?: Date | null,
+    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
   ): Promise<IUser>;
 
   /**
@@ -58,7 +60,7 @@ export interface UserDao extends BaseDao<IUser, string> {
 export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
   protected async getAll(): Promise<IUser[]> {
     const settings = await this.loadSettings();
-    return settings.users || [];
+    return (settings.users || []).map((user) => ({ ...user, ...resolveAccountFlags(user) }));
   }
 
   protected async saveAll(users: IUser[]): Promise<void> {
@@ -120,6 +122,7 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
     remark?: string,
     grants?: IGroupServerConfig[],
     tokenExpiresAt?: Date | null,
+    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
   ): Promise<IUser> {
     const users = await this.getAll();
 
@@ -133,6 +136,8 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
       username,
       password: hashedPassword,
       isAdmin,
+      consoleEnabled: account?.consoleEnabled ?? isAdmin,
+      mcpEnabled: account?.mcpEnabled ?? true,
       email,
       ssoUserId,
       remark: remark || undefined,

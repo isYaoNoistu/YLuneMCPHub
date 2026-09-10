@@ -16,8 +16,30 @@ export abstract class JsonFileBaseDao {
    * Load settings from JSON file with caching
    */
   protected async loadSettings(): Promise<McpSettings> {
+    const defaultSettings: McpSettings = {
+      mcpServers: {},
+      users: [],
+      groups: [],
+      systemConfig: {},
+      userConfigs: {},
+    };
+
     try {
       const settingsPath = getSettingsPath();
+      if (!fs.existsSync(settingsPath)) {
+        if (this.settingsCache) {
+          return this.settingsCache;
+        }
+        logger.debug(
+          isDatabaseModeEnabled()
+            ? `Settings file ${settingsPath} is unused in database mode; using empty defaults until the database factory is ready.`
+            : `Settings file not found at ${settingsPath}, using default settings.`,
+        );
+        this.settingsCache = defaultSettings;
+        this.lastModified = Date.now();
+        return defaultSettings;
+      }
+
       const stats = fs.statSync(settingsPath);
       const fileModified = stats.mtime.getTime();
 
@@ -36,18 +58,8 @@ export abstract class JsonFileBaseDao {
       return settings;
     } catch (error) {
       logger.error(`Failed to load settings:`, error);
-      const defaultSettings: McpSettings = {
-        mcpServers: {},
-        users: [],
-        groups: [],
-        systemConfig: {},
-        userConfigs: {},
-      };
-
-      // Cache default settings
       this.settingsCache = defaultSettings;
       this.lastModified = Date.now();
-
       return defaultSettings;
     }
   }

@@ -30,6 +30,8 @@ jest.mock('../../src/controllers/serverController.js', () => ({
   updateResourceDescription: routeHandler,
   resetResourceDescription: routeHandler,
   updateSystemConfig: routeHandler,
+  cloneServer: routeHandler,
+  getServerEnvPreflight: routeHandler,
 }));
 
 jest.mock('../../src/controllers/groupController.js', () => ({
@@ -55,6 +57,8 @@ jest.mock('../../src/controllers/userController.js', () => ({
   updateExistingUser: routeHandler,
   deleteExistingUser: routeHandler,
   getUserStats: routeHandler,
+  rotateUserToken: routeHandler,
+  copyExistingUserGrants: routeHandler,
 }));
 
 jest.mock('../../src/controllers/marketController.js', () => ({
@@ -192,6 +196,7 @@ jest.mock('../../src/controllers/activityController.js', () => ({
   getActivityById: routeHandler,
   getActivityStats: routeHandler,
   getActivityFilterOptions: routeHandler,
+  getActivityUsage: routeHandler,
   deleteOldActivities: routeHandler,
 }));
 
@@ -200,10 +205,61 @@ jest.mock('../../src/controllers/hostedInternalController.js', () => ({
   getHostedInternalRuntimeCatalog: routeHandler,
 }));
 
+jest.mock('../../src/controllers/credentialController.js', () => ({
+  checkCredentialAvailable: routeHandler,
+  createNewCredential: routeHandler,
+  deleteExistingCredential: routeHandler,
+  getCredentials: routeHandler,
+  replaceExistingCredentialSecret: routeHandler,
+  testExistingCredential: routeHandler,
+  updateExistingCredential: routeHandler,
+}));
+
+jest.mock('../../src/controllers/resourceController.js', () => ({
+  createNewResourceGroup: routeHandler,
+  createNewResourceTarget: routeHandler,
+  deleteExistingResourceGroup: routeHandler,
+  deleteExistingResourceTarget: routeHandler,
+  getResourceGroups: routeHandler,
+  getResourceTargets: routeHandler,
+  getUserResourceGroups: routeHandler,
+  updateExistingResourceGroup: routeHandler,
+  updateExistingResourceTarget: routeHandler,
+  updateUserResourceGroups: routeHandler,
+}));
+
+jest.mock('../../src/controllers/credentialBrokerController.js', () => ({
+  getPublicCredentialLease: routeHandler,
+  resolveInternalCredentialLease: routeHandler,
+}));
+
+jest.mock('../../src/controllers/adminAuditController.js', () => ({
+  getAdminAuditLogs: routeHandler,
+}));
+
+jest.mock('../../src/controllers/toolChangeController.js', () => ({
+  ackToolChanges: routeHandler,
+  getToolChanges: routeHandler,
+}));
+
+jest.mock('../../src/controllers/changelogController.js', () => ({
+  getChangelogUpdateInfoHandler: routeHandler,
+}));
+
+jest.mock('../../src/controllers/discoveryController.js', () => ({
+  listDiscoveryServers: routeHandler,
+  getDiscoveryServer: routeHandler,
+  getDiscoveryServerInstall: routeHandler,
+  listDiscoveryCategories: routeHandler,
+  listDiscoveryTags: routeHandler,
+  getMarketplaceWellKnown: routeHandler,
+}));
+
 jest.mock('../../src/controllers/templateController.js', () => ({
   exportConfigTemplate: routeHandler,
   exportGroupAsTemplate: routeHandler,
   importConfigTemplate: routeHandler,
+  dryRunConfigTemplate: routeHandler,
 }));
 
 jest.mock('../../src/controllers/contextCostController.js', () => ({

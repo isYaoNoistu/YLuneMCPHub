@@ -3,14 +3,14 @@ import { User } from '@/types';
 const DAY_MS = 86_400_000;
 
 export const isExpiredUser = (user: User): boolean => {
-  if (user.isAdmin || !user.tokenExpiresAt) return false;
+  if (user.mcpEnabled === false || !user.tokenExpiresAt) return false;
   if (user.expired) return true;
   const expires = new Date(user.tokenExpiresAt).getTime();
   return !Number.isNaN(expires) && expires <= Date.now();
 };
 
 export const isExpiringSoon = (user: User, withinDays = 7): boolean => {
-  if (user.isAdmin || !user.tokenExpiresAt || isExpiredUser(user)) return false;
+  if (user.mcpEnabled === false || !user.tokenExpiresAt || isExpiredUser(user)) return false;
   const expires = new Date(user.tokenExpiresAt).getTime();
   if (Number.isNaN(expires)) return false;
   const remain = expires - Date.now();

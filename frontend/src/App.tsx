@@ -19,6 +19,8 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const LogsPage = lazy(() => import('./pages/LogsPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
 const LabPage = lazy(() => import('./pages/LabPage'));
+const CredentialCenterPage = lazy(() => import('./pages/CredentialCenterPage'));
+const AuditPage = lazy(() => import('./pages/AuditPage'));
 const PromptsPage = lazy(() => import('./pages/PromptsPage'));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
 
@@ -75,7 +77,9 @@ function App() {
                       <Route path="/cloud/:serverName" element={<Navigate to="/servers" replace />} />
                       <Route path="/logs" element={<LogsPage />} />
                       <Route path="/activity" element={<ActivityPage />} />
+                      <Route path="/audit" element={<AuditPage />} />
                       <Route path="/lab" element={<LabPage />} />
+                      <Route path="/credentials" element={<CredentialCenterPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
                     </Route>
                   </Route>

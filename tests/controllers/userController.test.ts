@@ -90,6 +90,7 @@ describe('userController', () => {
         undefined,
         [],
         null,
+        { consoleEnabled: false, mcpEnabled: true },
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(
@@ -121,6 +122,7 @@ describe('userController', () => {
         undefined,
         [],
         null,
+        { consoleEnabled: false, mcpEnabled: true },
       );
     });
 
@@ -146,6 +148,7 @@ describe('userController', () => {
         '值班账号',
         [],
         null,
+        { consoleEnabled: false, mcpEnabled: true },
       );
       expect(mockEnsureUserAccessToken).toHaveBeenCalledWith('ops', undefined);
       expect(res.status).toHaveBeenCalledWith(201);
@@ -172,6 +175,7 @@ describe('userController', () => {
         undefined,
         [],
         expect.any(Date),
+        { consoleEnabled: false, mcpEnabled: true },
       );
       const expiresAt = mockCreateNewUser.mock.calls[0][6] as Date;
       const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -205,6 +209,47 @@ describe('userController', () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(mockCreateNewUser).not.toHaveBeenCalled();
+    });
+
+    it('requires a password for console admins and does not issue a key by default', async () => {
+      const req = makeReq({
+        body: { username: 'ops-admin', isAdmin: true },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockCreateNewUser).not.toHaveBeenCalled();
+      expect(mockEnsureUserAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('creates a console-only admin without an Access Key', async () => {
+      mockCreateNewUser.mockResolvedValue({
+        username: 'ops-admin',
+        isAdmin: true,
+        consoleEnabled: true,
+        mcpEnabled: false,
+      });
+
+      const req = makeReq({
+        body: { username: 'ops-admin', password: 'Passw0rd!', isAdmin: true },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(mockCreateNewUser).toHaveBeenCalledWith(
+        'ops-admin',
+        'Passw0rd!',
+        true,
+        undefined,
+        undefined,
+        [],
+        null,
+        { consoleEnabled: true, mcpEnabled: false },
+      );
+      expect(mockEnsureUserAccessToken).not.toHaveBeenCalled();
     });
 
     it('should require username', async () => {

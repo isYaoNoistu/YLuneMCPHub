@@ -63,6 +63,9 @@ import { setCachedSystemConfig } from '../utils/systemConfigCache.js';
 import { DEFAULT_INSTALL_BASE_URL, withResolvedInstallBaseUrl } from '../utils/installBaseUrl.js';
 import { previewOpenApiToolStats } from '../services/openApiToolStatsService.js';
 import { logger } from '../utils/logger.js';
+import { buildEnvPreflight } from '../utils/envPreflight.js';
+import { recordAdminAuditFromRequest } from '../services/adminAuditService.js';
+import { requireAdmin } from '../utils/requireAdmin.js';
 
 type DescribableConfig = Record<string, { enabled: boolean; description?: string }>;
 type ServerRecord = ServerConfig & { name: string };
@@ -621,6 +624,12 @@ export const createServer = async (req: Request, res: Response): Promise<void> =
 
     const result = await addServer(serverName, normalizedConfig);
     if (result.success) {
+      await recordAdminAuditFromRequest(req, {
+        action: 'server.create',
+        resourceType: 'server',
+        resourceId: serverName,
+        after: { name: serverName, type: normalizedConfig.type },
+      });
       res.json({
         success: true,
         message: 'Server added successfully',
@@ -875,6 +884,11 @@ export const deleteServer = async (req: Request, res: Response): Promise<void> =
 
     const result = await removeServer(existingServer.name);
     if (result.success) {
+      await recordAdminAuditFromRequest(req, {
+        action: 'server.delete',
+        resourceType: 'server',
+        resourceId: existingServer.name,
+      });
       notifyToolChanged();
       res.json({
         success: true,
@@ -891,6 +905,97 @@ export const deleteServer = async (req: Request, res: Response): Promise<void> =
       success: false,
       message: 'Internal server error',
     });
+  }
+};
+
+export const cloneServer = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.params;
+    const newNameRaw = typeof req.body?.newName === 'string' ? req.body.newName : '';
+    const existingServer = await loadAuthorizedServer(req, res, name);
+    if (!existingServer) {
+      return;
+    }
+    const nameValidation = validateServerName(newNameRaw);
+    if (!nameValidation.valid) {
+      res.status(400).json({
+        success: false,
+        message: nameValidation.message || 'Invalid server name',
+      });
+      return;
+    }
+    const newName = nameValidation.normalized as string;
+    const serverDao = getServerDao();
+    if (await serverDao.findById(newName)) {
+      res.status(400).json({ success: false, message: 'Server name already exists' });
+      return;
+    }
+    const { name: _ignored, ...config } = existingServer;
+    const cloned: ServerConfig = {
+      ...config,
+      enabled: false,
+      description: config.description
+        ? `${config.description} (copy of ${existingServer.name})`
+        : `Copy of ${existingServer.name}`,
+    };
+    assignServerOwner(req, cloned);
+    const result = await addServer(newName, cloned);
+    if (!result.success) {
+      res.status(400).json({ success: false, message: result.message || 'Failed to clone server' });
+      return;
+    }
+    await recordAdminAuditFromRequest(req, {
+      action: 'server.clone',
+      resourceType: 'server',
+      resourceId: newName,
+      before: { name: existingServer.name },
+      after: { name: newName },
+    });
+    notifyToolChanged(newName, { reportEmbeddingProgress: true }).catch((error) => {
+      logger.error('Failed to trigger embedding sync for cloned server:', error);
+    });
+    res.status(201).json({ success: true, data: { name: newName } });
+  } catch (error) {
+    logger.error('Failed to clone server:', error);
+    res.status(500).json({ success: false, message: 'Failed to clone server' });
+  }
+};
+
+export const getServerEnvPreflight = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.params;
+    const serverDao = getServerDao();
+    const serverRecord = await serverDao.findById(name);
+    if (!serverRecord) {
+      res.status(404).json({ success: false, message: 'Server not found' });
+      return;
+    }
+    const principal = getRequestUser(req);
+    const canReadFullConfig = authorizationService.can(
+      'server.config.read',
+      serverRecord,
+      principal,
+    );
+    if (!canReadFullConfig && !(await requireAdmin(req, res))) {
+      return;
+    }
+    const { name: _name, ...config } = serverRecord;
+    res.json({
+      success: true,
+      data: {
+        server: serverRecord.name,
+        variables: buildEnvPreflight({
+          env: config.env,
+          headers: config.headers,
+          url: config.url,
+          args: config.args,
+          command: config.command,
+        }),
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to build env preflight:', error);
+    res.status(500).json({ success: false, message: 'Failed to build env preflight' });
   }
 };
 

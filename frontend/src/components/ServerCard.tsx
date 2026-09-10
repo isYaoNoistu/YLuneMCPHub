@@ -36,6 +36,8 @@ import {
   normalizeServerVisibility,
 } from '@/utils/serverVisibility';
 import { getHubBaseUrl } from '@/utils/userMcpConfig';
+import { cloneServer, getServerEnvPreflight } from '@/services/opsService';
+import { EnvPreflightItem } from '@/types';
 
 interface ServerCardProps {
   server: Server;
@@ -166,6 +168,9 @@ const ServerCard = ({
   const [isReinstalling, setIsReinstalling] = useState(false);
   const [isDisconnectingOAuth, setIsDisconnectingOAuth] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [cloneName, setCloneName] = useState('');
+  const [showClone, setShowClone] = useState(false);
+  const [preflight, setPreflight] = useState<EnvPreflightItem[] | null>(null);
   const [showErrorPopover, setShowErrorPopover] = useState(false);
   const [copiedError, setCopiedError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -771,6 +776,30 @@ const ServerCard = ({
                 >
                   <Copy size={13} /> {t('server.copy')}
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    setCloneName(`${server.name}-copy`);
+                    setShowClone(true);
+                  }}
+                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
+                  style={{ color: 'var(--hub-ink)' }}
+                >
+                  <Copy size={13} /> {t('server.clone')}
+                </button>
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    const result = await getServerEnvPreflight(server.name);
+                    setPreflight(result?.data?.variables || []);
+                  }}
+                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
+                  style={{ color: 'var(--hub-ink)' }}
+                >
+                  <Wrench size={13} /> {t('server.envPreflight')}
+                </button>
                 {onReload && (
                   <button
                     onClick={handleReload}
@@ -1018,6 +1047,76 @@ const ServerCard = ({
         confirmText={t('server.disconnectOAuth')}
         variant="warning"
       />
+
+      {showClone && (
+        <div className="ylune-dialog-backdrop" onClick={(e) => e.stopPropagation()}>
+          <div className="ylune-dialog">
+            <div className="ylune-dialog-head">
+              <h2 className="ylune-dialog-title">{t('server.clone')} · {server.name}</h2>
+            </div>
+            <div className="ylune-dialog-body">
+              <label className="ylune-label">{t('server.cloneName')}</label>
+              <input
+                className="hub-input"
+                value={cloneName}
+                onChange={(event) => setCloneName(event.target.value)}
+              />
+            </div>
+            <div className="ylune-dialog-foot">
+              <button type="button" className="hub-btn" onClick={() => setShowClone(false)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="hub-btn primary"
+                onClick={async () => {
+                  const result = await cloneServer(server.name, cloneName.trim());
+                  if (result?.success) {
+                    setShowClone(false);
+                    showToast(t('server.cloneSuccess'), 'success');
+                    onRefresh?.();
+                  } else {
+                    showToast(result?.message || t('server.cloneError'), 'error');
+                  }
+                }}
+              >
+                {t('server.clone')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {preflight && (
+        <div className="ylune-dialog-backdrop" onClick={(e) => e.stopPropagation()}>
+          <div className="ylune-dialog">
+            <div className="ylune-dialog-head">
+              <h2 className="ylune-dialog-title">{t('server.envPreflight')} · {server.name}</h2>
+            </div>
+            <div className="ylune-dialog-body">
+              <p className="ylune-help" style={{ marginTop: 0 }}>
+                {t('server.envPreflightHint')}
+              </p>
+              {preflight.length === 0 ? (
+                <p className="ylune-help">{t('server.envPreflightEmpty')}</p>
+              ) : (
+                <ul className="grant-preview-list">
+                  {preflight.map((item) => (
+                    <li key={item.name}>
+                      {item.name}: {item.resolved ? t('server.envResolved') : t('server.envMissing')}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="ylune-dialog-foot">
+              <button type="button" className="hub-btn" onClick={() => setPreflight(null)}>
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

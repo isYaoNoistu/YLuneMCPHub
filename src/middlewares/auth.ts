@@ -194,13 +194,17 @@ export const auth = async (req: Request, res: Response, next: NextFunction): Pro
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const payloadUser = (decoded as any).user;
-    if (payloadUser?.username && !payloadUser.isAdmin) {
+    if (payloadUser?.username) {
       const { findUserByUsername } = await import('../models/User.js');
       const stored = await findUserByUsername(payloadUser.username);
-      const { isUserTokenExpired } = await import('../utils/userTokenExpiry.js');
-      if (stored && isUserTokenExpired(stored)) {
-        res.status(401).json({ success: false, message: 'User token has expired' });
+      const { isConsoleEnabled } = await import('../utils/userAccount.js');
+      if (stored && !isConsoleEnabled(stored)) {
+        res.status(403).json({ success: false, message: 'Console access is disabled' });
         return;
+      }
+      if (stored) {
+        payloadUser.isAdmin = stored.isAdmin || false;
+        payloadUser.consoleEnabled = isConsoleEnabled(stored);
       }
     }
     (req as any).user = payloadUser;

@@ -50,6 +50,14 @@ export class ActivityDaoDbImpl implements ActivityDao {
       keyName: activity.keyName,
       sourceIp: activity.sourceIp,
       errorMessage: activity.errorMessage,
+      requestId: activity.requestId,
+      targetId: activity.targetId,
+      targetName: activity.targetName,
+      credentialId: activity.credentialId,
+      credentialName: activity.credentialName,
+      credentialVersion: activity.credentialVersion,
+      resourceGroupId: activity.resourceGroupId,
+      resourceGroupName: activity.resourceGroupName,
     });
 
     return this.mapToActivity(created);
@@ -129,6 +137,14 @@ export class ActivityDaoDbImpl implements ActivityDao {
       keyName: entity.keyName,
       sourceIp: entity.sourceIp,
       errorMessage: entity.errorMessage,
+      requestId: entity.requestId,
+      targetId: entity.targetId,
+      targetName: entity.targetName,
+      credentialId: entity.credentialId,
+      credentialName: entity.credentialName,
+      credentialVersion: entity.credentialVersion,
+      resourceGroupId: entity.resourceGroupId,
+      resourceGroupName: entity.resourceGroupName,
     };
   }
 }

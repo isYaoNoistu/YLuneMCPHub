@@ -10,6 +10,10 @@ export * from './OAuthClientDao.js';
 export * from './OAuthTokenDao.js';
 export * from './BearerKeyDao.js';
 export * from './ActivityDao.js';
+export * from './CredentialDao.js';
+export * from './ResourceDao.js';
+export * from './AdminAuditDao.js';
+export * from './ToolInventoryDao.js';
 export * from './BuiltinPromptDao.js';
 export * from './BuiltinResourceDao.js';
 

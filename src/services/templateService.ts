@@ -5,6 +5,7 @@ import {
   TemplateExportOptions,
   TemplateImportResult,
   TemplateImportDetail,
+  TemplateDryRunResult,
   IGroup,
   IGroupServerConfig,
   ServerConfig,
@@ -13,10 +14,13 @@ import { getServerDao, getGroupDao } from '../dao/index.js';
 import type { ServerConfigWithName } from '../dao/ServerDao.js';
 import { isPrivilegedServerConfig } from '../utils/serverConfigValidation.js';
 import { validateServerName } from '../utils/serverNameValidation.js';
+import { toImportTemplate } from '../utils/templateFormat.js';
 import { createGroup } from './groupService.js';
 import { addServer } from './mcpService.js';
 import { getDataService } from './services.js';
 import type { IUser } from '../types/index.js';
+
+export { toImportTemplate } from '../utils/templateFormat.js';
 
 const TEMPLATE_VERSION = '1.0';
 
@@ -532,17 +536,91 @@ export async function exportGroupTemplate(
   });
 }
 
-/**
- * Validate a template structure before import.
- */
-function validateTemplate(data: unknown): data is ConfigTemplate {
-  if (!data || typeof data !== 'object') return false;
-  const t = data as Record<string, unknown>;
-  if (typeof t.version !== 'string') return false;
-  if (typeof t.name !== 'string') return false;
-  if (!t.servers || typeof t.servers !== 'object') return false;
-  if (!Array.isArray(t.groups)) return false;
-  return true;
+const comparableServer = (config: unknown): string => {
+  try {
+    return JSON.stringify(config ?? {});
+  } catch {
+    return '';
+  }
+};
+
+export async function dryRunImportTemplate(payload: unknown): Promise<TemplateDryRunResult> {
+  const template = toImportTemplate(payload);
+  if (!template) {
+    return {
+      success: false,
+      added: 0,
+      changed: 0,
+      removed: 0,
+      unchanged: 0,
+      details: [{ type: 'server', name: '', action: 'failed', message: 'Invalid template format' }],
+    };
+  }
+
+  const serverDao = getServerDao();
+  const groupDao = getGroupDao();
+  const existingServers = await serverDao.findAll();
+  const existingByName = new Map(existingServers.map((server) => [server.name, server]));
+  const incomingServers = new Set(Object.keys(template.servers));
+  const details: TemplateImportDetail[] = [];
+
+  for (const [name, config] of Object.entries(template.servers)) {
+    const current = existingByName.get(name);
+    if (!current) {
+      details.push({ type: 'server', name, action: 'added' });
+      continue;
+    }
+    const { name: _ignored, ...currentConfig } = current;
+    const same = comparableServer(currentConfig) === comparableServer(config);
+    details.push({
+      type: 'server',
+      name,
+      action: same ? 'unchanged' : 'changed',
+      message: same ? 'Already exists' : 'Already exists; import will skip',
+    });
+  }
+
+  for (const server of existingServers) {
+    if (!incomingServers.has(server.name)) {
+      details.push({
+        type: 'server',
+        name: server.name,
+        action: 'removed',
+        message: 'Present now; import will not delete it',
+      });
+    }
+  }
+
+  const incomingGroups = new Set(template.groups.map((group) => group.name));
+  for (const groupDef of template.groups) {
+    const existingGroup = await groupDao.findByName(groupDef.name);
+    details.push({
+      type: 'group',
+      name: groupDef.name,
+      action: existingGroup ? 'unchanged' : 'added',
+      message: existingGroup ? 'Already exists; import will skip' : undefined,
+    });
+  }
+  const existingGroups = await groupDao.findAll();
+  for (const group of existingGroups) {
+    if (!incomingGroups.has(group.name)) {
+      details.push({
+        type: 'group',
+        name: group.name,
+        action: 'removed',
+        message: 'Present now; import will not delete it',
+      });
+    }
+  }
+
+  return {
+    success: true,
+    added: details.filter((row) => row.action === 'added').length,
+    changed: details.filter((row) => row.action === 'changed').length,
+    removed: details.filter((row) => row.action === 'removed').length,
+    unchanged: details.filter((row) => row.action === 'unchanged').length,
+    details,
+  };
 }
 
 /**
@@ -559,7 +637,8 @@ export async function importTemplate(
   owner?: string,
   requestingUser?: IUser,
 ): Promise<TemplateImportResult> {
-  if (!validateTemplate(template)) {
+  const normalized = toImportTemplate(template);
+  if (!normalized) {
     return {
       success: false,
       serversCreated: 0,
@@ -570,6 +649,7 @@ export async function importTemplate(
       details: [{ type: 'server', name: '', action: 'failed', message: 'Invalid template format' }],
     };
   }
+  const payload = normalized;
 
   const serverDao = getServerDao();
   const groupDao = getGroupDao();
@@ -582,7 +662,7 @@ export async function importTemplate(
   let serversSkipped = 0;
 
   // Import servers
-  for (const [name, config] of Object.entries(template.servers)) {
+  for (const [name, config] of Object.entries(payload.servers)) {
     if (existingServerNames.has(name)) {
       details.push({ type: 'server', name, action: 'skipped', message: 'Server already exists' });
       serversSkipped++;
@@ -636,7 +716,7 @@ export async function importTemplate(
   let groupsCreated = 0;
   let groupsSkipped = 0;
 
-  for (const groupDef of template.groups) {
+  for (const groupDef of payload.groups) {
     const existingGroup = await groupDao.findByName(groupDef.name);
     if (existingGroup) {
       details.push({
@@ -683,7 +763,7 @@ export async function importTemplate(
     serversSkipped,
     groupsCreated,
     groupsSkipped,
-    requiredEnvVars: template.requiredEnvVars || [],
+    requiredEnvVars: payload.requiredEnvVars || [],
     details,
   };
 }

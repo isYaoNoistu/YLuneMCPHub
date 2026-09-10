@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiPost } from '@/utils/fetchInterceptor';
-import { ConfigTemplate, TemplateImportResult } from '@/types';
+import { ConfigTemplate, TemplateDryRunResult, TemplateImportResult } from '@/types';
 import YluneDialog from './ui/YluneDialog';
 
 interface TemplateImportFormProps {
@@ -15,7 +15,20 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [result, setResult] = useState<TemplateImportResult | null>(null);
+  const [dryRun, setDryRun] = useState<TemplateDryRunResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const acceptPayload = (parsed: Record<string, unknown>): boolean => {
+    if (parsed.mcpServers && typeof parsed.mcpServers === 'object') return true;
+    return Boolean(parsed.version && parsed.name && parsed.servers && parsed.groups);
+  };
+
+  const preview = async (payload: unknown) => {
+    const response = await apiPost('/templates/import/dry-run', payload);
+    if (response?.success && response.data) {
+      setDryRun(response.data as TemplateDryRunResult);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -29,11 +42,12 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (!parsed.version || !parsed.name || !parsed.servers || !parsed.groups) {
+        if (!acceptPayload(parsed)) {
           setError(t('template.invalidFormat'));
           return;
         }
         setTemplate(parsed as ConfigTemplate);
+        void preview(parsed);
       } catch {
         setError(t('template.parseError'));
       }
@@ -50,11 +64,12 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
 
     try {
       const parsed = JSON.parse(input.trim());
-      if (!parsed.version || !parsed.name || !parsed.servers || !parsed.groups) {
+      if (!acceptPayload(parsed)) {
         setError(t('template.invalidFormat'));
         return;
       }
       setTemplate(parsed as ConfigTemplate);
+      void preview(parsed);
     } catch {
       setError(t('template.parseError'));
     }
@@ -120,6 +135,26 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
         )
       }
     >
+
+        {dryRun && (
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+            <p className="text-sm">
+              {t('template.dryRunSummary', {
+                added: dryRun.added,
+                changed: dryRun.changed,
+                removed: dryRun.removed,
+              })}
+            </p>
+            <ul className="mt-2 text-sm grant-preview-list">
+              {dryRun.details.slice(0, 20).map((row) => (
+                <li key={`${row.type}-${row.name}`}>
+                  {row.action === 'added' ? '+' : row.action === 'changed' ? '~' : row.action === 'removed' ? '-' : '='}{' '}
+                  {row.type} {row.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {error && <div className="ylune-error">{error}</div>}
 
@@ -196,22 +231,18 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
             {/* Template preview */}
             <div className="space-y-4">
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-                <h3 className="font-medium text-gray-900">{template.name}</h3>
+                <h3 className="font-medium text-gray-900">{template.name || t('backup.download')}</h3>
                 {template.description && (
                   <p className="text-sm text-gray-600 mt-1">{template.description}</p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('template.version')}: {template.version} | {t('template.createdAt')}:{' '}
-                  {new Date(template.createdAt).toLocaleDateString()}
-                </p>
               </div>
 
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  {t('template.servers')} ({Object.keys(template.servers).length})
+                  {t('template.servers')} ({Object.keys(template.servers || (template as { mcpServers?: object }).mcpServers || {}).length})
                 </h4>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-md divide-y divide-gray-200 dark:divide-gray-700 max-h-40 overflow-y-auto">
-                  {Object.entries(template.servers).map(([name, config]) => (
+                  {Object.entries(template.servers || (template as { mcpServers?: Record<string, { type?: string }> }).mcpServers || {}).map(([name, config]) => (
                     <div key={name} className="px-3 py-2">
                       <span className="text-sm font-medium text-gray-900">{name}</span>
                       <span className="text-xs text-gray-500 ml-2">
@@ -224,10 +255,10 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
 
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  {t('template.groups')} ({template.groups.length})
+                  {t('template.groups')} ({(template.groups || []).length})
                 </h4>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-md divide-y divide-gray-200 dark:divide-gray-700 max-h-40 overflow-y-auto">
-                  {template.groups.map((group, idx) => (
+                <div className="border border-gray-200 dark:bg-gray-700 rounded-md divide-y divide-gray-200 dark:divide-gray-700 max-h-40 overflow-y-auto">
+                  {(template.groups || []).map((group, idx) => (
                     <div key={idx} className="px-3 py-2">
                       <span className="text-sm font-medium text-gray-900">{group.name}</span>
                       {group.description && (
@@ -241,7 +272,7 @@ const TemplateImportForm: React.FC<TemplateImportFormProps> = ({ onSuccess, onCa
                 </div>
               </div>
 
-              {template.requiredEnvVars.length > 0 && (
+              {template.requiredEnvVars && template.requiredEnvVars.length > 0 && (
                 <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
                   <h4 className="text-sm font-medium text-orange-800">
                     {t('template.envVarsNeeded')}

@@ -68,6 +68,7 @@ describe('userService', () => {
         undefined,
         [],
         null,
+        { consoleEnabled: false, mcpEnabled: true },
       );
     });
 
@@ -89,6 +90,7 @@ describe('userService', () => {
         undefined,
         [],
         null,
+        { consoleEnabled: false, mcpEnabled: true },
       );
     });
 
@@ -111,6 +113,7 @@ describe('userService', () => {
         '值班',
         [],
         null,
+        { consoleEnabled: false, mcpEnabled: true },
       );
     });
 
@@ -134,6 +137,7 @@ describe('userService', () => {
         undefined,
         [],
         expires,
+        { consoleEnabled: false, mcpEnabled: true },
       );
     });
 
@@ -266,6 +270,17 @@ describe('userService', () => {
       mockFindByUsername.mockResolvedValue(undefined);
 
       await expect(rotateUserAccessToken('missing')).resolves.toBeNull();
+      expect(mockDeleteBearerKeysByOwner).not.toHaveBeenCalled();
+    });
+
+    it('does not rotate when MCP is disabled', async () => {
+      mockFindByUsername.mockResolvedValue({
+        username: 'ops',
+        isAdmin: true,
+        mcpEnabled: false,
+      });
+
+      await expect(rotateUserAccessToken('ops')).resolves.toBeNull();
       expect(mockDeleteBearerKeysByOwner).not.toHaveBeenCalled();
     });
 

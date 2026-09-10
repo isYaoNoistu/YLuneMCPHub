@@ -67,7 +67,7 @@ describe('ActivityLoggingService', () => {
     );
   });
 
-  it('stores tool input/output verbatim without redacting field values', async () => {
+  it('redacts Bearer tokens and secret field values before storing payloads', async () => {
     const activityLoggingService = getActivityLoggingService();
 
     await activityLoggingService.logToolCall({
@@ -80,10 +80,33 @@ describe('ActivityLoggingService', () => {
     });
 
     const persisted = mockCreate.mock.calls[0][0];
-    expect(persisted.input).toContain('Bearer real-token');
-    expect(persisted.input).toContain('sk-live-123');
-    expect(persisted.input).not.toContain('[REDACTED]');
-    expect(persisted.output).toContain('access_token=stays');
+    expect(persisted.input).toContain('[REDACTED]');
+    expect(persisted.input).not.toContain('Bearer real-token');
+    expect(persisted.output).not.toContain('access_token=stays');
+  });
+
+  it('persists resource chain fields with the tool call', async () => {
+    const activityLoggingService = getActivityLoggingService();
+
+    await activityLoggingService.logToolCall({
+      server: 'demo-server',
+      tool: 'query',
+      duration: 9,
+      status: 'success',
+      requestId: 'req-1',
+      targetName: 'energy-prod',
+      credentialName: 'pg-ro',
+      resourceGroupName: 'ops',
+    });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'req-1',
+        targetName: 'energy-prod',
+        credentialName: 'pg-ro',
+        resourceGroupName: 'ops',
+      }),
+    );
   });
 
   it('omits tool payloads when storeToolPayload is disabled', async () => {

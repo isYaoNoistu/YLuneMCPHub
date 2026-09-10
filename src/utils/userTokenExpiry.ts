@@ -20,11 +20,9 @@ export const parseTokenExpiresAt = (value: Date | string | null | undefined): Da
 
 export const isUserTokenExpired = (user: {
   isAdmin?: boolean;
+  mcpEnabled?: boolean;
   tokenExpiresAt?: Date | string | null;
 }): boolean => {
-  if (user.isAdmin) {
-    return false;
-  }
   const expiresAt = parseTokenExpiresAt(user.tokenExpiresAt);
   return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
 };
@@ -47,10 +45,11 @@ export const isCustomExpiryInPast = (input: {
 
 export const resolveTokenExpiresAt = (input: {
   isAdmin?: boolean;
+  mcpEnabled?: boolean;
   tokenLifetime?: string | null;
   tokenExpiresAt?: string | Date | null;
 }): Date | null => {
-  if (input.isAdmin) {
+  if (input.mcpEnabled === false) {
     return null;
   }
   if (input.tokenLifetime === 'permanent') {

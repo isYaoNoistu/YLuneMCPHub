@@ -53,6 +53,8 @@ services:
       NODE_ENV: production
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in deploy/.env}
       JWT_SECRET: ${JWT_SECRET:-}
+      YLUNE_MASTER_KEY: ${YLUNE_MASTER_KEY:-}
+      YLUNE_RUNTIME_TOKEN: ${YLUNE_RUNTIME_TOKEN:-}
       DB_URL: postgresql://ylune:${DB_PASSWORD}@postgres:5432/ylune
       USE_DB: "true"
       BASE_PATH: ${BASE_PATH:-}

@@ -19,18 +19,23 @@ const formatWhen = (iso?: string | null): string => {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
 };
 
-const isTokenExpired = (user: Pick<User, 'isAdmin' | 'tokenExpiresAt' | 'expired'>): boolean => {
-  if (user.isAdmin || !user.tokenExpiresAt) return false;
+const isTokenExpired = (
+  user: Pick<User, 'mcpEnabled' | 'tokenExpiresAt' | 'expired'>,
+): boolean => {
+  if (user.mcpEnabled === false || !user.tokenExpiresAt) return false;
   if (user.expired) return true;
   const expires = new Date(user.tokenExpiresAt).getTime();
   return !Number.isNaN(expires) && expires <= Date.now();
 };
 
 const tokenRemainingLabel = (
-  user: Pick<User, 'isAdmin' | 'tokenExpiresAt' | 'expired'>,
+  user: Pick<User, 'mcpEnabled' | 'tokenExpiresAt' | 'expired'>,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string => {
-  if (user.isAdmin || !user.tokenExpiresAt) {
+  if (user.mcpEnabled === false) {
+    return t('users.adminNoMcp');
+  }
+  if (!user.tokenExpiresAt) {
     return t('users.tokenNeverExpires');
   }
   if (isTokenExpired(user)) {

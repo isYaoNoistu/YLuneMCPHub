@@ -12,13 +12,14 @@ describe('userTokenExpiry', () => {
     expect(isUserTokenExpired({})).toBe(false);
   });
 
-  it('does not expire admin tokens', () => {
+  it('expires an admin MCP key when the timestamp is past', () => {
     expect(
       isUserTokenExpired({
         isAdmin: true,
+        mcpEnabled: true,
         tokenExpiresAt: new Date(Date.now() - 60_000),
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('marks a past timestamp as expired', () => {
@@ -35,11 +36,11 @@ describe('userTokenExpiry', () => {
     expect(expires!.getTime()).toBeLessThanOrEqual(after + sevenDays + 50);
   });
 
-  it('resolves permanent and admin to null', () => {
+  it('resolves permanent and mcp-disabled accounts to null', () => {
     expect(resolveTokenExpiresAt({ tokenLifetime: 'permanent' })).toBeNull();
     expect(
       resolveTokenExpiresAt({
-        isAdmin: true,
+        mcpEnabled: false,
         tokenLifetime: '7d',
       }),
     ).toBeNull();

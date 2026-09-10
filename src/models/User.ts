@@ -132,7 +132,10 @@ export const initializeDefaultUser = async (): Promise<void> => {
 
   if (users.length === 0) {
     const createDefaultAdmin = async (password: string): Promise<void> => {
-      await userDao.createWithHashedPassword('admin', password, true);
+      await userDao.createWithHashedPassword('admin', password, true, undefined, undefined, undefined, [], null, {
+        consoleEnabled: true,
+        mcpEnabled: true,
+      });
       logger.log('Default admin user created');
     };
 

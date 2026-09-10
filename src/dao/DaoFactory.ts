@@ -7,6 +7,10 @@ import { OAuthClientDao, OAuthClientDaoImpl } from './OAuthClientDao.js';
 import { OAuthTokenDao, OAuthTokenDaoImpl } from './OAuthTokenDao.js';
 import { BearerKeyDao, BearerKeyDaoImpl } from './BearerKeyDao.js';
 import { ActivityDao } from './ActivityDao.js';
+import { CredentialDao } from './CredentialDao.js';
+import { ResourceDao } from './ResourceDao.js';
+import { AdminAuditDao } from './AdminAuditDao.js';
+import { ToolInventoryDao } from './ToolInventoryDao.js';
 import { BuiltinPromptDao, BuiltinPromptDaoImpl } from './BuiltinPromptDao.js';
 import { BuiltinResourceDao, BuiltinResourceDaoImpl } from './BuiltinResourceDao.js';
 import { logger } from '../utils/logger.js';
@@ -26,6 +30,10 @@ export interface DaoFactory {
   getBuiltinPromptDao(): BuiltinPromptDao;
   getBuiltinResourceDao(): BuiltinResourceDao;
   getActivityDao?(): ActivityDao; // Optional - only available in database mode
+  getCredentialDao?(): CredentialDao; // Optional - only available in database mode
+  getResourceDao?(): ResourceDao;
+  getAdminAuditDao?(): AdminAuditDao;
+  getToolInventoryDao?(): ToolInventoryDao;
 }
 
 /**
@@ -231,9 +239,29 @@ export function getActivityDao(): ActivityDao | undefined {
   return getDaoFactory().getActivityDao?.();
 }
 
+export function getCredentialDao(): CredentialDao | undefined {
+  return getDaoFactory().getCredentialDao?.();
+}
+
+export function getResourceDao(): ResourceDao | undefined {
+  return getDaoFactory().getResourceDao?.();
+}
+
+export function getAdminAuditDao(): AdminAuditDao | undefined {
+  return getDaoFactory().getAdminAuditDao?.();
+}
+
+export function getToolInventoryDao(): ToolInventoryDao | undefined {
+  return getDaoFactory().getToolInventoryDao?.();
+}
+
 /**
  * Check if activity logging is available (database mode only)
  */
 export function isActivityLoggingEnabled(): boolean {
   return typeof getDaoFactory().getActivityDao === 'function';
+}
+
+export function isCredentialStoreEnabled(): boolean {
+  return typeof getDaoFactory().getCredentialDao === 'function';
 }

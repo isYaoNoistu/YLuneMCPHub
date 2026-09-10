@@ -10,6 +10,13 @@ import BearerKey from './BearerKey.js';
 import Activity from './Activity.js';
 import BuiltinPrompt from './BuiltinPrompt.js';
 import BuiltinResource from './BuiltinResource.js';
+import Credential from './Credential.js';
+import ResourceTarget from './ResourceTarget.js';
+import ResourceGroup from './ResourceGroup.js';
+import ResourceGroupItem from './ResourceGroupItem.js';
+import UserResourceGroup from './UserResourceGroup.js';
+import AdminAuditLog from './AdminAuditLog.js';
+import ToolInventoryBaseline from './ToolInventoryBaseline.js';
 
 // Export all entities
 export default [
@@ -25,6 +32,13 @@ export default [
   Activity,
   BuiltinPrompt,
   BuiltinResource,
+  Credential,
+  ResourceTarget,
+  ResourceGroup,
+  ResourceGroupItem,
+  UserResourceGroup,
+  AdminAuditLog,
+  ToolInventoryBaseline,
 ];
 
 // Export individual entities for direct use
@@ -41,4 +55,11 @@ export {
   Activity,
   BuiltinPrompt,
   BuiltinResource,
+  Credential,
+  ResourceTarget,
+  ResourceGroup,
+  ResourceGroupItem,
+  UserResourceGroup,
+  AdminAuditLog,
+  ToolInventoryBaseline,
 };

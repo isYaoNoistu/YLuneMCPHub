@@ -4,7 +4,9 @@ import {
   exportTemplate,
   exportGroupTemplate,
   importTemplate,
+  dryRunImportTemplate,
 } from '../services/templateService.js';
+import { recordAdminAuditFromRequest } from '../services/adminAuditService.js';
 
 // Export full configuration template
 export const exportConfigTemplate = async (req: Request, res: Response): Promise<void> => {
@@ -97,6 +99,17 @@ export const importConfigTemplate = async (req: Request, res: Response): Promise
     const owner = currentUser?.username || 'admin';
 
     const result = await importTemplate(template, owner, currentUser);
+    if (result.success) {
+      await recordAdminAuditFromRequest(req, {
+        action: 'config.import',
+        resourceType: 'template',
+        resourceId: typeof template?.name === 'string' ? template.name : 'import',
+        after: {
+          serversCreated: result.serversCreated,
+          groupsCreated: result.groupsCreated,
+        },
+      });
+    }
 
     const statusCode = result.success ? 200 : 400;
     res.status(statusCode).json({
@@ -113,3 +126,29 @@ export const importConfigTemplate = async (req: Request, res: Response): Promise
     } as ApiResponse);
   }
 };
+
+export const dryRunConfigTemplate = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const template = req.body;
+
+    if (!template || typeof template !== 'object') {
+      res.status(400).json({
+        success: false,
+        message: 'Template data is required in request body',
+      } as ApiResponse);
+      return;
+    }
+
+    const data = await dryRunImportTemplate(template);
+    res.status(data.success ? 200 : 400).json({
+      success: data.success,
+      data,
+    } as ApiResponse);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to preview configuration template',
+    } as ApiResponse);
+  }
+};
+

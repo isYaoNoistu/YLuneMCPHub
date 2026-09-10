@@ -139,7 +139,7 @@ const ServersPage: React.FC = () => {
         </div>
       )}
 
-      <ToolChangeBanner servers={allServers} />
+      <ToolChangeBanner />
 
       <div className="servers-toolbar">
         <div className="servers-filters">

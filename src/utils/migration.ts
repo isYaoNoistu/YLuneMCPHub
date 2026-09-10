@@ -15,6 +15,7 @@ import { BearerKeyRepository } from '../db/repositories/BearerKeyRepository.js';
 import { BuiltinPromptRepository } from '../db/repositories/BuiltinPromptRepository.js';
 import { BuiltinResourceRepository } from '../db/repositories/BuiltinResourceRepository.js';
 import { logger } from './logger.js';
+import { resolveAccountFlags } from './userAccount.js';
 
 /**
  * Migrate from file-based configuration to database
@@ -49,10 +50,13 @@ export async function migrateToDatabase(): Promise<boolean> {
       for (const user of settings.users) {
         const exists = await userRepo.exists(user.username);
         if (!exists) {
+          const flags = resolveAccountFlags(user);
           await userRepo.create({
             username: user.username,
             password: user.password,
-            isAdmin: user.isAdmin || false,
+            isAdmin: flags.isAdmin,
+            consoleEnabled: flags.consoleEnabled,
+            mcpEnabled: flags.mcpEnabled,
             email: user.email ?? null,
             ssoUserId: (user as any).ssoUserId ?? null,
             remark: user.remark ?? null,

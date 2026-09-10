@@ -5,7 +5,10 @@ import { useUserData } from '@/hooks/useUserData';
 import { useServerData } from '@/hooks/useServerData';
 import { useAuth } from '@/contexts/AuthContext';
 import { countGrantedTools, summarizeGrants } from '@/utils/grantPreview';
+import { isExpiredUser, isExpiringSoon } from '@/utils/expiryCenter';
+import { copyUserGrants } from '@/services/opsService';
 import AddUserForm from '@/components/AddUserForm';
+import AddAdminForm from '@/components/AddAdminForm';
 import EditUserForm from '@/components/EditUserForm';
 import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw, Clock, KeyRound } from 'lucide-react';
 import ExpiryCenter from '@/components/ExpiryCenter';
@@ -43,13 +46,36 @@ const UsersPage: React.FC = () => {
   const [renewCustomAt, setRenewCustomAt] = useState('');
   const [renewBusy, setRenewBusy] = useState(false);
   const [pastAlertOpen, setPastAlertOpen] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState<'mcp' | 'admin' | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const { allServers } = useServerData();
   const [rotatingUser, setRotatingUser] = useState<User | null>(null);
   const [rotatedToken, setRotatedToken] = useState<{ username: string; token: string } | null>(
     null,
   );
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'ok' | 'expiring' | 'expired' | 'noGrants' | 'admin'>(
+    'all',
+  );
+  const [copyingUser, setCopyingUser] = useState<User | null>(null);
+  const [copyFrom, setCopyFrom] = useState('');
+
+  const filteredUsers = users.filter((user) => {
+    const haystack = `${user.username} ${user.remark || ''}`.toLowerCase();
+    if (query.trim() && !haystack.includes(query.trim().toLowerCase())) {
+      return false;
+    }
+    const mcpOn = user.mcpEnabled !== false;
+    const expired = isExpiredUser(user);
+    const expiring = isExpiringSoon(user, 7);
+    const noGrants = !user.isAdmin && (!user.grants || user.grants.length === 0);
+    if (filter === 'ok') return mcpOn && !expired && !expiring;
+    if (filter === 'expiring') return expiring;
+    if (filter === 'expired') return expired;
+    if (filter === 'noGrants') return noGrants;
+    if (filter === 'admin') return Boolean(user.isAdmin);
+    return true;
+  });
 
   if (!currentUser?.isAdmin) {
     return (
@@ -79,8 +105,11 @@ const UsersPage: React.FC = () => {
           >
             <RefreshCw size={13} /> {t('common.refresh')}
           </button>
-          <button className="hub-btn primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={13} /> {t('users.add')}
+          <button className="hub-btn" onClick={() => setShowAddForm('mcp')}>
+            <Plus size={13} /> {t('users.addMcp')}
+          </button>
+          <button className="hub-btn primary" onClick={() => setShowAddForm('admin')}>
+            <Plus size={13} /> {t('users.addAdmin')}
           </button>
         </div>
       </div>
@@ -114,18 +143,47 @@ const UsersPage: React.FC = () => {
         }}
       />
 
+      <div className="flex flex-wrap gap-2 mb-4">
+        <input
+          className="hub-input"
+          style={{ maxWidth: 280 }}
+          placeholder={t('users.searchPlaceholder')}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        {(
+          [
+            ['all', t('users.filterAll')],
+            ['ok', t('users.filterOk')],
+            ['expiring', t('users.filterExpiring')],
+            ['expired', t('users.filterExpired')],
+            ['noGrants', t('users.filterNoGrants')],
+            ['admin', t('users.filterAdmin')],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`hub-btn${filter === id ? ' primary' : ''}`}
+            onClick={() => setFilter(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {usersLoading ? (
         <div className="hub-card p-10 text-center" style={{ color: 'var(--hub-ink-3)' }}>
           {t('app.loading')}
         </div>
-      ) : users.length === 0 ? (
+      ) : filteredUsers.length === 0 ? (
         <div className="hub-card">
           <div className="hub-empty">
             <div className="hub-empty-icon">
               <UserIcon size={18} />
             </div>
             <p className="hub-empty-title">{t('users.noUsers')}</p>
-            <button type="button" onClick={() => setShowAddForm(true)} className="hub-empty-link">
+            <button type="button" onClick={() => setShowAddForm('mcp')} className="hub-empty-link">
               {t('users.addFirst')}
             </button>
           </div>
@@ -140,9 +198,10 @@ const UsersPage: React.FC = () => {
             <div>mcp.json</div>
             <div className="text-right">{t('users.actions')}</div>
           </div>
-          {users.map((user) => {
+          {filteredUsers.map((user) => {
             const isCurrentUser = currentUser?.username === user.username;
-            const expired = user.expired === true;
+            const mcpOn = user.mcpEnabled !== false;
+            const expired = mcpOn && user.expired === true;
             const grantRows = summarizeGrants(user.grants, allServers, user.isAdmin);
             return (
               <div
@@ -178,6 +237,16 @@ const UsersPage: React.FC = () => {
                           {t('users.currentUser')}
                         </span>
                       )}
+                      {user.isAdmin && (
+                        <span className="hub-tag accent" style={{ fontSize: 10 }}>
+                          {user.mcpEnabled === false ? t('users.roleConsole') : t('users.roleBoth')}
+                        </span>
+                      )}
+                      {!user.isAdmin && (
+                        <span className="hub-tag muted" style={{ fontSize: 10 }}>
+                          {t('users.roleMcp')}
+                        </span>
+                      )}
                       {expired && (
                         <span className="hub-tag muted" style={{ fontSize: 10 }}>
                           {t('users.tokenExpired')}
@@ -210,25 +279,47 @@ const UsersPage: React.FC = () => {
                       color: expired ? 'var(--hub-err)' : 'var(--hub-ink-3)',
                     }}
                   >
-                    {user.isAdmin || !user.tokenExpiresAt
-                      ? t('users.tokenNeverExpires')
-                      : t('users.tokenValidUntil', {
-                          time: new Date(user.tokenExpiresAt).toLocaleString(),
-                        })}
+                    {!mcpOn
+                      ? t('users.adminNoMcp')
+                      : !user.tokenExpiresAt
+                        ? t('users.tokenNeverExpires')
+                        : t('users.tokenValidUntil', {
+                            time: new Date(user.tokenExpiresAt).toLocaleString(),
+                          })}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <SecretReveal
-                    variant="plain"
-                    value={user.token}
-                    emptyLabel={t('users.tokenMissing')}
-                  />
+                  {mcpOn ? (
+                    <SecretReveal
+                      variant="plain"
+                      value={user.token}
+                      emptyLabel={t('users.tokenMissing')}
+                    />
+                  ) : (
+                    <span className="ylune-help">{t('users.adminNoMcp')}</span>
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <McpJsonPanel username={user.username} token={user.token} compact />
+                  {mcpOn && user.token ? (
+                    <McpJsonPanel username={user.username} token={user.token} compact />
+                  ) : (
+                    <span className="ylune-help">—</span>
+                  )}
                 </div>
                 <div className="flex justify-end gap-1">
-                  {!user.isAdmin && (
+                  {mcpOn && (
+                    <button
+                      onClick={() => {
+                        setCopyingUser(user);
+                        setCopyFrom('');
+                      }}
+                      className="hub-icon-btn sm"
+                      title={t('users.copyGrants')}
+                    >
+                      <RefreshCw size={13} />
+                    </button>
+                  )}
+                  {mcpOn && (
                     <button
                       onClick={() => {
                         setRenewingUser(user);
@@ -241,7 +332,7 @@ const UsersPage: React.FC = () => {
                       <Clock size={13} />
                     </button>
                   )}
-                  {!user.isAdmin && (
+                  {mcpOn && (
                     <button
                       onClick={() => setRotatingUser(user)}
                       className="hub-icon-btn sm"
@@ -274,13 +365,22 @@ const UsersPage: React.FC = () => {
         </div>
       )}
 
-      {showAddForm && (
+      {showAddForm === 'mcp' && (
         <AddUserForm
           onAdd={() => {
-            setShowAddForm(false);
+            setShowAddForm(null);
             triggerRefresh();
           }}
-          onCancel={() => setShowAddForm(false)}
+          onCancel={() => setShowAddForm(null)}
+        />
+      )}
+      {showAddForm === 'admin' && (
+        <AddAdminForm
+          onAdd={() => {
+            setShowAddForm(null);
+            triggerRefresh();
+          }}
+          onCancel={() => setShowAddForm(null)}
         />
       )}
 
@@ -399,6 +499,59 @@ const UsersPage: React.FC = () => {
             <McpJsonPanel username={rotatedToken.username} token={rotatedToken.token} />
           </div>
         </YluneDialog>
+      )}
+
+      {copyingUser && (
+        <div className="ylune-dialog-backdrop">
+          <div className="ylune-dialog">
+            <div className="ylune-dialog-head">
+              <h2 className="ylune-dialog-title">
+                {t('users.copyGrants')} · {copyingUser.username}
+              </h2>
+            </div>
+            <div className="ylune-dialog-body">
+              <p className="ylune-help" style={{ marginTop: 0 }}>
+                {t('users.copyGrantsHint', { username: copyingUser.username })}
+              </p>
+              <label className="ylune-label">{t('users.copyFrom')}</label>
+              <select
+                className="hub-input"
+                value={copyFrom}
+                onChange={(event) => setCopyFrom(event.target.value)}
+              >
+                <option value="">{t('users.copyFrom')}</option>
+                {users
+                  .filter((user) => user.username !== copyingUser.username)
+                  .map((user) => (
+                    <option key={user.username} value={user.username}>
+                      {user.username}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="ylune-dialog-foot">
+              <button type="button" className="hub-btn" onClick={() => setCopyingUser(null)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="hub-btn primary"
+                disabled={!copyFrom}
+                onClick={async () => {
+                  const result = await copyUserGrants(copyingUser.username, copyFrom);
+                  if (result?.success) {
+                    setCopyingUser(null);
+                    triggerRefresh();
+                  } else {
+                    setUserError(result?.message || t('users.updateError'));
+                  }
+                }}
+              >
+                {t('users.copyGrants')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <DeleteDialog

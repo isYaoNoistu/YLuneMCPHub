@@ -65,6 +65,8 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `ADMIN_PASSWORD` | 自己设的强密码 | **是** | 仅在库里还没有管理员时用来创建 `admin`。已经有管理员后，改这个变量**不会**改库里的密码，请在控制台改。 |
 | `DB_PASSWORD` | 自己设 | **是** | 容器内 Postgres 口令，同时写进 `DB_URL`。请用字母数字，不要用 `@` `:` `/` `#`，否则连接串会断。 |
 | `JWT_SECRET` | 长随机串 | 否 | 登录 JWT 签名。不设则每次启动用临时密钥，重启后要重新登录。生产请设。 |
+| `YLUNE_MASTER_KEY` | `openssl rand -base64 32` | 写凭据时是 | 凭据中心 AES-256-GCM 主密钥，只放进程环境。不设时列表仍可读，创建 / 替换 / 试连失败，不会把明文写进库。已有服务器要在 `.env` 里补这项。 |
+| `YLUNE_RUNTIME_TOKEN` | 长随机串 | 兑换租约时是 | MCP 运行时调用 `POST /internal/v1/credential-leases/:id/resolve` 的 Bearer。不设则该接口 503。不要提交进 git。 |
 | `BASE_PATH` | 留空 或 `/ylune` | 否 | 只有 Nginx / 网关把月弦挂在子路径时才填。填了必须和 Nginx `location` 一致。 |
 | `NPM_REGISTRY` | `https://registry.npmmirror.com` | 否 | **构建和运行**都用。构建时传给 Dockerfile；容器启动时 `entrypoint.sh` 再设一次。海外可改回 `https://registry.npmjs.org/` |
 | `DEBIAN_MIRROR` | `https://mirrors.aliyun.com/debian` | 否 | 构建时替换 Debian 软件源。海外可改 `https://deb.debian.org/debian` |
@@ -273,8 +275,8 @@ docker compose --profile https exec nginx-https nginx -s reload
 **打开 :3000 显示 Frontend not found / 日志 `UI is not available`**  
 镜像其实已经编过前端。旧代码只认 `package.json` 名叫 `mcphub` / `@samanhappy/mcphub`，本仓库是 `@ylune/mcphub`，进程找不到包根目录就不挂静态页。拉到识别 `@ylune/mcphub` 的提交后 `docker compose up -d --build`。
 
-**日志里 `mcp_settings.json` ENOENT**  
-数据库模式下配置在 Postgres。`.dockerignore` 不把这份 JSON 打进镜像，启动时 Json DAO 会先报一次再切到库。后面有 `Empty database: ... starting with database only` 或 `Database mode initialized` 就算正常。
+**日志里 `mcp_settings.json` ENOENT / Failed to load settings**  
+数据库模式下配置在 Postgres，镜像里本来就没有这份 JSON。启动早期还会走一遍 Json DAO，缺失文件只记 debug，不再打成 error。后面有 `Database mode enabled` / `Database connection established` 就算正常。不要为了消日志把 JSON 挂进容器。
 
 **日志里 `extension "vector" is not available`**  
 当前用的是官方 `postgres:16`，没有 pgvector。控制台和 `/mcp` 能用；只有 `$smart` 智能路由才需要把 `POSTGRES_IMAGE` 改成 `pgvector/pgvector:pg16`（不要直接拿 16 的数据目录升 17）。

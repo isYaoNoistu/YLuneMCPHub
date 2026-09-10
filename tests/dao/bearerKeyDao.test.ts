@@ -12,12 +12,18 @@ describe('BearerKeyDaoImpl migration + settings caching behavior', () => {
   let tmpDir: string;
   let settingsPath: string;
   let originalSettingsEnv: string | undefined;
+  let originalDbUrl: string | undefined;
+  let originalUseDb: string | undefined;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcphub-bearer-keys-'));
     settingsPath = path.join(tmpDir, 'mcp_settings.json');
 
     originalSettingsEnv = process.env.MCPHUB_SETTING_PATH;
+    originalDbUrl = process.env.DB_URL;
+    originalUseDb = process.env.USE_DB;
+    delete process.env.DB_URL;
+    delete process.env.USE_DB;
     process.env.MCPHUB_SETTING_PATH = settingsPath;
   });
 
@@ -26,6 +32,16 @@ describe('BearerKeyDaoImpl migration + settings caching behavior', () => {
       delete process.env.MCPHUB_SETTING_PATH;
     } else {
       process.env.MCPHUB_SETTING_PATH = originalSettingsEnv;
+    }
+    if (originalDbUrl === undefined) {
+      delete process.env.DB_URL;
+    } else {
+      process.env.DB_URL = originalDbUrl;
+    }
+    if (originalUseDb === undefined) {
+      delete process.env.USE_DB;
+    } else {
+      process.env.USE_DB = originalUseDb;
     }
 
     try {

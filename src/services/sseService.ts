@@ -18,6 +18,7 @@ import { isGroupRouteAllowed } from './groupAccessService.js';
 import { RequestContextService } from './requestContextService.js';
 import { IUser, BearerKey, BearerKeyKind } from '../types/index.js';
 import { isUserTokenExpired } from '../utils/userTokenExpiry.js';
+import { isMcpEnabled } from '../utils/userAccount.js';
 import { resolveOAuthUserFromToken } from '../utils/oauthBearer.js';
 import { safeCompare } from '../utils/safeCompare.js';
 import { getBearerAuthHeaderValue, getBearerTokenFromHeaders } from '../utils/bearerAuth.js';
@@ -133,7 +134,7 @@ type BearerAuthResult =
     }
   | {
       valid: false;
-      reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable' | 'expired';
+      reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable' | 'expired' | 'disabled';
     };
 
 /**
@@ -297,7 +298,7 @@ export const isBearerKeyAllowedForRequest = async (
   }
 };
 
-const resolveUserLevelKeyUser = async (req: Request, key: BearerKey): Promise<BearerAuthResult> => {
+export const resolveUserLevelKeyUser = async (req: Request, key: BearerKey): Promise<BearerAuthResult> => {
   if (key.kind !== 'user') {
     return { valid: true, keyId: key.id, keyName: key.name, kind: key.kind || 'system' };
   }
@@ -309,6 +310,9 @@ const resolveUserLevelKeyUser = async (req: Request, key: BearerKey): Promise<Be
   const user = await getUserDao().findByUsername(key.owner);
   if (!user) {
     return { valid: false, reason: 'invalid' };
+  }
+  if (!isMcpEnabled(user)) {
+    return { valid: false, reason: 'disabled' };
   }
   if (isUserTokenExpired(user)) {
     return { valid: false, reason: 'expired' };
@@ -532,8 +536,16 @@ const buildResourceMetadataUrl = (req: Request): string | undefined => {
 const sendBearerAuthError = (
   req: Request,
   res: Response,
-  reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable' | 'expired',
+  reason: 'missing' | 'invalid' | 'forbidden' | 'unavailable' | 'expired' | 'disabled',
 ): void => {
+  if (reason === 'disabled') {
+    res.status(403).json({
+      error: 'forbidden',
+      error_description: 'MCP access is disabled for this user',
+    });
+    return;
+  }
+
   if (reason === 'expired') {
     res.status(401).json({
       error: 'invalid_token',

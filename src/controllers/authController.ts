@@ -8,7 +8,7 @@ import { DataService } from '../services/dataService.js';
 import { JWT_SECRET } from '../config/jwt.js';
 import { validatePasswordStrength, isDefaultPassword } from '../utils/passwordValidation.js';
 import { getPackageVersion } from '../utils/version.js';
-import { isUserTokenExpired } from '../utils/userTokenExpiry.js';
+import { isConsoleEnabled } from '../utils/userAccount.js';
 import {
   DUMMY_PASSWORD_HASH,
   LOGIN_PASSWORD_MAX,
@@ -69,11 +69,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (isUserTokenExpired(user)) {
+    if (!isConsoleEnabled(user)) {
       res.setHeader('Cache-Control', 'no-store');
-      res.status(401).json({
+      res.status(403).json({
         success: false,
-        message: t('api.errors.user_token_expired'),
+        message: t('api.errors.console_login_disabled'),
       });
       return;
     }
@@ -92,17 +92,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       user.username === 'admin' && user.isAdmin && isDefaultPassword(password) && version !== 'dev';
 
     const sessionUser = await toSessionUser(user, dataService.getPermissions(user));
-
-    jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY }, (err, token) => {
-      if (err) throw err;
-      res.setHeader('Cache-Control', 'no-store');
-      res.json({
-        success: true,
-        message: t('api.success.login_successful'),
-        token,
-        user: sessionUser,
-        isUsingDefaultPassword,
-      });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      success: true,
+      message: t('api.success.login_successful'),
+      token,
+      user: sessionUser,
+      isUsingDefaultPassword,
     });
   } catch (error) {
     logger.error('Login error:', error);

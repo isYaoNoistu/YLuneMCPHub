@@ -3,6 +3,7 @@ import { IGroupServerConfig, IUser } from '../types/index.js';
 import { getActivityDao, getBearerKeyDao, getUserDao } from '../dao/index.js';
 import { logger } from '../utils/logger.js';
 import { isUserTokenExpired, serializeTokenExpiresAt } from '../utils/userTokenExpiry.js';
+import { isMcpEnabled, resolveAccountFlags } from '../utils/userAccount.js';
 
 export const USER_ACCESS_TOKEN_PREFIX = 'ylune_';
 const USER_ACCESS_TOKEN_PATTERN = /^(ylune|mcphub)_[a-fA-F0-9]{64}$/;
@@ -23,7 +24,7 @@ export const getUserAccessToken = async (username: string): Promise<string | und
 
 export const rotateUserAccessToken = async (username: string): Promise<string | null> => {
   const user = await getUserDao().findByUsername(username);
-  if (!user) {
+  if (!user || !isMcpEnabled(user)) {
     return null;
   }
   await getBearerKeyDao().deleteByOwner(username);
@@ -70,13 +71,15 @@ export const toPublicUser = async (
   }
 > => {
   const { password: _, ...rest } = user;
+  const flags = resolveAccountFlags(user);
   return {
     ...rest,
+    ...flags,
     tokenExpiresAt: serializeTokenExpiresAt(user.tokenExpiresAt),
     createdAt: serializeTokenExpiresAt(user.createdAt),
     lastCalledAt: null,
     expired: isUserTokenExpired(user),
-    token: await getUserAccessToken(user.username),
+    token: flags.mcpEnabled ? await getUserAccessToken(user.username) : undefined,
   };
 };
 
@@ -108,17 +111,22 @@ export const toSessionUser = async (
   isAdmin: boolean;
   permissions: string[];
   grants: IGroupServerConfig[];
+  consoleEnabled: boolean;
+  mcpEnabled: boolean;
   tokenExpiresAt: string | null;
   expired: boolean;
   createdAt: string | null;
   lastCalledAt: string | null;
 }> => {
+  const flags = resolveAccountFlags(user);
   const [withLast] = await attachLastCalledAt([
     {
       username: user.username,
-      isAdmin: Boolean(user.isAdmin),
+      isAdmin: flags.isAdmin,
+      consoleEnabled: flags.consoleEnabled,
+      mcpEnabled: flags.mcpEnabled,
       permissions,
-      grants: user.isAdmin ? [] : user.grants || [],
+      grants: flags.isAdmin ? [] : user.grants || [],
       tokenExpiresAt: serializeTokenExpiresAt(user.tokenExpiresAt),
       expired: isUserTokenExpired(user),
       createdAt: serializeTokenExpiresAt(user.createdAt),
@@ -192,6 +200,7 @@ export const createNewUser = async (
   remark?: string,
   grants?: IGroupServerConfig[],
   tokenExpiresAt?: Date | null,
+  account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
 ): Promise<IUser | null> => {
   try {
     const reservedError = checkReservedUsername(username);
@@ -206,15 +215,17 @@ export const createNewUser = async (
       return null; // User already exists
     }
 
+    const flags = resolveAccountFlags({ isAdmin, ...account });
     return await userDao.createWithHashedPassword(
       username,
       password,
-      isAdmin,
+      flags.isAdmin,
       email || undefined,
       undefined,
       remark?.trim() || undefined,
       grants ?? [],
-      isAdmin ? null : tokenExpiresAt ?? null,
+      flags.mcpEnabled ? tokenExpiresAt ?? null : null,
+      { consoleEnabled: flags.consoleEnabled, mcpEnabled: flags.mcpEnabled },
     );
   } catch (error) {
     logger.error('Failed to create user:', error);
@@ -227,6 +238,8 @@ export const updateUser = async (
   username: string,
   data: {
     isAdmin?: boolean;
+    consoleEnabled?: boolean;
+    mcpEnabled?: boolean;
     newPassword?: string;
     email?: string;
     remark?: string;
@@ -245,6 +258,20 @@ export const updateUser = async (
     // Update admin status if provided
     if (data.isAdmin !== undefined) {
       const result = await userDao.update(username, { isAdmin: data.isAdmin });
+      if (!result) {
+        return null;
+      }
+    }
+
+    if (data.consoleEnabled !== undefined) {
+      const result = await userDao.update(username, { consoleEnabled: data.consoleEnabled });
+      if (!result) {
+        return null;
+      }
+    }
+
+    if (data.mcpEnabled !== undefined) {
+      const result = await userDao.update(username, { mcpEnabled: data.mcpEnabled });
       if (!result) {
         return null;
       }
@@ -273,8 +300,9 @@ export const updateUser = async (
     }
 
     if (data.tokenExpiresAt !== undefined) {
+      const nextMcpEnabled = data.mcpEnabled ?? user.mcpEnabled;
       const result = await userDao.update(username, {
-        tokenExpiresAt: user.isAdmin || data.isAdmin ? null : data.tokenExpiresAt,
+        tokenExpiresAt: nextMcpEnabled === false ? null : data.tokenExpiresAt,
       });
       if (!result) {
         return null;
@@ -340,4 +368,22 @@ export const getAdminCount = async (): Promise<number> => {
   const userDao = getUserDao();
   const admins = await userDao.findAdmins();
   return admins.length;
+};
+
+/** After schema add: keep existing admins able to open the console. */
+export const backfillAccountFlags = async (): Promise<void> => {
+  const userDao = getUserDao();
+  const users = await userDao.findAll();
+  for (const user of users) {
+    const patch: Partial<IUser> = {};
+    if (user.isAdmin && user.consoleEnabled !== true) {
+      patch.consoleEnabled = true;
+    }
+    if (user.mcpEnabled === undefined || user.mcpEnabled === null) {
+      patch.mcpEnabled = true;
+    }
+    if (Object.keys(patch).length > 0) {
+      await userDao.update(user.username, patch);
+    }
+  }
 };

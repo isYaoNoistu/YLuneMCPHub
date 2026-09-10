@@ -4,6 +4,7 @@ import { IGroupServerConfig, IUser } from '../types/index.js';
 import { UserRepository } from '../db/repositories/UserRepository.js';
 import { User } from '../db/entities/User.js';
 import { parseTokenExpiresAt } from '../utils/userTokenExpiry.js';
+import { resolveAccountFlags } from '../utils/userAccount.js';
 
 /**
  * Database-backed implementation of UserDao
@@ -16,10 +17,13 @@ export class UserDaoDbImpl implements UserDao {
   }
 
   private toIUser(u: User): IUser {
+    const flags = resolveAccountFlags(u);
     return {
       username: u.username,
       password: u.password,
-      isAdmin: u.isAdmin,
+      isAdmin: flags.isAdmin,
+      consoleEnabled: flags.consoleEnabled,
+      mcpEnabled: flags.mcpEnabled,
       email: u.email ?? undefined,
       ssoUserId: u.ssoUserId ?? undefined,
       remark: u.remark ?? undefined,
@@ -57,10 +61,13 @@ export class UserDaoDbImpl implements UserDao {
   }
 
   async create(entity: Omit<IUser, 'id'>): Promise<IUser> {
+    const flags = resolveAccountFlags(entity);
     const user = await this.repository.create({
       username: entity.username,
       password: entity.password,
-      isAdmin: entity.isAdmin || false,
+      isAdmin: flags.isAdmin,
+      consoleEnabled: flags.consoleEnabled,
+      mcpEnabled: flags.mcpEnabled,
       email: entity.email ?? null,
       ssoUserId: entity.ssoUserId ?? null,
       remark: entity.remark ?? null,
@@ -79,12 +86,15 @@ export class UserDaoDbImpl implements UserDao {
     remark?: string,
     grants?: IGroupServerConfig[],
     tokenExpiresAt?: Date | null,
+    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
   ): Promise<IUser> {
     const hashedPassword = await bcrypt.hash(password, 10);
     return await this.create({
       username,
       password: hashedPassword,
       isAdmin,
+      consoleEnabled: account?.consoleEnabled,
+      mcpEnabled: account?.mcpEnabled,
       email,
       ssoUserId,
       remark,
@@ -97,6 +107,8 @@ export class UserDaoDbImpl implements UserDao {
     const updateData: any = {};
     if (entity.password !== undefined) updateData.password = entity.password;
     if (entity.isAdmin !== undefined) updateData.isAdmin = entity.isAdmin;
+    if (entity.consoleEnabled !== undefined) updateData.consoleEnabled = entity.consoleEnabled;
+    if (entity.mcpEnabled !== undefined) updateData.mcpEnabled = entity.mcpEnabled;
     if (entity.email !== undefined) updateData.email = entity.email ?? null;
     if (entity.ssoUserId !== undefined) updateData.ssoUserId = entity.ssoUserId ?? null;
     if (entity.remark !== undefined) updateData.remark = entity.remark ?? null;

@@ -126,6 +126,10 @@
   opacity: 0.45;
 }
 
+.credentials-table .hub-row {
+  grid-template-columns: minmax(140px, 1.1fr) minmax(120px, 0.8fr) minmax(100px, 0.7fr) minmax(100px, 0.6fr) minmax(90px, 0.5fr) minmax(180px, auto);
+}
+
 .token-lifetime-options {
   display: flex;
   flex-wrap: wrap;

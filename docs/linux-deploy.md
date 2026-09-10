@@ -73,7 +73,7 @@ cd deploy
 docker compose up -d --build
 ```
 
-本版起普通用户按「用户」页勾 MCP / 工具授权，不再靠分组。启动时若用户还没有 `grants` 字段，会从旧分组成员抄一次；已经是空清单的不会再覆盖。发版后打开 **用户** 核对授权，再复制 `mcp.json`（可反复复制）。智能体只连 `/mcp` + 该用户 Key。
+本版起普通用户按「用户」页勾 MCP / 工具授权，不再靠分组。启动时若用户还没有 `grants` 字段，会从旧分组成员抄一次；已经是空清单的不会再覆盖。发版后打开 **用户** 核对授权，再复制 `mcp.json`（可反复复制）。智能体只连 `/mcp` + 该用户 Access Key。MCP 用户不能登录控制台。要用凭据中心时，在 `deploy/.env` 补 `YLUNE_MASTER_KEY`（`openssl rand -base64 32`）。要用内部凭据租约兑换时再补 `YLUNE_RUNTIME_TOKEN`。
 
 ---
 
@@ -83,11 +83,12 @@ docker compose up -d --build
 | --- | --- |
 | 容器没有 `/opt/mcp` | 还在用旧 compose，或没 `git pull` 月弦 |
 | 打开 :3000 没有控制台 / `UI is not available` | 旧镜像不认 `@ylune/mcphub`。`git pull` 后 `docker compose up -d --build` |
-| 日志 `mcp_settings.json` ENOENT | 配置在 Postgres，属正常噪音 |
+| 日志 `mcp_settings.json` ENOENT | 配置在 Postgres。新版本只记 debug，不再打成 error |
 | 日志没有 vector 扩展 | `postgres:16` 预期如此；`$smart` 才要 `pgvector/pgvector:pg16` |
 | `spawn … ENOENT` | 没跑 `attach.sh`，或 `command` 填了宿主机路径 |
 | 登录月弦 API 失败 | 控制台已改密，DevOpsMCP `.env` 没写 `YLUNE_PASSWORD` |
 | `--profile https` Nginx 起不来 | `.env` 没写域名，或宿主机证书路径不存在 / 仍是 Let's Encrypt 软链 |
 | 普通用户 `/mcp` 没有工具 | 还没在用户页勾服务器和工具；或 `git pull` 后没 `--build` |
+| 凭据中心创建失败 | `.env` 没有 `YLUNE_MASTER_KEY`。列表仍可读，不会把明文写进库 |
 
 Compose 约定见 [../deploy/README.md](../deploy/README.md)。配置落库见 [config-and-data.md](config-and-data.md)。

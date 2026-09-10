@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
@@ -38,6 +39,7 @@ import {
   Resource,
   ProxychainsConfig,
   IGroupServerConfig,
+  IActivityChain,
 } from '../types/index.js';
 import { expandEnvVars, replaceEnvVars, getNameSeparator } from '../config/index.js';
 import config from '../config/index.js';
@@ -72,6 +74,10 @@ import {
   isSmartRoutingGroup,
 } from './smartRoutingService.js';
 import { getActivityLoggingService } from './activityLoggingService.js';
+import {
+  authorizeToolResourceAccess,
+  ResourceBindingDeniedError,
+} from './resourceService.js';
 import { maybeCompressToolResult } from './toolResultCompressionService.js';
 import {
   assertHostedToolAllowed,
@@ -3201,6 +3207,19 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
   const keyId = bearerKeyContext.keyId || extra?.keyId || undefined;
   const keyName = bearerKeyContext.keyName || extra?.keyName || undefined;
   const sourceIp = requestContextService.getRequestContext()?.remoteAddress || undefined;
+  const requestId = randomUUID();
+  let resourceChain: IActivityChain = { requestId };
+  const applyResourceAccess = async (serverName: string, args: unknown) => {
+    const access = await authorizeToolResourceAccess({
+      username,
+      serverName,
+      args,
+    });
+    resourceChain = { requestId, ...access.chain };
+    return access.sanitizedArgs;
+  };
+  const logToolCall = (params: Parameters<typeof activityLogger.logToolCall>[0]) =>
+    activityLogger.logToolCall({ ...params, ...resourceChain });
   let hostedReservation: HostedCreditReservation | null = null;
 
   const reserveHostedIfNeeded = async (serverName: string, toolName: string) => {
@@ -3315,7 +3334,10 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
         const openApiClient = targetServerInfo.openApiClient;
 
         // Use toolArgs if it has properties, otherwise fallback to request.params.arguments
-        const finalArgs = toolArgs && typeof toolArgs === 'object' ? toolArgs : {};
+        const finalArgs = await applyResourceAccess(
+          targetServerInfo.name,
+          toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
+        );
 
         logger.log('Invoking OpenAPI tool', {
           toolName: targetToolName,
@@ -3375,7 +3397,7 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
         // Log successful activity
         const duration = Date.now() - startTime;
-        await activityLogger.logToolCall({
+        await logToolCall({
           server: targetServerInfo.name,
           tool: cleanToolName,
           duration,
@@ -3417,7 +3439,10 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       }
 
       // Use toolArgs if it has properties, otherwise fallback to request.params.arguments
-      const finalArgs = toolArgs && typeof toolArgs === 'object' ? toolArgs : {};
+      const finalArgs = await applyResourceAccess(
+        targetServerInfo.name,
+        toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
+      );
 
       logger.log('Invoking tool', {
         toolName: targetToolName,
@@ -3455,7 +3480,7 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
       // Log successful activity
       const duration = Date.now() - startTime;
-      await activityLogger.logToolCall({
+      await logToolCall({
         server: targetServerInfo.name,
         tool: cleanToolName,
         duration,
@@ -3520,11 +3545,12 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
       // Remove server prefix from tool name if present
       const cleanToolName = normalizeToolNameForServer(serverInfo.name, routeToolName);
+      const finalArgs = await applyResourceAccess(serverInfo.name, request.params.arguments);
 
       logger.log('Invoking OpenAPI tool', {
         toolName: cleanToolName,
         serverName: serverInfo.name,
-        arguments: summarizeArgumentsForLogging(request.params.arguments),
+        arguments: summarizeArgumentsForLogging(finalArgs),
       });
 
       // Extract passthrough headers from extra or request context
@@ -3554,7 +3580,6 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
         }
       }
 
-      const finalArgs = request.params.arguments || {};
       await reserveHostedIfNeeded(serverInfo.name, cleanToolName);
       const result = await openApiClient.callTool(
         cleanToolName,
@@ -3577,12 +3602,12 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
       // Log successful activity
       const duration = Date.now() - startTime;
-      await activityLogger.logToolCall({
+      await logToolCall({
         server: serverInfo.name,
         tool: cleanToolName,
         duration,
         status: 'success',
-        input: request.params.arguments,
+        input: finalArgs,
         output: result,
         group,
         username,
@@ -3619,17 +3644,18 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
     }
 
     const cleanToolName = normalizeToolNameForServer(serverInfo.name, routeToolName);
+    const finalArgs = await applyResourceAccess(serverInfo.name, request.params.arguments);
     await reserveHostedIfNeeded(serverInfo.name, cleanToolName);
     const result = await callToolWithReconnect(
       serverInfo,
-      { ...request.params, name: cleanToolName },
+      { ...request.params, name: cleanToolName, arguments: finalArgs },
       serverInfo.options || {},
       1,
       isolatedCtx,
     );
     await settleHostedIfNeeded({
       success: !result.isError,
-      requestContent: request.params.arguments,
+      requestContent: finalArgs,
       responseContent: result,
     });
     logger.log('Tool call result', {
@@ -3643,12 +3669,12 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
     // Log successful activity
     const duration = Date.now() - startTime;
-    await activityLogger.logToolCall({
+    await logToolCall({
       server: serverInfo.name,
       tool: cleanToolName,
       duration,
       status: result.isError ? 'error' : 'success',
-      input: request.params.arguments,
+      input: finalArgs,
       output: result,
       group,
       username,
@@ -3686,7 +3712,7 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       getServerByTool(activityToolName);
     const cleanToolName = stripToolServerPrefix(activityToolName, serverInfo?.name);
 
-    await activityLogger.logToolCall({
+    await logToolCall({
       server: serverInfo?.name || 'unknown',
       tool: cleanToolName,
       duration,
@@ -3701,7 +3727,9 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       // identical for hidden and nonexistent targets.
       errorMessage: unavailable
         ? `${unavailable.message} (reason: ${unavailable.reason})`
-        : formatErrorForLogging(error),
+        : error instanceof ResourceBindingDeniedError
+          ? error.message
+          : formatErrorForLogging(error),
     });
 
     // For unavailable-target errors, surface exactly the unified message (no
