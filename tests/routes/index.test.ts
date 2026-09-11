@@ -210,6 +210,7 @@ jest.mock('../../src/controllers/credentialController.js', () => ({
   createNewCredential: routeHandler,
   deleteExistingCredential: routeHandler,
   getCredentials: routeHandler,
+  getCredentialValues: routeHandler,
   replaceExistingCredentialSecret: routeHandler,
   testExistingCredential: routeHandler,
   updateExistingCredential: routeHandler,

@@ -265,17 +265,48 @@
   border-top: 1px solid var(--hub-line-2);
 }
 
+.mcp-bind-card.is-quiet {
+  opacity: 0.82;
+}
+
 .mcp-bind-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px 16px;
   flex-wrap: wrap;
 }
 
+.mcp-bind-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mcp-bind-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .mcp-bind-name {
   font-size: 14px;
   font-weight: 500;
+}
+
+.mcp-bind-cred {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mcp-bind-cred-label {
+  font-size: 12px;
+  color: var(--hub-ink-3);
 }
 
 .mcp-bind-list {

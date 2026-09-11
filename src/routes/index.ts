@@ -169,6 +169,7 @@ import {
   createNewCredential,
   deleteExistingCredential,
   getCredentials,
+  getCredentialValues,
   replaceExistingCredentialSecret,
   testExistingCredential,
   updateExistingCredential,
@@ -401,6 +402,7 @@ export const initRoutes = async (app: express.Application): Promise<void> => {
 
   authenticatedRouter.get('/credentials/available', checkCredentialAvailable);
   authenticatedRouter.get('/credentials', getCredentials);
+  authenticatedRouter.get('/credentials/:id/values', getCredentialValues);
   authenticatedRouter.post('/credentials', createNewCredential);
   authenticatedRouter.patch('/credentials/:id', updateExistingCredential);
   authenticatedRouter.post('/credentials/:id/secret', replaceExistingCredentialSecret);

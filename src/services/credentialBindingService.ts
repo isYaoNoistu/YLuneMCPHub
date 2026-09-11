@@ -30,21 +30,20 @@ export const listCredentialContracts = async (): Promise<
   const credentials = credentialDao ? await credentialDao.findAll() : [];
   const publicById = new Map(credentials.map((row) => [row.id, toPublicCredential(row)]));
 
-  return servers
-    .filter((server) => server.enabled !== false)
-    .map((server) => {
-      const credentialIds = bindings
-        .filter((row) => row.serverName === server.name)
-        .map((row) => row.credentialId);
-      return {
-        serverName: server.name,
-        neededKeys: collectCredentialNeeds(server),
-        credentialIds,
-        credentials: credentialIds
-          .map((id) => publicById.get(id))
-          .filter((row): row is NonNullable<typeof row> => Boolean(row)),
-      };
-    });
+  return servers.map((server) => {
+    const credentialIds = bindings
+      .filter((row) => row.serverName === server.name)
+      .map((row) => row.credentialId);
+    return {
+      serverName: server.name,
+      enabled: server.enabled !== false,
+      neededKeys: collectCredentialNeeds(server),
+      credentialIds,
+      credentials: credentialIds
+        .map((id) => publicById.get(id))
+        .filter((row): row is NonNullable<typeof row> => Boolean(row)),
+    };
+  });
 };
 
 export const setServerCredentialBindings = async (
@@ -147,13 +146,18 @@ export const findUserServerCredential = async (
   return dao.findUserServerCredential(username, serverName);
 };
 
-export const serverHasCredentialBindings = async (serverName: string): Promise<boolean> => {
+export const listBoundCredentialIds = async (serverName: string): Promise<string[]> => {
   const dao = getResourceDao();
   if (!dao) {
-    return false;
+    return [];
   }
   const rows = await dao.findServerCredentialBindings(serverName);
-  return rows.length > 0;
+  return rows.map((row) => row.credentialId);
+};
+
+export const serverHasCredentialBindings = async (serverName: string): Promise<boolean> => {
+  const ids = await listBoundCredentialIds(serverName);
+  return ids.length > 0;
 };
 
 const parseServerCredentialRows = (input: unknown): Array<{ serverName: string; credentialId: string }> => {

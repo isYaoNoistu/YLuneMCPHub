@@ -188,6 +188,21 @@ export const openCredentialFields = (credential: ICredential): Record<string, st
   );
 };
 
+/** Admin console edit only. List endpoints must keep using toPublicCredential. */
+export const listCredentialEditPairs = async (
+  id: string,
+): Promise<{ name: string; pairs: Array<{ key: string; value: string }> } | null> => {
+  const credential = await requireCredentialDao().findById(id);
+  if (!credential) {
+    return null;
+  }
+  const fields = openCredentialFields(credential);
+  return {
+    name: credential.name,
+    pairs: Object.entries(fields).map(([key, value]) => ({ key, value })),
+  };
+};
+
 /** @deprecated Use openCredentialFields. Kept so existing imports keep compiling. */
 export const openCredentialSecret = openCredentialFields;
 

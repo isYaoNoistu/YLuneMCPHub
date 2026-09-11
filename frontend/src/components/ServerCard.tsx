@@ -38,6 +38,20 @@ import {
 import { getHubBaseUrl } from '@/utils/userMcpConfig';
 import { cloneServer, getServerEnvPreflight } from '@/services/opsService';
 import { EnvPreflightItem } from '@/types';
+import { useServerData } from '@/hooks/useServerData';
+
+const uniqueCopyName = (base: string, taken: string[]): string => {
+  const used = new Set(taken);
+  const stem = `${base}-copy`;
+  if (!used.has(stem)) {
+    return stem;
+  }
+  let index = 2;
+  while (used.has(`${stem}-${index}`)) {
+    index += 1;
+  }
+  return `${stem}-${index}`;
+};
 
 interface ServerCardProps {
   server: Server;
@@ -153,6 +167,7 @@ const ServerCard = ({
   const { showToast } = useToast();
   const { exportMCPSettings, installConfig } = useSettingsData();
   const { auth } = useAuth();
+  const { allServers } = useServerData();
   const baseUrl = getHubBaseUrl(installConfig?.baseUrl);
 
   const [expanded, setExpanded] = useState(false);
@@ -780,7 +795,12 @@ const ServerCard = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowMenu(false);
-                    setCloneName(`${server.name}-copy`);
+                    setCloneName(
+                      uniqueCopyName(
+                        server.name,
+                        (allServers || []).map((item) => item.name),
+                      ),
+                    );
                     setShowClone(true);
                   }}
                   className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
@@ -1055,11 +1075,15 @@ const ServerCard = ({
               <h2 className="ylune-dialog-title">{t('server.clone')} · {server.name}</h2>
             </div>
             <div className="ylune-dialog-body">
+              <p className="ylune-help" style={{ marginTop: 0 }}>
+                {t('server.cloneHint')}
+              </p>
               <label className="ylune-label">{t('server.cloneName')}</label>
               <input
                 className="hub-input"
                 value={cloneName}
                 onChange={(event) => setCloneName(event.target.value)}
+                placeholder={t('server.cloneNamePlaceholder')}
               />
             </div>
             <div className="ylune-dialog-foot">

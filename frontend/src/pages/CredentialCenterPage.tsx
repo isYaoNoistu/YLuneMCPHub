@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useServerData } from '@/hooks/useServerData';
 import { Credential, CredentialContract } from '@/types';
 import {
   checkCredentialAvailable,
@@ -9,6 +10,7 @@ import {
   deleteCredential,
   getCredentialContracts,
   getCredentials,
+  getCredentialValues,
   replaceCredentialSecret,
   setServerCredentials,
   testServerCredential,
@@ -41,9 +43,25 @@ const uniqueCredentialName = (base: string, taken: string[]): string => {
   return `${base}-${index}`;
 };
 
+const pairsForMcp = (contract?: CredentialContract): KvPair[] =>
+  contract && contract.neededKeys.length > 0
+    ? keysToEmptyPairs(contract.neededKeys)
+    : defaultCredentialPairs();
+
+const mcpBindRank = (contract: CredentialContract): number => {
+  if (contract.neededKeys.length > 0 && contract.credentialIds.length === 0) {
+    return 0;
+  }
+  if (contract.credentialIds.length > 0) {
+    return 1;
+  }
+  return 2;
+};
+
 const CredentialCenterPage = () => {
   const { t } = useTranslation();
   const { auth } = useAuth();
+  const { triggerRefresh } = useServerData();
   const isAdmin = auth.user?.isAdmin === true;
   const [available, setAvailable] = useState(false);
   const [items, setItems] = useState<Credential[]>([]);
@@ -57,6 +75,8 @@ const CredentialCenterPage = () => {
   const [existingPick, setExistingPick] = useState<Record<string, string>>({});
   const [replacing, setReplacing] = useState<Credential | null>(null);
   const [replacePairs, setReplacePairs] = useState<KvPair[]>(emptyPairs(1));
+  const [replaceLoading, setReplaceLoading] = useState(false);
+  const replaceRequest = useRef(0);
   const [deleting, setDeleting] = useState<Credential | null>(null);
   const [toggling, setToggling] = useState<Credential | null>(null);
   const [testStatus, setTestStatus] = useState<{
@@ -110,7 +130,7 @@ const CredentialCenterPage = () => {
     setCreateName(
       uniqueCredentialName(serverName || 'readonly-prod', items.map((item) => item.name)),
     );
-    setCreatePairs(defaultCredentialPairs());
+    setCreatePairs(pairsForMcp(contracts.find((row) => row.serverName === serverName)));
     setError(null);
   };
 
@@ -153,6 +173,32 @@ const CredentialCenterPage = () => {
     setBusy(false);
     closeCreate();
     await load();
+    triggerRefresh();
+  };
+
+  const closeReplace = () => {
+    replaceRequest.current += 1;
+    setReplacing(null);
+    setReplacePairs(emptyPairs(1));
+    setReplaceLoading(false);
+  };
+
+  const openReplace = async (item: Credential) => {
+    const request = ++replaceRequest.current;
+    setReplacing(item);
+    setReplacePairs(keysToEmptyPairs(item.keys || []));
+    setReplaceLoading(true);
+    setError(null);
+    const result = await getCredentialValues(item.id);
+    if (request !== replaceRequest.current) {
+      return;
+    }
+    setReplaceLoading(false);
+    if (!result?.success || !Array.isArray(result.data?.pairs)) {
+      setError(result?.message || t('credentials.loadValuesError'));
+      return;
+    }
+    setReplacePairs(result.data.pairs.length ? result.data.pairs : keysToEmptyPairs(item.keys || []));
   };
 
   const submitReplace = async () => {
@@ -166,8 +212,7 @@ const CredentialCenterPage = () => {
     const result = await replaceCredentialSecret(replacing.id, { fields: collected.fields });
     setBusy(false);
     if (result?.success) {
-      setReplacing(null);
-      setReplacePairs(emptyPairs(1));
+      closeReplace();
       await load();
     } else {
       setError(result?.message || t('credentials.updateError'));
@@ -188,6 +233,7 @@ const CredentialCenterPage = () => {
       return;
     }
     await load();
+    triggerRefresh();
   };
 
   const unbindSelected = async (serverName: string, credentialId: string) => {
@@ -223,7 +269,18 @@ const CredentialCenterPage = () => {
       ok: Boolean(result?.success),
       message: result?.message || (result?.success ? t('credentials.testOk') : t('credentials.testFail')),
     });
+    if (result?.success) {
+      triggerRefresh();
+    }
   };
+
+  const sortedContracts = [...contracts].sort((left, right) => {
+    const rank = mcpBindRank(left) - mcpBindRank(right);
+    if (rank !== 0) {
+      return rank;
+    }
+    return left.serverName.localeCompare(right.serverName);
+  });
 
   return (
     <div className="hub-page-stack cred-center">
@@ -299,15 +356,12 @@ const CredentialCenterPage = () => {
                           <button
                             type="button"
                             className="hub-btn"
-                            onClick={() => {
-                              setReplacing(item);
-                              setReplacePairs(keysToEmptyPairs(item.keys || []));
-                            }}
+                            onClick={() => void openReplace(item)}
                           >
                             {t('credentials.replace')}
                           </button>
                           <button type="button" className="hub-btn" onClick={() => setToggling(item)}>
-                            {item.enabled ? t('credentials.enabled') : t('credentials.disabled')}
+                            {item.enabled ? t('credentials.disabled') : t('credentials.enabled')}
                           </button>
                           <button
                             type="button"
@@ -325,20 +379,49 @@ const CredentialCenterPage = () => {
                 </div>
               )}
 
-              {contracts.length > 0 && (
+              {sortedContracts.length > 0 && (
                 <div className="hub-card overflow-hidden">
                   <div className="mcp-bind-intro">
                     <div className="ylune-server-name">{t('credentials.bindSection')}</div>
                     <p className="ylune-help">{t('credentials.bindSectionHint')}</p>
                   </div>
-                  {contracts.map((contract) => {
+                  {sortedContracts.map((contract) => {
                     const candidates = items.filter(
                       (item) => item.enabled && !contract.credentialIds.includes(item.id),
                     );
+                    const declared = contract.neededKeys.length > 0;
+                    const bound = contract.credentials.length > 0;
+                    const quiet = !declared && !bound;
                     return (
-                      <div key={contract.serverName} className="mcp-bind-card">
+                      <div
+                        key={contract.serverName}
+                        className={`mcp-bind-card${quiet ? ' is-quiet' : ''}`}
+                      >
                         <div className="mcp-bind-head">
-                          <div className="mcp-bind-name">{contract.serverName}</div>
+                          <div className="mcp-bind-title">
+                            <div className="mcp-bind-name">{contract.serverName}</div>
+                            <div className="mcp-bind-flags">
+                              {contract.enabled === false && (
+                                <span className="hub-tag muted">{t('credentials.serverDisabled')}</span>
+                              )}
+                              {bound ? (
+                                <span className="hub-status ok">
+                                  <span className="hub-dot" />
+                                  {t('credentials.boundCount', { count: contract.credentials.length })}
+                                </span>
+                              ) : declared ? (
+                                <span className="hub-status warn">
+                                  <span className="hub-dot" />
+                                  {t('credentials.needsUnbound')}
+                                </span>
+                              ) : (
+                                <span className="hub-status muted">
+                                  <span className="hub-dot" />
+                                  {t('credentials.needsUndeclared')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                           <div className="mcp-bind-add">
                             {candidates.length > 0 && (
                               <select
@@ -371,11 +454,35 @@ const CredentialCenterPage = () => {
                             </button>
                           </div>
                         </div>
+                        {declared ? (
+                          <div className="mcp-cred-keys">
+                            <span className="mcp-cred-keys-label">{t('credentials.needsDeclared')}</span>
+                            {contract.neededKeys.map((key) => (
+                              <span key={key} className="hub-kbd">
+                                {key}
+                              </span>
+                            ))}
+                          </div>
+                        ) : quiet ? (
+                          <p className="ylune-help">{t('credentials.needsUndeclaredHint')}</p>
+                        ) : null}
                         {contract.credentials.length > 0 && (
                           <div className="mcp-bind-list">
                             {contract.credentials.map((credential) => (
                               <div key={credential.id} className="mcp-bind-item">
-                                <span className="hub-mono">{credential.name}</span>
+                                <div className="mcp-bind-cred">
+                                  <span className="mcp-bind-cred-label">{t('credentials.boundItem')}</span>
+                                  <span className="hub-mono">{credential.name}</span>
+                                  {(credential.keys || []).length > 0 && (
+                                    <span className="hub-key-chips">
+                                      {credential.keys.map((key) => (
+                                        <span key={key} className="hub-kbd">
+                                          {key}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="mcp-bind-item-actions">
                                   <button
                                     type="button"
@@ -442,6 +549,7 @@ const CredentialCenterPage = () => {
           <p className="ylune-help" style={{ marginTop: 0 }}>
             {t('credentials.createStandaloneHint')}
           </p>
+          {error ? <p className="ylune-error">{error}</p> : null}
           <div className="ylune-field">
             <label className="ylune-label">{t('credentials.name')}</label>
             <input
@@ -456,22 +564,40 @@ const CredentialCenterPage = () => {
             <select
               className="hub-input"
               value={createBindTo}
-              onChange={(event) => setCreateBindTo(event.target.value)}
+              onChange={(event) => {
+                const serverName = event.target.value;
+                setCreateBindTo(serverName);
+                if (createPairs.every((row) => row.value === '')) {
+                  setCreatePairs(pairsForMcp(contracts.find((row) => row.serverName === serverName)));
+                }
+              }}
             >
               <option value="">{t('credentials.noBind')}</option>
-              {contracts.map((contract) => (
-                <option key={contract.serverName} value={contract.serverName}>
-                  {contract.serverName}
-                </option>
-              ))}
+              {sortedContracts.map((contract) => {
+                const parts = [contract.serverName];
+                if (contract.enabled === false) {
+                  parts.push(t('credentials.serverDisabled'));
+                }
+                if (contract.neededKeys.length > 0) {
+                  parts.push(t('credentials.needCount', { count: contract.neededKeys.length }));
+                }
+                return (
+                  <option key={contract.serverName} value={contract.serverName}>
+                    {parts.join(' · ')}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <KeyValueEditor
             pairs={createPairs}
             onChange={setCreatePairs}
-            secret
             label={t('credentials.fields')}
-            hint={t('credentials.fieldsHint')}
+            hint={
+              (contracts.find((row) => row.serverName === createBindTo)?.neededKeys.length || 0) > 0
+                ? t('credentials.importFromMcpHint')
+                : t('credentials.fieldsHint')
+            }
             keyPlaceholder={t('credentials.fieldKeyExample')}
           />
         </YluneDialog>
@@ -481,16 +607,16 @@ const CredentialCenterPage = () => {
         <YluneDialog
           size="lg"
           title={`${t('credentials.replace')} · ${replacing.name}`}
-          onClose={() => setReplacing(null)}
+          onClose={closeReplace}
           footer={
             <>
-              <button type="button" className="hub-btn" onClick={() => setReplacing(null)}>
+              <button type="button" className="hub-btn" onClick={closeReplace}>
                 {t('common.cancel')}
               </button>
               <button
                 type="button"
                 className="hub-btn primary"
-                disabled={busy}
+                disabled={busy || replaceLoading}
                 onClick={() => void submitReplace()}
               >
                 {t('credentials.replace')}
@@ -498,15 +624,15 @@ const CredentialCenterPage = () => {
             </>
           }
         >
+          {error ? <p className="ylune-error">{error}</p> : null}
           <KeyValueEditor
             pairs={replacePairs}
             onChange={setReplacePairs}
-            secret
-            lockedKeys={replacing.keys || []}
+            disabled={replaceLoading}
             label={t('credentials.fields')}
-            hint={t('credentials.replaceHint')}
+            hint={replaceLoading ? t('credentials.replaceLoading') : t('credentials.replaceHint')}
             keyPlaceholder={t('credentials.fieldKeyExample')}
-            valuePlaceholder={t('credentials.fieldValueReplace')}
+            valuePlaceholder={t('credentials.fieldValue')}
           />
         </YluneDialog>
       )}

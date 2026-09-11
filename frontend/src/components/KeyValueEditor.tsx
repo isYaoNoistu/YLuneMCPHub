@@ -59,6 +59,7 @@ interface KeyValueEditorProps {
   label: string;
   hint?: string;
   secret?: boolean;
+  disabled?: boolean;
   lockedKeys?: string[];
   keyPlaceholder?: string;
   valuePlaceholder?: string;
@@ -70,6 +71,7 @@ const KeyValueEditor = ({
   label,
   hint,
   secret = false,
+  disabled = false,
   lockedKeys = [],
   keyPlaceholder,
   valuePlaceholder,
@@ -92,6 +94,7 @@ const KeyValueEditor = ({
         <button
           type="button"
           className="hub-icon-btn"
+          disabled={disabled}
           onClick={() => onChange([...pairs, { key: '', value: '' }])}
           aria-label={t('credentials.addField')}
         >
@@ -110,7 +113,8 @@ const KeyValueEditor = ({
             <input
               className={`hub-input${keyLocked ? ' is-locked' : ''}`}
               value={row.key}
-              readOnly={keyLocked}
+              readOnly={keyLocked || disabled}
+              disabled={disabled}
               autoComplete="off"
               spellCheck={false}
               placeholder={keyPlaceholder || t('credentials.fieldKey')}
@@ -121,6 +125,8 @@ const KeyValueEditor = ({
               className="hub-input"
               type={secret ? 'password' : 'text'}
               autoComplete="off"
+              spellCheck={false}
+              disabled={disabled}
               value={row.value}
               placeholder={valuePlaceholder || t('credentials.fieldValue')}
               onChange={(event) => update(index, { value: event.target.value })}
@@ -129,7 +135,7 @@ const KeyValueEditor = ({
               type="button"
               className="hub-icon-btn sm"
               aria-label={t('common.delete')}
-              disabled={keyLocked}
+              disabled={keyLocked || disabled}
               onClick={() => {
                 if (keyLocked) {
                   return;

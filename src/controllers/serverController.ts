@@ -931,6 +931,7 @@ export const cloneServer = async (req: Request, res: Response): Promise<void> =>
       return;
     }
     const { name: _ignored, ...config } = existingServer;
+    // Copies command/args/env only. Credential bindings and user grants stay on the original.
     const cloned: ServerConfig = {
       ...config,
       enabled: false,

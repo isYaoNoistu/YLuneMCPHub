@@ -45,6 +45,9 @@ export const putServerCredentials = async (req: Request, res: Response): Promise
     const name = decodeURIComponent(req.params.name || req.params.serverName || '');
     const ids = await setServerCredentialBindings(name, req.body?.credentialIds);
     invalidateCredentialClients({ serverName: name });
+    if (ids[0]) {
+      await probeServerWithCredential(name, ids[0]);
+    }
     await recordAdminAuditFromRequest(req, {
       action: 'server.bind_credentials',
       resourceType: 'server',

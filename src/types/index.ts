@@ -106,6 +106,7 @@ export interface IUserServerCredential {
 
 export interface ICredentialContract {
   serverName: string;
+  enabled?: boolean;
   neededKeys: string[];
   credentialIds: string[];
   credentials?: ICredentialPublic[];

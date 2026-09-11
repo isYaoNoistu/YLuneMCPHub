@@ -22,6 +22,7 @@ jest.mock('../../src/dao/DaoFactory.js', () => ({
 
 import {
   createCredential,
+  listCredentialEditPairs,
   listCredentials,
   openCredentialFields,
   replaceCredentialSecret,
@@ -148,6 +149,36 @@ describe('credentialService', () => {
         enabled: true,
       }),
     ).toEqual({ username: 'ylune_ro', password: 's3cret' });
+  });
+
+  it('returns decrypted pairs for admin edit without putting values on the public view', async () => {
+    const sealed = encryptJson({
+      fields: {
+        JENKINS_URL: 'https://ci.example',
+        JENKINS_API_TOKEN: 'abc',
+      },
+    });
+    const row = {
+      id: 'c1',
+      name: 'jenkins-prod',
+      type: 'fields',
+      encryptedPayload: sealed.payload,
+      keyVersion: sealed.keyVersion,
+      enabled: true,
+      fieldKeys: ['JENKINS_URL', 'JENKINS_API_TOKEN'],
+      createdAt: new Date('2026-09-10T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-10T00:00:00.000Z'),
+      rotatedAt: null,
+    };
+    findById.mockResolvedValue(row);
+    await expect(listCredentialEditPairs('c1')).resolves.toEqual({
+      name: 'jenkins-prod',
+      pairs: [
+        { key: 'JENKINS_URL', value: 'https://ci.example' },
+        { key: 'JENKINS_API_TOKEN', value: 'abc' },
+      ],
+    });
+    expect(JSON.stringify(toPublicCredential(row))).not.toContain('abc');
   });
 
   it('refuses replaceSecret without a master key', async () => {

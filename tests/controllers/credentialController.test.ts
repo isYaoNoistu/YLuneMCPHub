@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 
 const listCredentials = jest.fn();
 const createCredential = jest.fn();
+const listCredentialEditPairs = jest.fn();
 
 jest.mock('../../src/utils/requireAdmin.js', () => ({
   requireAdmin: jest.fn(async () => true),
@@ -18,10 +19,15 @@ jest.mock('../../src/services/credentialService.js', () => ({
   createCredential,
   deleteCredential: jest.fn(),
   isCredentialStoreEnabled: jest.fn(() => true),
+  listCredentialEditPairs,
   listCredentials,
   replaceCredentialSecret: jest.fn(),
   testCredential: jest.fn(),
   updateCredential: jest.fn(),
+}));
+
+jest.mock('../../src/services/adminAuditService.js', () => ({
+  recordAdminAuditFromRequest: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../src/utils/secretBox.js', () => ({
@@ -37,7 +43,7 @@ jest.mock('../../src/services/mcpService.js', () => ({
   invalidateCredentialClients: jest.fn(),
 }));
 
-import { createNewCredential, getCredentials } from '../../src/controllers/credentialController.js';
+import { createNewCredential, getCredentials, getCredentialValues } from '../../src/controllers/credentialController.js';
 import { MasterKeyMissingError } from '../../src/utils/secretBox.js';
 
 const makeRes = () => {
@@ -73,6 +79,29 @@ describe('credentialController', () => {
     expect(JSON.stringify(body)).not.toMatch(/"password"\s*:|"token"\s*:|"encryptedPayload"|"fields"\s*:/);
     expect(body.data[0].keys).toEqual(['PGUSER', 'PGPASSWORD']);
     expect(body.data[0].secretConfigured).toBe(true);
+  });
+
+  it('returns stored pairs on the admin edit endpoint', async () => {
+    listCredentialEditPairs.mockResolvedValue({
+      name: 'jenkins-prod',
+      pairs: [
+        { key: 'JENKINS_URL', value: 'https://ci.example' },
+        { key: 'JENKINS_API_TOKEN', value: 'abc' },
+      ],
+    });
+    const res = makeRes();
+    await getCredentialValues({ params: { id: 'c1' } } as unknown as Request, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: {
+        name: 'jenkins-prod',
+        pairs: [
+          { key: 'JENKINS_URL', value: 'https://ci.example' },
+          { key: 'JENKINS_API_TOKEN', value: 'abc' },
+        ],
+      },
+    });
   });
 
   it('refuses create when the master key is missing', async () => {

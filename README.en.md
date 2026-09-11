@@ -57,7 +57,7 @@ Read-only gateway status: online servers, tool count, calls from agents and regu
 
 ### User grants
 
-Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. Key expiry blocks agents, not the console. Credential Center stores one encrypted key/value bag (host, port, token in the same record) and never shows plaintext. Binding an MCP is optional.
+Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. Key expiry blocks agents, not the console. Credential Center stores one encrypted key/value bag (host, port, token in the same record). The list never shows plaintext; the admin create/edit dialog does, and Edit loads saved values. Binding an MCP is optional.
 
 ![User grants: pick servers and tools](docs/images/add-user.png)
 
@@ -82,7 +82,7 @@ One row per tool call: who, which server, which tool, success or failure, durati
 - **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server.
 - **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy mcp.json any time. Console-only admins have no key.
 - **Console** — Servers, users, Credential Center, lab, admin audit, settings, built-in prompts / resources, logs and activity.
-- **Credential Center** — One key/value bag; HOST / PORT / TOKEN are prefilled and can be renamed. Binding an MCP is optional and does not rewrite fields. After it is bound, users and admins can pick it. Bound credentials can be tested with `listTools`. Calls overlay the bag onto the MCP process env and do not put secrets or a lease id into tool arguments. Master key is `YLUNE_MASTER_KEY`. The list shows names and “configured”, never values.
+- **Credential Center** — One key/value bag; HOST / PORT / TOKEN are prefilled and can be renamed. Binding an MCP is optional and does not rewrite fields. The hub scans MCP env / `${VAR}` names and labels each server in the bind list. An empty config can still be bound. After it is bound, users and admins can pick it. Bound credentials can be tested with `listTools`; a successful test or bind marks the server online and caches its tools. Calls overlay the bag onto the MCP process env and do not put secrets or a lease id into tool arguments. Master key is `YLUNE_MASTER_KEY`. The list shows names and “configured”, never values. Admins see plaintext in the create/edit dialog; Edit loads saved values. For another environment, clone the server and bind a new credential.
 - **Optional** — Smart routing (`$smart` + pgvector), result compression, OAuth 2.0 authorization server, Better Auth, PostgreSQL config store, CLI.
 
 Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools stay in DevOpsMCP; YLune is the front door.

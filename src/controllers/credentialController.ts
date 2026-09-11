@@ -6,6 +6,7 @@ import {
   createCredential,
   deleteCredential,
   isCredentialStoreEnabled,
+  listCredentialEditPairs,
   listCredentials,
   replaceCredentialSecret,
   testCredential,
@@ -56,6 +57,27 @@ export const getCredentials = async (req: Request, res: Response): Promise<void>
   try {
     const data = await listCredentials();
     sendPublic(res, 200, { success: true, data });
+  } catch (error) {
+    handleCredentialError(res, error);
+  }
+};
+
+export const getCredentialValues = async (req: Request, res: Response): Promise<void> => {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const data = await listCredentialEditPairs(req.params.id);
+    if (!data) {
+      sendPublic(res, 404, { success: false, message: 'Credential not found' });
+      return;
+    }
+    await recordAdminAuditFromRequest(req, {
+      action: 'credential.reveal',
+      resourceType: 'credential',
+      resourceId: req.params.id,
+      after: { name: data.name, keyCount: data.pairs.length },
+    });
+    // Admin edit dialog needs plaintext. Do not run assertNoSecrets on this body.
+    res.status(200).json({ success: true, data });
   } catch (error) {
     handleCredentialError(res, error);
   }

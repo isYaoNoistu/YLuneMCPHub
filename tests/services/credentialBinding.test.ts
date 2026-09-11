@@ -46,6 +46,7 @@ jest.mock('../../src/services/credentialService.js', () => ({
 
 import {
   listCredentialContracts,
+  listBoundCredentialIds,
   saveUserServerCredentials,
   setServerCredentialBindings,
   validateUserServerCredentials,
@@ -74,16 +75,36 @@ describe('credentialBindingService', () => {
     findUserServerCredentials.mockResolvedValue([]);
   });
 
+  it('lists bound credential ids for one MCP', async () => {
+    await expect(listBoundCredentialIds('jenkins')).resolves.toEqual(['cred-1']);
+  });
+
   it('lists needed keys and bound credentials without secrets', async () => {
     const contracts = await listCredentialContracts();
     expect(contracts).toEqual([
       expect.objectContaining({
         serverName: 'jenkins',
+        enabled: true,
         neededKeys: ['JENKINS_API_TOKEN', 'JENKINS_URL'],
         credentialIds: ['cred-1'],
       }),
     ]);
     expect(JSON.stringify(contracts)).not.toMatch(/"password"\s*:|"token"\s*:|"fields"\s*:/);
+  });
+
+  it('includes disabled servers so a clone can be bound before it is enabled', async () => {
+    findAllServers.mockResolvedValue([
+      { name: 'jenkins-uat', enabled: false, command: '/opt/mcp/jenkins-mcp-server' },
+    ]);
+    findServerCredentialBindings.mockResolvedValue([]);
+    await expect(listCredentialContracts()).resolves.toEqual([
+      expect.objectContaining({
+        serverName: 'jenkins-uat',
+        enabled: false,
+        neededKeys: [],
+        credentialIds: [],
+      }),
+    ]);
   });
 
   it('rejects assigning a credential that is not bound to the MCP', async () => {

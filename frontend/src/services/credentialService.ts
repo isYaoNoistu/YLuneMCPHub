@@ -13,6 +13,11 @@ export const checkCredentialAvailable = async (): Promise<boolean> => {
 export const getCredentials = async (): Promise<ApiResponse<Credential[]>> =>
   apiGet('/credentials');
 
+export const getCredentialValues = async (
+  id: string,
+): Promise<ApiResponse<{ name: string; pairs: Array<{ key: string; value: string }> }>> =>
+  apiGet(`/credentials/${id}/values`);
+
 export const createCredential = async (
   data: CredentialFormData,
 ): Promise<ApiResponse<Credential>> => apiPost('/credentials', data);

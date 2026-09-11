@@ -67,7 +67,7 @@ import {
 } from '../dao/index.js';
 import { openCredentialFields } from './credentialService.js';
 import { overlayCredentialFields } from '../utils/envPreflight.js';
-import { findUserServerCredential } from './credentialBindingService.js';
+import { findUserServerCredential, listBoundCredentialIds } from './credentialBindingService.js';
 import { initializeAllOAuthClients } from './oauthService.js';
 import { createOAuthProvider } from './mcpOAuthProvider.js';
 import {
@@ -979,11 +979,18 @@ export const probeServerWithCredential = async (
   try {
     await connectClientWithDiagnostics(client, transport, stub.options || {});
     const listed = await client.listTools({}, stub.options || {});
-    const toolCount = Array.isArray(listed?.tools) ? listed.tools.length : 0;
+    const tools = Array.isArray(listed?.tools) ? listed.tools : [];
+    const liveInfo = getServerByName(serverName) || live;
+    if (liveInfo) {
+      updateServerToolsCache(liveInfo, tools);
+      liveInfo.status = 'connected';
+      liveInfo.error = null;
+      broadcastToolListChanged();
+    }
     return {
       ok: true,
-      toolCount,
-      message: `Connected; listed ${toolCount} tools`,
+      toolCount: tools.length,
+      message: `Connected; listed ${tools.length} tools`,
     };
   } catch (error) {
     return {
@@ -994,6 +1001,28 @@ export const probeServerWithCredential = async (
   } finally {
     closeIsolatedClient(serverName, client, transport);
   }
+};
+
+const recoverServerWithBoundCredential = async (serverName: string): Promise<boolean> => {
+  const live = getServerByName(serverName);
+  if (live?.status === 'connected' && (live.tools?.length || 0) > 0) {
+    return true;
+  }
+  try {
+    const ids = await listBoundCredentialIds(serverName);
+    for (const id of ids) {
+      const result = await probeServerWithCredential(serverName, id);
+      if (result.ok) {
+        return true;
+      }
+    }
+  } catch (error) {
+    logger.warn('Failed to recover server with bound credential', {
+      serverName,
+      error: summarizeErrorForLogging(error),
+    });
+  }
+  return getServerByName(serverName)?.status === 'connected';
 };
 
 export const connectClientWithDiagnostics = async (
@@ -2217,7 +2246,10 @@ export const initializeClientsFromSettings = async (
               serverName: name,
               error: summarizeErrorForLogging(error),
             });
-            // Other connection errors
+            const recovered = await recoverServerWithBoundCredential(name);
+            if (recovered || serverInfo.status === 'connected') {
+              return;
+            }
             serverInfo.status = 'disconnected';
             serverInfo.error = `Failed to connect: ${formatErrorForLogging(error)}`;
             setupServerKeepAlive(serverInfo, expandedConf);
@@ -3477,6 +3509,12 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
   const resolveCallClient = async (serverInfo: ServerInfo): Promise<IsolatedClientContext | undefined> => {
     if (resourceChain.credentialId) {
       return getOrCreateCredentialClient(serverInfo, resourceChain.credentialId);
+    }
+    if (username) {
+      const pick = await findUserServerCredential(username, serverInfo.name);
+      if (pick?.credentialId) {
+        return getOrCreateCredentialClient(serverInfo, pick.credentialId);
+      }
     }
     if (serverInfo.config?.perSessionClient && sessionId) {
       const isolated = await getOrCreateIsolatedClient(sessionId, serverInfo);

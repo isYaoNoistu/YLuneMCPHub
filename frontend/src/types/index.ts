@@ -552,6 +552,7 @@ export interface UserServerCredential {
 
 export interface CredentialContract {
   serverName: string;
+  enabled?: boolean;
   neededKeys: string[];
   credentialIds: string[];
   credentials: Credential[];
