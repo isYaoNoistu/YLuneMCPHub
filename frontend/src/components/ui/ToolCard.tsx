@@ -58,28 +58,14 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isResettingDescription, setIsResettingDescription] = useState(false);
   const [customDescription, setCustomDescription] = useState(tool.description || '');
-  const descriptionInputRef = useRef<HTMLInputElement>(null);
-  const descriptionTextRef = useRef<HTMLSpanElement>(null);
-  const [textWidth, setTextWidth] = useState<number>(0);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
   const [copiedToolName, setCopiedToolName] = useState(false);
 
-  // Focus the input when editing mode is activated
   useEffect(() => {
     if (isEditingDescription && descriptionInputRef.current) {
       descriptionInputRef.current.focus();
-      // Set input width to match text width
-      if (textWidth > 0) {
-        descriptionInputRef.current.style.width = `${textWidth + 20}px`; // Add some padding
-      }
     }
-  }, [isEditingDescription, textWidth]);
-
-  // Measure text width when not editing
-  useEffect(() => {
-    if (!isEditingDescription && descriptionTextRef.current) {
-      setTextWidth(descriptionTextRef.current.offsetWidth);
-    }
-  }, [isEditingDescription, customDescription]);
+  }, [isEditingDescription]);
 
   useEffect(() => {
     setCustomDescription(tool.description || '');
@@ -135,10 +121,6 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
     }
   };
 
-  const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomDescription(e.target.value);
-  };
-
   const handleDescriptionReset = async () => {
     if (readOnly) return;
     setIsResettingDescription(true);
@@ -161,12 +143,13 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
     }
   };
 
-  const handleDescriptionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleDescriptionSave();
-    } else if (e.key === 'Escape') {
+  const handleDescriptionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
       setCustomDescription(tool.description || '');
       setIsEditingDescription(false);
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      void handleDescriptionSave();
     }
   };
 
@@ -246,102 +229,98 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
 
   return (
     <div
-      className="hub-card overflow-hidden"
-      style={{ marginBottom: 8 }}
+      className={`hub-cap-item${isExpanded ? ' is-open' : ''}${tool.enabled === false ? ' is-off' : ''}`}
     >
       <div
-        className="flex justify-between items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-[var(--hub-surface-hover)] transition-colors"
+        className="hub-cap-item-main"
         onClick={(e) => {
           e.stopPropagation();
           setIsExpanded(!isExpanded);
         }}
       >
-        <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-          <span className="hub-mono font-medium" style={{ fontSize: 13, color: 'var(--hub-ink)' }}>
-            {toolDisplayName}
-          </span>
-          <button
-            className="hub-icon-btn sm"
-            onClick={handleCopyToolName}
-            title={t('common.copy')}
-          >
-            {copiedToolName
-              ? <Check size={12} style={{ color: 'var(--hub-ok)' }} />
-              : <Copy size={12} />}
-          </button>
-          <span className="flex items-center gap-1" style={{ fontSize: 12, color: 'var(--hub-ink-3)' }}>
-            {isEditingDescription ? (
+        <div className="hub-cap-copy">
+          <div className="hub-cap-name-row">
+            <span className="hub-cap-name">{toolDisplayName}</span>
+            <button
+              type="button"
+              className="hub-icon-btn sm hub-cap-ghost"
+              onClick={handleCopyToolName}
+              title={t('common.copy')}
+            >
+              {copiedToolName ? (
+                <Check size={12} style={{ color: 'var(--hub-ok)' }} />
+              ) : (
+                <Copy size={12} />
+              )}
+            </button>
+            {descriptionInfo.hasDescriptionOverride && (
+              <span className="hub-cap-badge" title={defaultDescriptionTooltip}>
+                {t('tool.descriptionModifiedBadge')}
+              </span>
+            )}
+            {!readOnly && !isEditingDescription && (
               <>
-                <input
-                  ref={descriptionInputRef}
-                  type="text"
-                  className="hub-input"
-                  style={{ height: 26, fontSize: 12, width: textWidth > 0 ? `${textWidth + 20}px` : 160, minWidth: 80 }}
-                  value={customDescription}
-                  onChange={handleDescriptionChange}
-                  onKeyDown={handleDescriptionKeyDown}
-                  onClick={(e) => e.stopPropagation()}
-                />
                 <button
-                  className="hub-icon-btn sm"
-                  onClick={(e) => { e.stopPropagation(); handleDescriptionSave(); }}
-                  disabled={isResettingDescription}
+                  type="button"
+                  className="hub-icon-btn sm hub-cap-ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDescriptionEdit();
+                  }}
+                  title={t('server.edit')}
                 >
-                  <Check size={12} style={{ color: 'var(--hub-ok)' }} />
+                  <Edit size={12} />
                 </button>
-                <ResetDescriptionButton
-                  title={t('tool.restoreDefault')}
-                  onClick={(e) => { e.stopPropagation(); handleDescriptionReset(); }}
-                  disabled={isResettingDescription}
-                  loading={isResettingDescription}
-                />
-              </>
-            ) : (
-              <>
-                <span ref={descriptionTextRef} title={defaultDescriptionTooltip}>
-                  {descriptionInfo.currentDescription}
-                </span>
-                {descriptionInfo.hasDescriptionOverride && (
-                  <span
-                    className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
-                    style={{
-                      color: 'var(--hub-accent)',
-                      borderColor: 'var(--hub-line)',
-                      background: 'var(--hub-bg-2)',
+                <span className="hub-cap-ghost">
+                  <ResetDescriptionButton
+                    title={t('tool.restoreDefault')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDescriptionReset();
                     }}
-                    title={defaultDescriptionTooltip}
-                  >
-                    {t('tool.descriptionModifiedBadge')}
-                  </span>
-                )}
-                {!readOnly && (
-                  <>
-                    <button
-                      className="hub-icon-btn sm"
-                      onClick={(e) => { e.stopPropagation(); handleDescriptionEdit(); }}
-                    >
-                      <Edit size={12} />
-                    </button>
-                    <ResetDescriptionButton
-                      title={t('tool.restoreDefault')}
-                      onClick={(e) => { e.stopPropagation(); handleDescriptionReset(); }}
-                      disabled={isResettingDescription}
-                      loading={isResettingDescription}
-                    />
-                  </>
-                )}
+                    disabled={isResettingDescription}
+                    loading={isResettingDescription}
+                  />
+                </span>
               </>
             )}
-          </span>
+          </div>
+          {isEditingDescription ? (
+            <div className="hub-cap-edit" onClick={(e) => e.stopPropagation()}>
+              <textarea
+                ref={descriptionInputRef}
+                className="hub-input hub-cap-edit-input"
+                rows={3}
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
+              />
+              <button
+                type="button"
+                className="hub-icon-btn sm"
+                onClick={() => void handleDescriptionSave()}
+                disabled={isResettingDescription}
+                title={t('common.save')}
+              >
+                <Check size={12} style={{ color: 'var(--hub-ok)' }} />
+              </button>
+              <ResetDescriptionButton
+                title={t('tool.restoreDefault')}
+                onClick={() => void handleDescriptionReset()}
+                disabled={isResettingDescription}
+                loading={isResettingDescription}
+              />
+            </div>
+          ) : (
+            <p className="hub-cap-desc" title={defaultDescriptionTooltip || descriptionInfo.currentDescription}>
+              {descriptionInfo.currentDescription}
+            </p>
+          )}
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="hub-cap-acts">
           {cost != null && (
-            <span
-              className="hub-mono flex-shrink-0"
-              style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}
-              title={t('cost.estimate')}
-            >
-              Σ {formatTokens(cost)}
+            <span className="hub-cap-cost" title={t('cost.estimate')}>
+              {formatTokens(cost)}
             </span>
           )}
           <div className="flex h-[26px] items-center" onClick={(e) => e.stopPropagation()}>
@@ -354,6 +333,7 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
             />
           </div>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setIsExpanded(true);
@@ -366,14 +346,14 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
             {isRunning ? <Loader size={12} className="animate-spin" /> : <Play size={12} />}
             <span>{isRunning ? t('tool.running') : t('tool.run')}</span>
           </button>
-          <button className="hub-icon-btn sm">
+          <button type="button" className="hub-icon-btn sm" aria-hidden="true">
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
       </div>
 
       {isExpanded && (
-        <div style={{ borderTop: '1px solid var(--hub-line-2)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="hub-cap-body">
           {descriptionInfo.hasDescriptionOverride && descriptionInfo.defaultDescription && (
             <div
               style={{

@@ -528,7 +528,21 @@ const ServerCard = ({
         {/* Main row */}
         <div
           className="hub-server-card-row cursor-pointer px-4 py-3 transition-colors hover:bg-[var(--hub-surface-hover)]"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => {
+            setExpanded((was) => {
+              const next = !was;
+              if (next) {
+                setExpandedTab((tab) => {
+                  if (tab) return tab;
+                  if (totalTools > 0) return 'tools';
+                  if (totalPrompts > 0) return 'prompts';
+                  if (totalResources > 0) return 'resources';
+                  return null;
+                });
+              }
+              return next;
+            });
+          }}
         >
           {/* Name + description */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -879,15 +893,9 @@ const ServerCard = ({
 
         {/* Expanded detail */}
         {expanded && (
-          <div
-            style={{
-              borderTop: '1px solid var(--hub-line-2)',
-              background: 'var(--hub-bg-2)',
-              padding: '14px 16px 16px 38px',
-            }}
-          >
+          <div className="hub-server-detail">
             {/* Capability tabs + endpoint on same row */}
-            <div className="flex items-center gap-1 mb-2 flex-wrap">
+            <div className="hub-cap-toolbar">
               {capabilitySummaries.map((tab) => {
                 const active = expandedTab === tab.key;
                 const Icon = tab.icon;
@@ -895,12 +903,7 @@ const ServerCard = ({
                   <button
                     key={tab.key}
                     onClick={() => setExpandedTab(active ? null : tab.key)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors hover:bg-[var(--hub-surface-hover)]"
-                    style={{
-                      background: active ? 'var(--hub-surface)' : 'transparent',
-                      border: '1px solid ' + (active ? 'var(--hub-line)' : 'transparent'),
-                      color: active ? 'var(--hub-ink)' : 'var(--hub-ink-2)',
-                    }}
+                    className={`hub-cap-tab${active ? ' is-active' : ''}`}
                   >
                     <CapabilityIcon icon={Icon} />
                     <span>{tab.label}</span>
@@ -915,12 +918,7 @@ const ServerCard = ({
               {cost && cost.connected && (
                 <button
                   onClick={() => setExpandedTab(expandedTab === 'cost' ? null : 'cost')}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors hover:bg-[var(--hub-surface-hover)]"
-                  style={{
-                    background: expandedTab === 'cost' ? 'var(--hub-surface)' : 'transparent',
-                    border: '1px solid ' + (expandedTab === 'cost' ? 'var(--hub-line)' : 'transparent'),
-                    color: expandedTab === 'cost' ? 'var(--hub-ink)' : 'var(--hub-ink-2)',
-                  }}
+                  className={`hub-cap-tab${expandedTab === 'cost' ? ' is-active' : ''}`}
                   title={t('cost.estimate')}
                 >
                   <span style={{ color: 'var(--hub-ink-3)' }}>Σ</span>
@@ -962,12 +960,12 @@ const ServerCard = ({
 
             {/* Context Footprint breakdown */}
             {expandedTab === 'cost' && cost?.connected && (
-              <div className="mt-2 space-y-1">
+              <div className="hub-cap-list hub-cap-cost-list">
                 {[...cost.items].sort((a, b) => b.cost - a.cost).map((item) => (
                   <div
                     key={`${item.kind}:${item.name}`}
-                    className="flex items-center justify-between hub-mono"
-                    style={{ fontSize: 11.5, color: item.enabled ? 'var(--hub-ink-2)' : 'var(--hub-ink-3)' }}
+                    className="hub-cap-cost-row"
+                    style={{ color: item.enabled ? 'var(--hub-ink-2)' : 'var(--hub-ink-3)' }}
                   >
                     <span className="truncate">{item.name}</span>
                     <span className="hub-num flex-shrink-0">{formatTokens(item.cost)}</span>
@@ -976,55 +974,59 @@ const ServerCard = ({
               </div>
             )}
 
-            {expandedTab === 'tools' && server.tools && (
-              <div className="space-y-3 mt-2">
-                {server.tools.map((tool, index) => (
-                  <ToolCard
-                    key={index}
-                    server={server.name}
-                    tool={tool}
-                    readOnly={!canManage}
-                    onToggle={handleToolToggle}
-                    onDescriptionUpdate={handleToolDescriptionUpdate}
-                    cost={cost?.items.find((i) => i.kind === 'tool' && i.name === tool.name)?.cost}
-                  />
-                ))}
-              </div>
-            )}
-            {expandedTab === 'prompts' && server.prompts && (
-              <div className="space-y-3 mt-2">
-                {server.prompts.map((prompt, index) => (
-                  <PromptCard
-                    key={index}
-                    server={server.name}
-                    prompt={prompt}
-                    readOnly={!canManage}
-                    onToggle={handlePromptToggle}
-                    onDescriptionUpdate={handlePromptDescriptionUpdate}
-                    cost={cost?.items.find((i) => i.kind === 'prompt' && i.name === prompt.name)?.cost}
-                  />
-                ))}
-              </div>
-            )}
-            {expandedTab === 'resources' && server.resources && (
-              <div className="mt-2">
-                {server.resources.length === 0 ? (
-                  <div className="text-sm" style={{ color: 'var(--hub-ink-3)' }}>
-                    {t('builtinResources.noResources')}
-                  </div>
+            {expandedTab === 'tools' && (
+              <div className="hub-cap-list">
+                {server.tools && server.tools.length > 0 ? (
+                  server.tools.map((tool, index) => (
+                    <ToolCard
+                      key={index}
+                      server={server.name}
+                      tool={tool}
+                      readOnly={!canManage}
+                      onToggle={handleToolToggle}
+                      onDescriptionUpdate={handleToolDescriptionUpdate}
+                      cost={cost?.items.find((i) => i.kind === 'tool' && i.name === tool.name)?.cost}
+                    />
+                  ))
                 ) : (
-                  <div className="space-y-3">
-                    {server.resources.map((resource, index) => (
-                      <ResourceCard
-                        key={`${resource.uri}-${index}`}
-                        resource={resource}
-                        readOnly={!canManage}
-                        onToggle={handleResourceToggle}
-                        onDescriptionUpdate={handleResourceDescriptionUpdate}
-                        cost={cost?.items.find((i) => i.kind === 'resource' && i.name === resource.uri)?.cost}
-                      />
-                    ))}
-                  </div>
+                  <p className="hub-cap-empty">{t('server.noTools')}</p>
+                )}
+              </div>
+            )}
+            {expandedTab === 'prompts' && (
+              <div className="hub-cap-list">
+                {server.prompts && server.prompts.length > 0 ? (
+                  server.prompts.map((prompt, index) => (
+                    <PromptCard
+                      key={index}
+                      server={server.name}
+                      prompt={prompt}
+                      readOnly={!canManage}
+                      onToggle={handlePromptToggle}
+                      onDescriptionUpdate={handlePromptDescriptionUpdate}
+                      cost={cost?.items.find((i) => i.kind === 'prompt' && i.name === prompt.name)?.cost}
+                    />
+                  ))
+                ) : (
+                  <p className="hub-cap-empty">{t('builtinPrompts.noPrompts')}</p>
+                )}
+              </div>
+            )}
+            {expandedTab === 'resources' && (
+              <div className="hub-cap-list">
+                {!server.resources || server.resources.length === 0 ? (
+                  <p className="hub-cap-empty">{t('builtinResources.noResources')}</p>
+                ) : (
+                  server.resources.map((resource, index) => (
+                    <ResourceCard
+                      key={`${resource.uri}-${index}`}
+                      resource={resource}
+                      readOnly={!canManage}
+                      onToggle={handleResourceToggle}
+                      onDescriptionUpdate={handleResourceDescriptionUpdate}
+                      cost={cost?.items.find((i) => i.kind === 'resource' && i.name === resource.uri)?.cost}
+                    />
+                  ))
                 )}
               </div>
             )}

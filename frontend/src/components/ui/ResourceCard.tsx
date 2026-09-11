@@ -25,23 +25,12 @@ const ResourceCard = ({ resource, readOnly = false, onToggle, onDescriptionUpdat
   const [isResettingDescription, setIsResettingDescription] = useState(false);
   const [customDescription, setCustomDescription] = useState(resource.description || '');
   const descriptionInputRef = useRef<HTMLInputElement>(null);
-  const descriptionTextRef = useRef<HTMLSpanElement>(null);
-  const [textWidth, setTextWidth] = useState<number>(0);
 
   useEffect(() => {
     if (isEditingDescription && descriptionInputRef.current) {
       descriptionInputRef.current.focus();
-      if (textWidth > 0) {
-        descriptionInputRef.current.style.width = `${textWidth + 20}px`;
-      }
     }
-  }, [isEditingDescription, textWidth]);
-
-  useEffect(() => {
-    if (!isEditingDescription && descriptionTextRef.current) {
-      setTextWidth(descriptionTextRef.current.offsetWidth);
-    }
-  }, [isEditingDescription, customDescription]);
+  }, [isEditingDescription]);
 
   useEffect(() => {
     setCustomDescription(resource.description || '');
@@ -84,82 +73,76 @@ const ResourceCard = ({ resource, readOnly = false, onToggle, onDescriptionUpdat
   };
 
   return (
-    <div
-      className="hub-card overflow-hidden"
-      style={{ marginBottom: 8 }}
-    >
+    <div className={`hub-cap-item${isExpanded ? ' is-open' : ''}${resource.enabled === false ? ' is-off' : ''}`}>
       <div
-        className="flex justify-between items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-[var(--hub-surface-hover)] transition-colors"
+        className="hub-cap-item-main"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="hub-mono font-medium truncate" style={{ fontSize: 13, color: 'var(--hub-ink)' }}>
-              {resourceDisplayName}
-            </span>
-            <span className="hub-mono truncate" style={{ fontSize: 11.5, color: 'var(--hub-ink-3)' }}>
-              {resource.uri}
-            </span>
-          </div>
-          <span className="flex items-center gap-1 mt-0.5" style={{ fontSize: 12, color: 'var(--hub-ink-3)' }}>
-            {isEditingDescription ? (
+        <div className="hub-cap-copy">
+          <div className="hub-cap-name-row">
+            <span className="hub-cap-name">{resourceDisplayName}</span>
+            <span className="hub-cap-kicker hub-mono">{resource.uri}</span>
+            {!readOnly && !isEditingDescription && (
               <>
-                <input
-                  ref={descriptionInputRef}
-                  type="text"
-                  className="hub-input"
-                  style={{ height: 26, fontSize: 12, width: textWidth > 0 ? `${textWidth + 20}px` : 160, minWidth: 80 }}
-                  value={customDescription}
-                  onChange={(e) => setCustomDescription(e.target.value)}
-                  onKeyDown={handleDescriptionKeyDown}
-                  onClick={(e) => e.stopPropagation()}
-                />
                 <button
-                  className="hub-icon-btn sm"
-                  onClick={(e) => { e.stopPropagation(); handleDescriptionSave(); }}
-                  disabled={isResettingDescription}
+                  type="button"
+                  className="hub-icon-btn sm hub-cap-ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingDescription(true);
+                  }}
+                  title={t('server.edit')}
                 >
-                  <Check size={12} style={{ color: 'var(--hub-ok)' }} />
+                  <Edit size={12} />
                 </button>
-                <ResetDescriptionButton
-                  title={t('builtinResources.restoreDefault')}
-                  onClick={(e) => { e.stopPropagation(); handleDescriptionReset(); }}
-                  disabled={isResettingDescription}
-                  loading={isResettingDescription}
-                />
-              </>
-            ) : (
-              <>
-                <span ref={descriptionTextRef}>{customDescription || t('tool.noDescription')}</span>
-                {!readOnly && (
-                  <>
-                    <button
-                      className="hub-icon-btn sm"
-                      onClick={(e) => { e.stopPropagation(); setIsEditingDescription(true); }}
-                    >
-                      <Edit size={12} />
-                    </button>
-                    <ResetDescriptionButton
-                      title={t('builtinResources.restoreDefault')}
-                      onClick={(e) => { e.stopPropagation(); handleDescriptionReset(); }}
-                      disabled={isResettingDescription}
-                      loading={isResettingDescription}
-                    />
-                  </>
-                )}
+                <span className="hub-cap-ghost">
+                  <ResetDescriptionButton
+                    title={t('builtinResources.restoreDefault')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDescriptionReset();
+                    }}
+                    disabled={isResettingDescription}
+                    loading={isResettingDescription}
+                  />
+                </span>
               </>
             )}
-          </span>
+          </div>
+          {isEditingDescription ? (
+            <div className="hub-cap-edit" onClick={(e) => e.stopPropagation()}>
+              <input
+                ref={descriptionInputRef}
+                type="text"
+                className="hub-input hub-cap-edit-input"
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
+              />
+              <button
+                type="button"
+                className="hub-icon-btn sm"
+                onClick={() => void handleDescriptionSave()}
+                disabled={isResettingDescription}
+                title={t('common.save')}
+              >
+                <Check size={12} style={{ color: 'var(--hub-ok)' }} />
+              </button>
+              <ResetDescriptionButton
+                title={t('builtinResources.restoreDefault')}
+                onClick={() => void handleDescriptionReset()}
+                disabled={isResettingDescription}
+                loading={isResettingDescription}
+              />
+            </div>
+          ) : (
+            <p className="hub-cap-desc">{customDescription || t('tool.noDescription')}</p>
+          )}
         </div>
-
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="hub-cap-acts">
           {cost != null && (
-            <span
-              className="hub-mono flex-shrink-0"
-              style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}
-              title={t('cost.estimate')}
-            >
-              Σ {formatTokens(cost)}
+            <span className="hub-cap-cost" title={t('cost.estimate')}>
+              {formatTokens(cost)}
             </span>
           )}
           <div className="flex h-[26px] items-center" onClick={(e) => e.stopPropagation()}>
@@ -171,14 +154,14 @@ const ResourceCard = ({ resource, readOnly = false, onToggle, onDescriptionUpdat
               aria-label={`${t(resource.enabled !== false ? 'server.disable' : 'server.enable')} ${resourceDisplayName}`}
             />
           </div>
-          <button className="hub-icon-btn sm">
+          <button type="button" className="hub-icon-btn sm" aria-hidden="true">
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
       </div>
 
       {isExpanded && (
-        <div style={{ borderTop: '1px solid var(--hub-line-2)', padding: '8px 12px' }}>
+        <div className="hub-cap-body">
           <span className="hub-sect">{t('builtinResources.mimeType')}:</span>{' '}
           <span style={{ fontSize: 12, color: 'var(--hub-ink-2)' }}>{resource.mimeType || 'text/plain'}</span>
         </div>
