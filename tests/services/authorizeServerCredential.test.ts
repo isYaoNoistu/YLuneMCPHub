@@ -48,7 +48,7 @@ describe('authorizeToolResourceAccess user-server credentials', () => {
     createCredentialLease.mockReturnValue({ id: 'lease-1' });
   });
 
-  it('injects a lease when the user has a bound MCP credential', async () => {
+  it('keeps the assigned credential on the chain without injecting lease args', async () => {
     findUserServerCredential.mockResolvedValue({
       username: 'alice',
       serverName: 'jenkins',
@@ -59,9 +59,10 @@ describe('authorizeToolResourceAccess user-server credentials', () => {
       serverName: 'jenkins',
       args: { job: 'deploy' },
     });
-    expect(result.sanitizedArgs.credentialLeaseId).toBe('lease-1');
+    expect(result.sanitizedArgs).toEqual({ job: 'deploy' });
     expect(result.chain.credentialId).toBe('cred-1');
     expect(result.chain.credentialName).toBe('ci-ro');
+    expect(createCredentialLease).not.toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toMatch(/password|token/i);
   });
 

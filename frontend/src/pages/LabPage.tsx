@@ -134,7 +134,7 @@ const LabPage = () => {
   }
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('lab.title')}</h1>
@@ -142,8 +142,8 @@ const LabPage = () => {
         </div>
       </div>
 
-      <div className="hub-card" style={{ padding: 16 }}>
-        <div className="ylune-dialog-body" style={{ padding: 0 }}>
+      <div className="hub-card lab-card">
+        <div className="ylune-dialog-body">
           <label className="ylune-label">{t('lab.asUser')}</label>
           <select
             className="hub-input"

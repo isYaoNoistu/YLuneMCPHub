@@ -128,6 +128,9 @@ const normalizeUserServerCredentialRows = async (
     if (!allowedIds || !allowedIds.has(credentialId)) {
       throw new Error(`Credential is not bound to MCP ${serverName}`);
     }
+    if (normalized.some((item) => item.serverName === serverName && item.credentialId === credentialId)) {
+      continue;
+    }
     normalized.push({ username, serverName, credentialId });
   }
   return normalized;

@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IGroupServerConfig, Prompt, Resource, Server, ServerCost, Tool } from '@/types';
+import {
+  CredentialContract,
+  IGroupServerConfig,
+  Prompt,
+  Resource,
+  Server,
+  ServerCost,
+  Tool,
+  UserServerCredential,
+} from '@/types';
 import { MessageSquare, FileText, ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useSettingsData } from '@/hooks/useSettingsData';
@@ -27,6 +36,10 @@ interface ServerToolConfigProps {
   onChange: (value: IGroupServerConfig[]) => void;
   className?: string;
   serverCosts?: ServerCost[];
+  contracts?: CredentialContract[];
+  serverCredentials?: UserServerCredential[];
+  onServerCredentialsChange?: (next: UserServerCredential[]) => void;
+  credentialsDisabled?: boolean;
 }
 
 interface CapabilityItem {
@@ -43,6 +56,10 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
   onChange,
   className,
   serverCosts = [],
+  contracts = [],
+  serverCredentials = [],
+  onServerCredentialsChange,
+  credentialsDisabled = false,
 }) => {
   const { t } = useTranslation();
   const { nameSeparator } = useSettingsData();
@@ -87,6 +104,29 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
     });
   }, [normalizedValue, availableServers]);
 
+  const setServerCredentials = (serverName: string, credentialIds: string[]) => {
+    if (!onServerCredentialsChange) {
+      return;
+    }
+    const rest = serverCredentials.filter((row) => row.serverName !== serverName);
+    onServerCredentialsChange([
+      ...rest,
+      ...credentialIds.map((credentialId) => ({ serverName, credentialId })),
+    ]);
+  };
+
+  const toggleServerCredential = (serverName: string, credentialId: string) => {
+    const current = serverCredentials
+      .filter((row) => row.serverName === serverName)
+      .map((row) => row.credentialId);
+    setServerCredentials(
+      serverName,
+      current.includes(credentialId)
+        ? current.filter((id) => id !== credentialId)
+        : [...current, credentialId],
+    );
+  };
+
   const toggleServer = (serverName: string) => {
     const existingIndex = normalizedValue.findIndex((config) => config.name === serverName);
 
@@ -94,10 +134,16 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
       // Remove server - this also removes all capability selections
       const newValue = normalizedValue.filter((config) => config.name !== serverName);
       onChange(newValue);
+      setServerCredentials(serverName, []);
     } else {
       // Add server with all capabilities by default
       const newValue = [...normalizedValue, { name: serverName, ...FULL_SELECTIONS }];
       onChange(newValue);
+      const contract = contracts.find((row) => row.serverName === serverName);
+      setServerCredentials(
+        serverName,
+        (contract?.credentials || []).map((credential) => credential.id),
+      );
     }
   };
 
@@ -368,6 +414,15 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
           );
           const costMap = costMapForServer(server.name);
           const toolTotal = getCapabilityItems(server, 'tools').length;
+          const contract = contracts.find((row) => row.serverName === server.name);
+          const selectedCredentialIds = serverCredentials
+            .filter((row) => row.serverName === server.name)
+            .map((row) => row.credentialId);
+          const allCredentialsSelected =
+            Boolean(contract?.credentials.length) &&
+            (contract?.credentials || []).every((credential) =>
+              selectedCredentialIds.includes(credential.id),
+            );
 
           return (
             <div key={server.name}>
@@ -420,6 +475,51 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
                   )}
                 </div>
               </div>
+
+              {isSelected &&
+                onServerCredentialsChange &&
+                contract &&
+                (contract.credentials.length > 0 || contract.neededKeys.length > 0) && (
+                <div className="ylune-server-cred" onClick={(event) => event.stopPropagation()}>
+                  <div className="mcp-assign-head">
+                    <label className="ylune-label">{t('users.serverCredentials')}</label>
+                    {contract.credentials.length > 0 && (
+                      <button
+                        type="button"
+                        className="ylune-link-btn"
+                        disabled={credentialsDisabled}
+                        onClick={() =>
+                          setServerCredentials(
+                            server.name,
+                            allCredentialsSelected
+                              ? []
+                              : contract.credentials.map((credential) => credential.id),
+                          )
+                        }
+                      >
+                        {allCredentialsSelected ? t('groups.selectNone') : t('groups.selectAll')}
+                      </button>
+                    )}
+                  </div>
+                  {contract.credentials.length === 0 ? (
+                    <p className="ylune-help">{t('users.noCredentialBound')}</p>
+                  ) : (
+                    <div className="mcp-assign-checks">
+                      {contract.credentials.map((credential) => (
+                        <label key={credential.id} className="ylune-check">
+                          <input
+                            type="checkbox"
+                            checked={selectedCredentialIds.includes(credential.id)}
+                            disabled={credentialsDisabled}
+                            onChange={() => toggleServerCredential(server.name, credential.id)}
+                          />
+                          {credential.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {isExpanded && serverCapabilities.length > 0 && (
                 <div className="ylune-server-detail">

@@ -47,7 +47,7 @@ const GroupsPage: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('pages.groups.title')}</h1>
@@ -76,7 +76,7 @@ const GroupsPage: React.FC = () => {
       </div>
 
       {groupError && (
-        <div className="ylune-banner is-danger flex items-center justify-between gap-3 mb-4">
+        <div className="ylune-banner is-danger flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <AlertCircle size={14} className="flex-shrink-0" />
             <span className="truncate text-[13px]">{groupError}</span>

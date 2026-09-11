@@ -351,20 +351,8 @@ const leaseFromCredential = async (input: {
   if (!credential?.enabled) {
     return null;
   }
-  const lease = createCredentialLease({
-    username: input.username,
-    serverName: input.serverName,
-    targetId: '',
-    targetName: input.serverName,
-    credentialId: credential.id,
-    credentialName: credential.name,
-    credentialVersion: credential.keyVersion,
-  });
   return {
-    sanitizedArgs: {
-      ...input.sanitizedArgs,
-      credentialLeaseId: lease.id,
-    },
+    sanitizedArgs: input.sanitizedArgs,
     chain: {
       ...input.chainBase,
       credentialId: credential.id,

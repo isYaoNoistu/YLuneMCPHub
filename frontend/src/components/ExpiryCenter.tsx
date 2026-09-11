@@ -12,7 +12,7 @@ const ExpiryCenter = ({ users, onRenew }: ExpiryCenterProps) => {
   const attention = listExpiryAttention(users);
 
   return (
-    <div className="hub-card" style={{ padding: '14px 16px', marginBottom: 16 }}>
+    <div className="hub-card expiry-center">
       <h2 className="hub-card-title" style={{ marginBottom: 6 }}>
         {t('users.expiryCenter')}
       </h2>

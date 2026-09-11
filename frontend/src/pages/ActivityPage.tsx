@@ -205,39 +205,20 @@ const ActivityPage: React.FC = () => {
     if (!stats) return null;
 
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="hub-card activity-stats">
         {[
-          { label: t('activity.totalCalls'), value: stats.totalCalls, tone: 'default' as const },
-          { label: t('activity.successCount'), value: stats.successCount, tone: 'ok' as const },
-          { label: t('activity.errorCount'), value: stats.errorCount, tone: 'err' as const },
+          { label: t('activity.totalCalls'), value: stats.totalCalls, tone: '' },
+          { label: t('activity.successCount'), value: stats.successCount, tone: 'is-ok' },
+          { label: t('activity.errorCount'), value: stats.errorCount, tone: 'is-err' },
           {
             label: t('activity.avgDuration'),
             value: formatDuration(stats.avgDuration),
-            tone: 'default' as const,
+            tone: '',
           },
         ].map((s) => (
-          <div key={s.label} className="hub-card" style={{ padding: '12px 14px' }}>
-            <div className="text-[12px]" style={{ color: 'var(--hub-ink-3)' }}>
-              {s.label}
-            </div>
-            <div
-              className="hub-num"
-              style={{
-                fontSize: 22,
-                fontWeight: 500,
-                lineHeight: 1.1,
-                marginTop: 6,
-                letterSpacing: '-0.02em',
-                color:
-                  s.tone === 'ok'
-                    ? 'oklch(0.4 0.13 145)'
-                    : s.tone === 'err'
-                      ? 'oklch(0.45 0.18 25)'
-                      : 'var(--hub-ink)',
-              }}
-            >
-              {s.value}
-            </div>
+          <div key={s.label} className={`activity-stats-item ${s.tone}`.trim()}>
+            <div className="activity-stats-label">{s.label}</div>
+            <div className="activity-stats-value hub-num">{s.value}</div>
           </div>
         ))}
       </div>
@@ -250,7 +231,7 @@ const ActivityPage: React.FC = () => {
       (values || []).map((value) => ({ value, label: value }));
 
     return (
-      <div className="hub-card" style={{ padding: 16, marginBottom: 16 }}>
+      <div className="hub-card activity-filter-card">
         <div className="activity-filters">
           <FilterSelect
             id="activity-server"
@@ -316,7 +297,7 @@ const ActivityPage: React.FC = () => {
     return (
       <div className="hub-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full">
+          <table className="min-w-full activity-table">
             <thead style={{ background: 'var(--hub-bg-2)' }}>
               <tr>
                 {[
@@ -407,6 +388,43 @@ const ActivityPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {pagination && (
+          <div className="hub-card-foot is-split">
+            <span className="hub-pager-meta">
+              {t('common.showing', {
+                start: (pagination.page - 1) * pagination.limit + 1,
+                end: Math.min(pagination.page * pagination.limit, pagination.total),
+                total: pagination.total,
+              })}
+            </span>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={setCurrentPage}
+              disabled={isLoading}
+            />
+            <div className="hub-pager">
+              <label className="hub-pager-meta" htmlFor="perPage">
+                {t('common.itemsPerPage')}
+              </label>
+              <select
+                id="perPage"
+                className="hub-input"
+                style={{ height: 30, width: 72, padding: '0 8px', fontSize: 12 }}
+                value={String(itemsPerPage)}
+                onChange={(event) => {
+                  setItemsPerPage(Number(event.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -500,7 +518,7 @@ const ActivityPage: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('activity.title')}</h1>
@@ -527,7 +545,7 @@ const ActivityPage: React.FC = () => {
 
       {error && (
         <div
-          className="hub-card flex items-center justify-between gap-3 mb-4"
+          className="hub-card flex items-center justify-between gap-3"
           style={{
             padding: '10px 14px',
             borderColor: 'oklch(0.85 0.1 25)',
@@ -562,47 +580,6 @@ const ActivityPage: React.FC = () => {
           {renderStats()}
           {renderFilters()}
           {renderActivityTable()}
-
-          {/* Pagination */}
-          <div className="flex items-center mt-6">
-            <div className="flex-[2] text-sm text-gray-500 dark:text-gray-400">
-              {pagination &&
-                t('common.showing', {
-                  start: (pagination.page - 1) * pagination.limit + 1,
-                  end: Math.min(pagination.page * pagination.limit, pagination.total),
-                  total: pagination.total,
-                })}
-            </div>
-            <div className="flex-[4] flex justify-center">
-              {pagination && pagination.totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setCurrentPage}
-                  disabled={isLoading}
-                />
-              )}
-            </div>
-            <div className="flex-[2] flex items-center justify-end" style={{ minWidth: 160 }}>
-              <FilterSelect
-                id="perPage"
-                label={t('common.itemsPerPage')}
-                value={String(itemsPerPage)}
-                onChange={(value) => {
-                  setItemsPerPage(Number(value));
-                  setCurrentPage(1);
-                }}
-                options={[
-                  { value: '10', label: '10' },
-                  { value: '20', label: '20' },
-                  { value: '50', label: '50' },
-                  { value: '100', label: '100' },
-                ]}
-                searchable={false}
-                allowEmpty={false}
-              />
-            </div>
-          </div>
         </>
       )}
 

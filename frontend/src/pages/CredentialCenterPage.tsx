@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Credential, CredentialContract, ResourceGroup, ResourceTarget } from '@/types';
+import { Credential, CredentialContract } from '@/types';
 import {
   checkCredentialAvailable,
   createCredential,
@@ -14,8 +14,6 @@ import {
   testServerCredential,
   updateCredential,
 } from '@/services/credentialService';
-import { getResourceGroups, getResourceTargets } from '@/services/resourceBindingService';
-import { useServerData } from '@/hooks/useServerData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import YluneDialog from '@/components/ui/YluneDialog';
 import KeyValueEditor, {
@@ -24,44 +22,49 @@ import KeyValueEditor, {
   keysToEmptyPairs,
   KvPair,
 } from '@/components/KeyValueEditor';
-import ResourceTargetPanel from '@/components/ResourceTargetPanel';
-import ResourceGroupPanel from '@/components/ResourceGroupPanel';
 
-type TabId = 'credentials' | 'targets' | 'groups';
+const defaultCredentialPairs = (): KvPair[] => [
+  { key: 'HOST', value: '' },
+  { key: 'PORT', value: '' },
+  { key: 'TOKEN', value: '' },
+];
+
+const uniqueCredentialName = (base: string, taken: string[]): string => {
+  const used = new Set(taken);
+  if (!used.has(base)) {
+    return base;
+  }
+  let index = 2;
+  while (used.has(`${base}-${index}`)) {
+    index += 1;
+  }
+  return `${base}-${index}`;
+};
 
 const CredentialCenterPage = () => {
   const { t } = useTranslation();
   const { auth } = useAuth();
   const isAdmin = auth.user?.isAdmin === true;
-  const [tab, setTab] = useState<TabId>('credentials');
   const [available, setAvailable] = useState(false);
   const [items, setItems] = useState<Credential[]>([]);
   const [contracts, setContracts] = useState<CredentialContract[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createBindTo, setCreateBindTo] = useState('');
   const [createName, setCreateName] = useState('');
-  const [createPairs, setCreatePairs] = useState<KvPair[]>(emptyPairs(2));
-  const [createFromServer, setCreateFromServer] = useState('');
-  const [bindOnCreate, setBindOnCreate] = useState(true);
+  const [createPairs, setCreatePairs] = useState<KvPair[]>(defaultCredentialPairs());
+  const [existingPick, setExistingPick] = useState<Record<string, string>>({});
   const [replacing, setReplacing] = useState<Credential | null>(null);
   const [replacePairs, setReplacePairs] = useState<KvPair[]>(emptyPairs(1));
   const [deleting, setDeleting] = useState<Credential | null>(null);
   const [toggling, setToggling] = useState<Credential | null>(null);
-  const [binding, setBinding] = useState<Credential | null>(null);
-  const [bindServerNames, setBindServerNames] = useState<string[]>([]);
-  const [testing, setTesting] = useState<Credential | null>(null);
-  const [testServerName, setTestServerName] = useState('');
-  const [testMessage, setTestMessage] = useState<string | null>(null);
-  const [targets, setTargets] = useState<ResourceTarget[]>([]);
-  const [groups, setGroups] = useState<ResourceGroup[]>([]);
-  const [creatingTarget, setCreatingTarget] = useState(false);
-  const [creatingGroup, setCreatingGroup] = useState(false);
-  const { allServers } = useServerData();
-
-  const serversForCredential = (id: string) =>
-    contracts.filter((contract) => contract.credentialIds.includes(id)).map((row) => row.serverName);
-
+  const [testStatus, setTestStatus] = useState<{
+    serverName: string;
+    credentialId: string;
+    ok: boolean;
+    message: string;
+  } | null>(null);
   const load = async () => {
     const storeOn = await checkCredentialAvailable();
     setAvailable(storeOn);
@@ -70,23 +73,12 @@ const CredentialCenterPage = () => {
       setContracts([]);
       return;
     }
-    const [credRes, targetRes, groupRes, contractRes] = await Promise.all([
-      getCredentials(),
-      getResourceTargets(),
-      getResourceGroups(),
-      getCredentialContracts(),
-    ]);
+    const [credRes, contractRes] = await Promise.all([getCredentials(), getCredentialContracts()]);
     if (credRes?.success && Array.isArray(credRes.data)) {
       setItems(credRes.data);
       setError(null);
     } else {
       setError(credRes?.message || t('credentials.createError'));
-    }
-    if (targetRes?.success && Array.isArray(targetRes.data)) {
-      setTargets(targetRes.data);
-    }
-    if (groupRes?.success && Array.isArray(groupRes.data)) {
-      setGroups(groupRes.data);
     }
     if (contractRes?.success && Array.isArray(contractRes.data)) {
       setContracts(contractRes.data);
@@ -107,14 +99,24 @@ const CredentialCenterPage = () => {
     );
   }
 
-  const applyMcpTemplate = (serverName: string) => {
-    setCreateFromServer(serverName);
-    const contract = contracts.find((row) => row.serverName === serverName);
-    if (contract?.neededKeys.length) {
-      setCreatePairs(keysToEmptyPairs(contract.neededKeys));
-    } else {
-      setCreatePairs(emptyPairs(2));
-    }
+  const boundServersOf = (credentialId: string) =>
+    contracts
+      .filter((contract) => contract.credentialIds.includes(credentialId))
+      .map((contract) => contract.serverName);
+
+  const openCreate = (serverName = '') => {
+    setCreating(true);
+    setCreateBindTo(serverName);
+    setCreateName(
+      uniqueCredentialName(serverName || 'readonly-prod', items.map((item) => item.name)),
+    );
+    setCreatePairs(defaultCredentialPairs());
+    setError(null);
+  };
+
+  const closeCreate = () => {
+    setCreating(false);
+    setCreateBindTo('');
   };
 
   const submitCreate = async () => {
@@ -132,27 +134,25 @@ const CredentialCenterPage = () => {
       name: createName.trim(),
       fields: collected.fields,
     });
-    if (result?.success && result.data && bindOnCreate && createFromServer) {
-      const current = contracts.find((row) => row.serverName === createFromServer)?.credentialIds || [];
-      const bindResult = await setServerCredentials(createFromServer, [...new Set([...current, result.data.id])]);
+    if (!result?.success || !result.data) {
+      setBusy(false);
+      setError(result?.message || t('credentials.createError'));
+      return;
+    }
+    if (createBindTo) {
+      const current = contracts.find((row) => row.serverName === createBindTo)?.credentialIds || [];
+      const bindResult = await setServerCredentials(createBindTo, [...new Set([...current, result.data.id])]);
       if (!bindResult?.success) {
         setBusy(false);
         setError(bindResult?.message || t('credentials.bindError'));
+        closeCreate();
         await load();
         return;
       }
     }
     setBusy(false);
-    if (result?.success) {
-      setShowCreate(false);
-      setCreateName('');
-      setCreatePairs(emptyPairs(2));
-      setCreateFromServer('');
-      setBindOnCreate(true);
-      await load();
-    } else {
-      setError(result?.message || t('credentials.createError'));
-    }
+    closeCreate();
+    await load();
   };
 
   const submitReplace = async () => {
@@ -174,254 +174,258 @@ const CredentialCenterPage = () => {
     }
   };
 
-  const submitBind = async () => {
-    if (!binding) return;
-    setBusy(true);
-    const currentlyBound = serversForCredential(binding.id);
-    const nextBound = new Set(bindServerNames);
-    const changed = new Set([...currentlyBound, ...bindServerNames]);
-    for (const serverName of changed) {
-      const contract = contracts.find((row) => row.serverName === serverName);
-      const ids = new Set(contract?.credentialIds || []);
-      if (nextBound.has(serverName)) {
-        ids.add(binding.id);
-      } else {
-        ids.delete(binding.id);
-      }
-      const result = await setServerCredentials(serverName, [...ids]);
-      if (!result?.success) {
-        setBusy(false);
-        setError(result?.message || t('credentials.bindError'));
-        return;
-      }
+  const bindExisting = async (serverName: string, credentialId: string) => {
+    if (!credentialId) {
+      return;
     }
+    const current = contracts.find((row) => row.serverName === serverName)?.credentialIds || [];
+    setBusy(true);
+    const result = await setServerCredentials(serverName, [...new Set([...current, credentialId])]);
     setBusy(false);
-    setBinding(null);
+    setExistingPick((prev) => ({ ...prev, [serverName]: '' }));
+    if (!result?.success) {
+      setError(result?.message || t('credentials.bindError'));
+      return;
+    }
     await load();
   };
 
-  const submitTest = async () => {
-    if (!testing || !testServerName) {
-      setTestMessage(t('credentials.selectMcp'));
+  const unbindSelected = async (serverName: string, credentialId: string) => {
+    if (!credentialId) {
+      return;
+    }
+    const current = contracts.find((row) => row.serverName === serverName)?.credentialIds || [];
+    setBusy(true);
+    const result = await setServerCredentials(
+      serverName,
+      current.filter((id) => id !== credentialId),
+    );
+    setBusy(false);
+    if (!result?.success) {
+      setError(result?.message || t('credentials.bindError'));
+      return;
+    }
+    await load();
+  };
+
+  const runTest = async (serverName: string, credentialId: string) => {
+    if (!credentialId) {
+      setTestStatus({ serverName, credentialId: '', ok: false, message: t('credentials.noneBound') });
       return;
     }
     setBusy(true);
-    setTestMessage(null);
-    const result = await testServerCredential(testServerName, testing.id);
+    setTestStatus(null);
+    const result = await testServerCredential(serverName, credentialId);
     setBusy(false);
-    setTestMessage(result?.message || (result?.success ? t('credentials.testOk') : t('credentials.testFail')));
-    if (result?.success) {
-      setError(null);
-    }
+    setTestStatus({
+      serverName,
+      credentialId,
+      ok: Boolean(result?.success),
+      message: result?.message || (result?.success ? t('credentials.testOk') : t('credentials.testFail')),
+    });
   };
 
   return (
-    <div>
+    <div className="hub-page-stack cred-center">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('credentials.title')}</h1>
           <p className="hub-sub">{t('credentials.hint')}</p>
-          <p className="ylune-help" style={{ marginBottom: 0 }}>
-            {t('credentials.nextStageHint')}
-          </p>
         </div>
         <div className="view-actions">
           <button className="hub-btn" onClick={() => void load()} aria-label={t('common.refresh')}>
             <RefreshCw size={13} /> {t('common.refresh')}
           </button>
-          {tab === 'credentials' && available && (
-            <button
-              className="hub-btn primary"
-              onClick={() => {
-                setShowCreate(true);
-                setCreateName('');
-                setCreatePairs(emptyPairs(2));
-                setCreateFromServer('');
-                setBindOnCreate(true);
-              }}
-            >
+          {available && (
+            <button className="hub-btn primary" onClick={() => openCreate()}>
               <Plus size={13} /> {t('credentials.add')}
-            </button>
-          )}
-          {tab === 'targets' && (
-            <button className="hub-btn primary" onClick={() => setCreatingTarget(true)}>
-              <Plus size={13} /> {t('targets.add')}
-            </button>
-          )}
-          {tab === 'groups' && (
-            <button className="hub-btn primary" onClick={() => setCreatingGroup(true)}>
-              <Plus size={13} /> {t('resourceGroups.add')}
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {(
-          [
-            ['credentials', t('credentials.tabCredentials')],
-            ['targets', t('credentials.tabTargets')],
-            ['groups', t('credentials.tabGroups')],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={`hub-btn${tab === id ? ' primary' : ''}`}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'targets' && (
-        <ResourceTargetPanel
-          items={targets}
-          onChanged={load}
-          creating={creatingTarget}
-          onCreatingChange={setCreatingTarget}
-        />
+      {error && (
+        <div className="ylune-error">
+          {error}
+        </div>
       )}
-      {tab === 'groups' && (
-        <ResourceGroupPanel
-          groups={groups}
-          targets={targets}
-          credentials={items}
-          servers={allServers}
-          onChanged={load}
-          creating={creatingGroup}
-          onCreatingChange={setCreatingGroup}
-        />
-      )}
-
-      {tab === 'credentials' && (
-        <>
-          {error && (
-            <div className="ylune-error" style={{ marginBottom: 12 }}>
-              {error}
-            </div>
-          )}
-          {!available ? (
+      {!available ? (
             <div className="hub-card p-6">
               <p className="ylune-help">{t('credentials.unavailable')}</p>
             </div>
-          ) : items.length === 0 ? (
-            <div className="hub-card">
-              <div className="hub-empty">
-                <p className="hub-empty-title">{t('credentials.empty')}</p>
-                <button
-                  type="button"
-                  className="hub-empty-link"
-                  onClick={() => {
-                    setShowCreate(true);
-                    setCreateName('');
-                    setCreatePairs(emptyPairs(2));
-                  }}
-                >
-                  {t('credentials.addFirst')}
-                </button>
-              </div>
-            </div>
           ) : (
-            <div className="hub-card overflow-hidden credentials-table">
-              <div className="hub-row head hub-mono">
-                <div>{t('credentials.name')}</div>
-                <div>{t('credentials.keys')}</div>
-                <div>{t('credentials.boundServers')}</div>
-                <div>{t('credentials.secretConfigured')}</div>
-                <div>{t('credentials.enabled')}</div>
-                <div className="text-right">{t('users.actions')}</div>
-              </div>
-              {items.map((item) => {
-                const bound = serversForCredential(item.id);
-                return (
-                  <div key={item.id} className="hub-row hover">
-                    <div className="hub-mono">{item.name}</div>
-                    <div className="hub-key-chips">
-                      {(item.keys || []).length === 0
-                        ? '—'
-                        : item.keys.map((key) => (
-                            <span key={key} className="hub-kbd">
-                              {key}
-                            </span>
-                          ))}
-                    </div>
-                    <div className="hub-key-chips">
-                      {bound.length === 0
-                        ? '—'
-                        : bound.map((name) => (
-                            <span key={name} className="hub-kbd">
-                              {name}
-                            </span>
-                          ))}
-                    </div>
-                    <div className="hub-mono">
-                      {item.secretConfigured ? t('credentials.masked') : t('credentials.secretMissing')}
-                    </div>
-                    <div>
-                      <button type="button" className="hub-btn" onClick={() => setToggling(item)}>
-                        {item.enabled ? t('credentials.enabled') : t('credentials.disabled')}
-                      </button>
-                    </div>
-                    <div className="flex justify-end gap-1 flex-wrap">
-                      <button
-                        type="button"
-                        className="hub-btn"
-                        onClick={() => {
-                          setBinding(item);
-                          setBindServerNames(serversForCredential(item.id));
-                        }}
-                      >
-                        {t('credentials.bind')}
-                      </button>
-                      <button
-                        type="button"
-                        className="hub-btn"
-                        onClick={() => {
-                          setTesting(item);
-                          setTestMessage(null);
-                          setTestServerName(serversForCredential(item.id)[0] || contracts[0]?.serverName || '');
-                        }}
-                      >
-                        {t('credentials.testWithMcp')}
-                      </button>
-                      <button
-                        type="button"
-                        className="hub-btn"
-                        onClick={() => {
-                          setReplacing(item);
-                          setReplacePairs(keysToEmptyPairs(item.keys || []));
-                        }}
-                      >
-                        {t('credentials.replace')}
-                      </button>
-                      <button
-                        type="button"
-                        className="hub-icon-btn sm"
-                        title={t('credentials.delete')}
-                        style={{ color: 'var(--hub-err)' }}
-                        onClick={() => setDeleting(item)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+            <div className="cred-center-stack">
+              {items.length === 0 ? (
+                <div className="hub-card">
+                  <div className="hub-empty">
+                    <p className="hub-empty-title">{t('credentials.empty')}</p>
+                    <button type="button" className="hub-btn primary" onClick={() => openCreate()}>
+                      <Plus size={13} /> {t('credentials.addFirst')}
+                    </button>
                   </div>
-                );
-              })}
+                </div>
+              ) : (
+                <div className="hub-card overflow-hidden credentials-table">
+                  <div className="hub-row head hub-mono">
+                    <div>{t('credentials.name')}</div>
+                    <div>{t('credentials.keys')}</div>
+                    <div>{t('credentials.boundServers')}</div>
+                    <div className="text-right">{t('users.actions')}</div>
+                  </div>
+                  {items.map((item) => {
+                    const bound = boundServersOf(item.id);
+                    return (
+                      <div key={item.id} className="hub-row hover">
+                        <div className="hub-mono">{item.name}</div>
+                        <div className="hub-key-chips">
+                          {(item.keys || []).length === 0
+                            ? '—'
+                            : item.keys.map((key) => (
+                                <span key={key} className="hub-kbd">
+                                  {key}
+                                </span>
+                              ))}
+                        </div>
+                        <div className="hub-key-chips">
+                          {bound.length === 0
+                            ? t('credentials.noBind')
+                            : bound.map((serverName) => (
+                                <span key={serverName} className="hub-tag muted">
+                                  {serverName}
+                                </span>
+                              ))}
+                        </div>
+                        <div className="flex justify-end gap-1 flex-wrap">
+                          <button
+                            type="button"
+                            className="hub-btn"
+                            onClick={() => {
+                              setReplacing(item);
+                              setReplacePairs(keysToEmptyPairs(item.keys || []));
+                            }}
+                          >
+                            {t('credentials.replace')}
+                          </button>
+                          <button type="button" className="hub-btn" onClick={() => setToggling(item)}>
+                            {item.enabled ? t('credentials.enabled') : t('credentials.disabled')}
+                          </button>
+                          <button
+                            type="button"
+                            className="hub-icon-btn sm"
+                            title={t('credentials.delete')}
+                            style={{ color: 'var(--hub-err)' }}
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {contracts.length > 0 && (
+                <div className="hub-card overflow-hidden">
+                  <div className="mcp-bind-intro">
+                    <div className="ylune-server-name">{t('credentials.bindSection')}</div>
+                    <p className="ylune-help">{t('credentials.bindSectionHint')}</p>
+                  </div>
+                  {contracts.map((contract) => {
+                    const candidates = items.filter(
+                      (item) => item.enabled && !contract.credentialIds.includes(item.id),
+                    );
+                    return (
+                      <div key={contract.serverName} className="mcp-bind-card">
+                        <div className="mcp-bind-head">
+                          <div className="mcp-bind-name">{contract.serverName}</div>
+                          <div className="mcp-bind-add">
+                            {candidates.length > 0 && (
+                              <select
+                                className="hub-input"
+                                value={existingPick[contract.serverName] || ''}
+                                disabled={busy}
+                                onChange={(event) => {
+                                  const credentialId = event.target.value;
+                                  setExistingPick((prev) => ({
+                                    ...prev,
+                                    [contract.serverName]: credentialId,
+                                  }));
+                                  void bindExisting(contract.serverName, credentialId);
+                                }}
+                              >
+                                <option value="">{t('credentials.useExisting')}</option>
+                                {candidates.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <button
+                              type="button"
+                              className="hub-btn"
+                              onClick={() => openCreate(contract.serverName)}
+                            >
+                              {t('credentials.createAndBind')}
+                            </button>
+                          </div>
+                        </div>
+                        {contract.credentials.length > 0 && (
+                          <div className="mcp-bind-list">
+                            {contract.credentials.map((credential) => (
+                              <div key={credential.id} className="mcp-bind-item">
+                                <span className="hub-mono">{credential.name}</span>
+                                <div className="mcp-bind-item-actions">
+                                  <button
+                                    type="button"
+                                    className="hub-btn"
+                                    disabled={busy}
+                                    onClick={() => void runTest(contract.serverName, credential.id)}
+                                  >
+                                    {t('credentials.testWithMcp')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="hub-btn"
+                                    disabled={busy}
+                                    onClick={() => void unbindSelected(contract.serverName, credential.id)}
+                                  >
+                                    {t('credentials.unbind')}
+                                  </button>
+                                </div>
+                                {testStatus?.serverName === contract.serverName &&
+                                  testStatus.credentialId === credential.id && (
+                                    <p
+                                      className={`mcp-cred-status ${testStatus.ok ? 'ylune-help' : 'ylune-error'}`}
+                                    >
+                                      {testStatus.message}
+                                    </p>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
-        </>
-      )}
 
-      {showCreate && (
+      {creating && (
         <YluneDialog
           size="lg"
-          title={t('credentials.add')}
-          onClose={() => setShowCreate(false)}
+          title={
+            createBindTo
+              ? t('credentials.createFor', { server: createBindTo })
+              : t('credentials.add')
+          }
+          onClose={closeCreate}
           footer={
             <>
-              <button type="button" className="hub-btn" onClick={() => setShowCreate(false)}>
+              <button type="button" className="hub-btn" onClick={closeCreate}>
                 {t('common.cancel')}
               </button>
               <button
@@ -435,7 +439,10 @@ const CredentialCenterPage = () => {
             </>
           }
         >
-          <div>
+          <p className="ylune-help" style={{ marginTop: 0 }}>
+            {t('credentials.createStandaloneHint')}
+          </p>
+          <div className="ylune-field">
             <label className="ylune-label">{t('credentials.name')}</label>
             <input
               className="hub-input"
@@ -444,33 +451,21 @@ const CredentialCenterPage = () => {
               placeholder={t('credentials.namePlaceholder')}
             />
           </div>
-          <div>
-            <label className="ylune-label">{t('credentials.importFromMcp')}</label>
-            <p className="ylune-help">{t('credentials.importFromMcpHint')}</p>
+          <div className="ylune-field">
+            <label className="ylune-label">{t('credentials.optionalBind')}</label>
             <select
               className="hub-input"
-              value={createFromServer}
-              onChange={(event) => applyMcpTemplate(event.target.value)}
+              value={createBindTo}
+              onChange={(event) => setCreateBindTo(event.target.value)}
             >
-              <option value="">{t('credentials.selectMcp')}</option>
+              <option value="">{t('credentials.noBind')}</option>
               {contracts.map((contract) => (
                 <option key={contract.serverName} value={contract.serverName}>
                   {contract.serverName}
-                  {contract.neededKeys.length ? ` (${contract.neededKeys.length})` : ''}
                 </option>
               ))}
             </select>
           </div>
-          {createFromServer && (
-            <label className="token-lifetime-option">
-              <input
-                type="checkbox"
-                checked={bindOnCreate}
-                onChange={(event) => setBindOnCreate(event.target.checked)}
-              />
-              {t('credentials.bindAfterCreate')}
-            </label>
-          )}
           <KeyValueEditor
             pairs={createPairs}
             onChange={setCreatePairs}
@@ -503,102 +498,16 @@ const CredentialCenterPage = () => {
             </>
           }
         >
-          <p className="ylune-help" style={{ marginTop: 0 }}>
-            {t('credentials.replaceHint')}
-          </p>
           <KeyValueEditor
             pairs={replacePairs}
             onChange={setReplacePairs}
             secret
+            lockedKeys={replacing.keys || []}
             label={t('credentials.fields')}
-            hint={t('credentials.fieldsHint')}
+            hint={t('credentials.replaceHint')}
             keyPlaceholder={t('credentials.fieldKeyExample')}
             valuePlaceholder={t('credentials.fieldValueReplace')}
           />
-        </YluneDialog>
-      )}
-
-      {binding && (
-        <YluneDialog
-          title={`${t('credentials.bind')} · ${binding.name}`}
-          onClose={() => setBinding(null)}
-          footer={
-            <>
-              <button type="button" className="hub-btn" onClick={() => setBinding(null)}>
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="hub-btn primary"
-                disabled={busy}
-                onClick={() => void submitBind()}
-              >
-                {t('common.confirm')}
-              </button>
-            </>
-          }
-        >
-          <p className="ylune-help" style={{ marginTop: 0 }}>
-            {t('credentials.bindHint')}
-          </p>
-          {contracts.length === 0 ? (
-            <p className="ylune-help">{t('credentials.noMcpNeeds')}</p>
-          ) : (
-            contracts.map((contract) => (
-              <label key={contract.serverName} className="token-lifetime-option">
-                <input
-                  type="checkbox"
-                  checked={bindServerNames.includes(contract.serverName)}
-                  onChange={(event) => {
-                    setBindServerNames(
-                      event.target.checked
-                        ? [...bindServerNames, contract.serverName]
-                        : bindServerNames.filter((name) => name !== contract.serverName),
-                    );
-                  }}
-                />
-                {contract.serverName}
-                {contract.neededKeys.length > 0 ? ` · ${contract.neededKeys.join(', ')}` : ''}
-              </label>
-            ))
-          )}
-        </YluneDialog>
-      )}
-
-      {testing && (
-        <YluneDialog
-          title={`${t('credentials.testWithMcp')} · ${testing.name}`}
-          onClose={() => setTesting(null)}
-          footer={
-            <>
-              <button type="button" className="hub-btn" onClick={() => setTesting(null)}>
-                {t('common.close')}
-              </button>
-              <button
-                type="button"
-                className="hub-btn primary"
-                disabled={busy || !testServerName}
-                onClick={() => void submitTest()}
-              >
-                {t('credentials.testWithMcp')}
-              </button>
-            </>
-          }
-        >
-          <label className="ylune-label">{t('credentials.selectMcp')}</label>
-          <select
-            className="hub-input"
-            value={testServerName}
-            onChange={(event) => setTestServerName(event.target.value)}
-          >
-            <option value="">{t('credentials.selectMcp')}</option>
-            {contracts.map((contract) => (
-              <option key={contract.serverName} value={contract.serverName}>
-                {contract.serverName}
-              </option>
-            ))}
-          </select>
-          {testMessage && <p className="ylune-help">{testMessage}</p>}
         </YluneDialog>
       )}
 

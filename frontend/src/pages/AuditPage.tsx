@@ -4,6 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getAdminAuditLogs } from '@/services/auditService';
 import { AdminAuditLog } from '@/types';
 
+const cell = (value?: string | null) => {
+  const text = value?.trim();
+  return text ? text : '—';
+};
+
 const AuditPage = () => {
   const { t } = useTranslation();
   const { auth } = useAuth();
@@ -29,7 +34,7 @@ const AuditPage = () => {
   }
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('audit.title')}</h1>
@@ -48,31 +53,45 @@ const AuditPage = () => {
             <p className="hub-empty-title">{t('audit.empty')}</p>
           </div>
         ) : (
-          rows.map((row) => (
-            <div key={row.id} className="hub-row hover">
-              <div>{new Date(row.timestamp).toLocaleString()}</div>
-              <div className="hub-mono">{row.actor}</div>
-              <div>{row.action}</div>
-              <div className="hub-mono">
-                {row.resourceType}
-                {row.resourceId ? `:${row.resourceId}` : ''}
+          rows.map((row) => {
+            const resource = [row.resourceType, row.resourceId].filter(Boolean).join(':');
+            return (
+              <div key={row.id} className="hub-row hover">
+                <div className="hub-mono">{new Date(row.timestamp).toLocaleString()}</div>
+                <div className="hub-mono">{cell(row.actor)}</div>
+                <div>{cell(row.action)}</div>
+                <div className="hub-mono" title={resource}>
+                  {cell(resource)}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
-      </div>
-      <div className="flex gap-2 mt-3">
-        <button type="button" className="hub-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-          {t('common.previous')}
-        </button>
-        <button
-          type="button"
-          className="hub-btn"
-          disabled={page >= totalPages}
-          onClick={() => setPage(page + 1)}
-        >
-          {t('common.next')}
-        </button>
+        {rows.length > 0 && (
+          <div className="hub-card-foot">
+            <span className="hub-pager-meta">
+              {page} / {totalPages}
+            </span>
+            <div className="hub-pager">
+              <button
+                type="button"
+                className="hub-btn"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
+                {t('common.previous')}
+              </button>
+              <button
+                type="button"
+                className="hub-btn"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                {t('common.next')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

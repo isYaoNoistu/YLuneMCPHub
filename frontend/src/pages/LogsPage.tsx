@@ -8,7 +8,7 @@ const LogsPage: React.FC = () => {
   const { logs, loading, error, clearLogs } = useLogs();
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('pages.logs.title')}</h1>

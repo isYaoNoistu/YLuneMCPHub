@@ -47,6 +47,58 @@
 .hub-h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.018em; margin: 0; color: var(--hub-ink); }
 .hub-sub { color: var(--hub-ink-3); margin: 4px 0 0; font-size: 13px; }
 
+.hub-page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hub-page-stack > .hub-page-head {
+  margin-bottom: 0;
+}
+
+.hub-page-stack .dash-hero,
+.hub-page-stack .block-title {
+  margin: 0;
+}
+
+.hub-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--hub-line-2);
+  background: var(--hub-bg-2);
+}
+
+.hub-card-foot.is-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.hub-card-foot.is-split > :first-child {
+  justify-self: start;
+}
+
+.hub-card-foot.is-split > :last-child {
+  justify-self: end;
+}
+
+.hub-pager {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hub-pager-meta {
+  font-size: 12px;
+  color: var(--hub-ink-3);
+}
+
 .hub-page-head {
   display: flex;
   align-items: flex-end;
@@ -119,15 +171,181 @@
 }
 
 .users-table .hub-row {
-  grid-template-columns: minmax(140px, 1.1fr) minmax(100px, 0.8fr) minmax(140px, 0.9fr) minmax(180px, 1.3fr) minmax(132px, auto) minmax(110px, auto);
+  grid-template-columns:
+    minmax(240px, 2fr)
+    minmax(80px, 0.55fr)
+    minmax(96px, 0.5fr)
+    minmax(140px, 0.7fr)
+    118px
+    108px;
+  gap: 16px;
+  padding: 14px 18px;
+  align-items: center;
+}
+
+.users-table .hub-row.head {
+  padding: 10px 18px;
+}
+
+.users-table .hub-row > * {
+  min-width: 0;
 }
 
 .users-table .hub-row.is-expired {
   opacity: 0.45;
 }
 
+.users-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.expiry-center {
+  padding: 16px 18px;
+}
+
+.expiry-center .ylune-help + .ylune-help,
+.expiry-center .ylune-help + .grant-preview-list {
+  margin-top: 10px;
+}
+
+.cred-center-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.cred-center-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .credentials-table .hub-row {
-  grid-template-columns: minmax(110px, 0.9fr) minmax(140px, 1.3fr) minmax(120px, 1.1fr) minmax(80px, 0.5fr) minmax(70px, 0.45fr) minmax(220px, auto);
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.5fr) minmax(140px, 1.1fr) minmax(240px, auto);
+  padding: 16px 20px;
+  gap: 16px;
+}
+
+.credentials-table .hub-row.head {
+  padding: 12px 20px;
+}
+
+.mcp-cred-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mcp-cred-keys-label {
+  font-size: 12px;
+  color: var(--hub-ink-3);
+}
+
+.mcp-cred-status {
+  flex: 1 0 100%;
+  margin: 4px 0 0;
+}
+
+.mcp-bind-intro {
+  padding: 18px 20px 14px;
+}
+
+.mcp-bind-intro .ylune-help {
+  margin: 6px 0 0;
+}
+
+.mcp-bind-card {
+  padding: 14px 20px;
+  border-top: 1px solid var(--hub-line-2);
+}
+
+.mcp-bind-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+}
+
+.mcp-bind-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mcp-bind-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mcp-bind-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.mcp-bind-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mcp-bind-add {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mcp-bind-add .hub-input {
+  width: 200px;
+  min-width: 160px;
+  max-width: 240px;
+  flex: 0 1 200px;
+}
+
+.mcp-assign-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mcp-assign-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mcp-assign-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mcp-assign-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mcp-assign-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-assign-checks .ylune-check {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .credentials-table .hub-row > *,
@@ -151,7 +369,13 @@
 }
 
 .audit-table .hub-row {
-  grid-template-columns: minmax(150px, 1.1fr) minmax(90px, 0.7fr) minmax(160px, 1.1fr) minmax(180px, 1.5fr);
+  grid-template-columns: 168px minmax(88px, 0.7fr) minmax(120px, 1fr) minmax(140px, 1.3fr);
+  padding: 12px 16px;
+  gap: 16px;
+}
+
+.audit-table .hub-row.head {
+  padding: 10px 16px;
 }
 
 .audit-table .hub-row > div:last-child {
@@ -195,7 +419,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 8px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--hub-line);
   background: var(--hub-surface);
 }
@@ -253,7 +477,7 @@
 .logs-console {
   max-height: calc(100vh - 300px);
   overflow: auto;
-  padding: 8px 0;
+  padding: 10px 0 14px;
   background: var(--hub-bg);
   font-family: var(--hub-mono);
   font-size: 12.5px;
@@ -265,7 +489,7 @@
   grid-template-columns: 76px 52px 36px 72px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
-  padding: 5px 14px;
+  padding: 6px 16px;
   color: var(--hub-ink);
 }
 
@@ -587,6 +811,11 @@
 .hub-input:focus { border-color: var(--hub-ink-2); }
 .hub-input::placeholder { color: var(--hub-ink-3); }
 .hub-input.mono { font-family: var(--hub-mono); font-size: 12.5px; }
+.hub-input.is-locked {
+  background: var(--hub-bg);
+  color: var(--hub-ink-3);
+  cursor: default;
+}
 
 /* Switch */
 .hub-switch {
@@ -677,11 +906,27 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
   padding: 6px;
   border: 1px solid var(--hub-line);
   border-radius: 10px;
   background: var(--hub-surface);
+}
+
+.lab-card {
+  padding: 18px 20px;
+}
+
+.lab-card .ylune-dialog-body {
+  padding: 0;
+  gap: 10px;
+}
+
+.lab-card .ylune-label {
+  margin: 6px 0 0;
+}
+
+.lab-card .ylune-label:first-child {
+  margin-top: 0;
 }
 
 .servers-filters {
@@ -758,6 +1003,33 @@
   .servers-filters {
     grid-column: 1 / -1;
   }
+
+  .mcp-assign-head,
+  .ylune-server-cred {
+    grid-template-columns: 1fr;
+  }
+
+  .mcp-bind-add .hub-input {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 160px;
+  }
+
+  .users-table .hub-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .credentials-table .hub-row,
+  .audit-table .hub-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .hub-card-foot.is-split {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
 }
 
 .view-wrap:has(.servers-page) {
@@ -767,6 +1039,10 @@
 
 .servers-table {
   width: 100%;
+}
+
+.servers-table .hub-card-foot {
+  border-top: 0;
 }
 
 .hub-server-item {

@@ -100,6 +100,26 @@ describe('credentialBindingService', () => {
     ).rejects.toThrow('MCP requires an assigned credential: jenkins');
   });
 
+  it('saves multiple credentials for the same MCP', async () => {
+    findServerCredentialBindings.mockResolvedValue([
+      { serverName: 'jenkins', credentialId: 'cred-1' },
+      { serverName: 'jenkins', credentialId: 'cred-2' },
+    ]);
+    findCredentialById.mockImplementation(async (id: string) => ({ id, name: id, enabled: true }));
+    const saved = await saveUserServerCredentials(
+      'alice',
+      [
+        { serverName: 'jenkins', credentialId: 'cred-1' },
+        { serverName: 'jenkins', credentialId: 'cred-2' },
+      ],
+      { grants: [{ name: 'jenkins' }] },
+    );
+    expect(saved).toEqual([
+      { username: 'alice', serverName: 'jenkins', credentialId: 'cred-1' },
+      { username: 'alice', serverName: 'jenkins', credentialId: 'cred-2' },
+    ]);
+  });
+
   it('saves a valid user pick', async () => {
     const saved = await saveUserServerCredentials(
       'alice',

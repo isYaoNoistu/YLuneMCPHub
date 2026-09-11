@@ -86,7 +86,7 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('pages.users.title')}</h1>
@@ -116,7 +116,7 @@ const UsersPage: React.FC = () => {
 
       {userError && (
         <div
-          className="hub-card flex items-center justify-between gap-3 mb-4"
+          className="hub-card flex items-center justify-between gap-3"
           style={{
             padding: '10px 14px',
             borderColor: 'oklch(0.85 0.1 25)',
@@ -143,7 +143,7 @@ const UsersPage: React.FC = () => {
         }}
       />
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="users-toolbar">
         <input
           className="hub-input"
           style={{ maxWidth: 280 }}

@@ -8,7 +8,7 @@ import SecretReveal from './ui/SecretReveal';
 import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
 import GrantPreview from './GrantPreview';
-import UserCredentialPicker, { missingRequiredCredentials } from './UserCredentialPicker';
+import { missingRequiredCredentials } from './UserCredentialPicker';
 import { getCredentialContracts } from '@/services/credentialService';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
@@ -196,17 +196,13 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
                 value={grants}
                 onChange={setGrants}
                 serverCosts={serverCosts}
+                contracts={contracts}
+                serverCredentials={serverCredentials}
+                onServerCredentialsChange={setServerCredentials}
+                credentialsDisabled={isSubmitting}
               />
               <GrantPreview grants={grants} servers={availableServers} />
             </div>
-
-            <UserCredentialPicker
-              grants={grants}
-              contracts={contracts}
-              value={serverCredentials}
-              onChange={setServerCredentials}
-              disabled={isSubmitting}
-            />
           </div>
 
           <div className="ylune-dialog-foot">

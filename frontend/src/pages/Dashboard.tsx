@@ -172,7 +172,7 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <section aria-labelledby="dashboardTitle">
+    <section className="hub-page-stack" aria-labelledby="dashboardTitle">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1" id="dashboardTitle">
@@ -201,7 +201,7 @@ const DashboardPage: React.FC = () => {
       {isAdmin && <ExpiryCenter users={users} />}
 
       {error && (
-        <p className="form-msg" style={{ marginBottom: 16 }}>
+        <p className="form-msg">
           {error}{' '}
           <button type="button" className="cfg-link" onClick={() => setError(null)}>
             {t('app.closeButton')}

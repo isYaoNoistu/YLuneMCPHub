@@ -274,7 +274,7 @@ const PromptsPage: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="hub-page-stack">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('pages.prompts.title')}</h1>
@@ -293,7 +293,7 @@ const PromptsPage: React.FC = () => {
 
       {error && (
         <div
-          className="hub-card flex items-center justify-between gap-3 mb-4"
+          className="hub-card flex items-center justify-between gap-3"
           style={{
             padding: '10px 14px',
             borderColor: 'oklch(0.85 0.1 25)',

@@ -1640,7 +1640,7 @@ const SettingsPage: React.FC = () => {
   ];
 
   return (
-    <div className="settings-page">
+    <div className="hub-page-stack settings-page">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('pages.settings.title')}</h1>

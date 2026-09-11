@@ -10,7 +10,8 @@ import McpJsonPanel from './McpJsonPanel';
 import GrantPreview from './GrantPreview';
 import { getResourceGroups, setUserResourceGroups } from '@/services/resourceBindingService';
 import { getCredentialContracts } from '@/services/credentialService';
-import UserCredentialPicker, { missingRequiredCredentials } from './UserCredentialPicker';
+import { missingRequiredCredentials } from './UserCredentialPicker';
+import McpCredentialAssign from './McpCredentialAssign';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -97,7 +98,8 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
       const result = await updateUser(user.username, {
         remark,
         mcpEnabled,
-        ...(user.isAdmin ? {} : { grants, serverCredentials }),
+        serverCredentials,
+        ...(user.isAdmin ? {} : { grants }),
         ...(mcpEnabled && expiryChanged ? toExpiryPayload(tokenLifetime, tokenCustomAt) : {}),
       });
       if (result?.success) {
@@ -186,10 +188,22 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
                       value={grants}
                       onChange={setGrants}
                       serverCosts={serverCosts}
+                      contracts={contracts}
+                      serverCredentials={serverCredentials}
+                      onServerCredentialsChange={setServerCredentials}
+                      credentialsDisabled={isSubmitting}
                     />
                     <GrantPreview grants={grants} servers={availableServers} />
-                    <UserCredentialPicker
-                      grants={grants}
+                  </div>
+                )}
+                {user.isAdmin && (
+                  <div>
+                    <p className="ylune-help" style={{ marginTop: 0 }}>
+                      {t('users.adminUnrestricted')}
+                    </p>
+                    <label className="ylune-label">{t('users.adminCredentials')}</label>
+                    <p className="ylune-help">{t('users.adminCredentialsHint')}</p>
+                    <McpCredentialAssign
                       contracts={contracts}
                       value={serverCredentials}
                       onChange={setServerCredentials}
@@ -197,7 +211,6 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
                     />
                   </div>
                 )}
-                {user.isAdmin && <p className="ylune-help">{t('users.adminUnrestricted')}</p>}
                 {resourceGroups.length > 0 && (
                   <div>
                     <label className="ylune-label">{t('resourceGroups.assign')}</label>

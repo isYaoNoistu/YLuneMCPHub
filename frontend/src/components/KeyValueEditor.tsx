@@ -59,6 +59,7 @@ interface KeyValueEditorProps {
   label: string;
   hint?: string;
   secret?: boolean;
+  lockedKeys?: string[];
   keyPlaceholder?: string;
   valuePlaceholder?: string;
 }
@@ -69,10 +70,12 @@ const KeyValueEditor = ({
   label,
   hint,
   secret = false,
+  lockedKeys = [],
   keyPlaceholder,
   valuePlaceholder,
 }: KeyValueEditorProps) => {
   const { t } = useTranslation();
+  const locked = new Set(lockedKeys);
 
   const update = (index: number, patch: Partial<KvPair>) => {
     const next = [...pairs];
@@ -100,38 +103,46 @@ const KeyValueEditor = ({
           {hint}
         </p>
       ) : null}
-      {pairs.map((row, index) => (
-        <div key={index} className="ylune-kv-row">
-          <input
-            className="hub-input"
-            value={row.key}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={keyPlaceholder || t('credentials.fieldKey')}
-            onChange={(event) => update(index, { key: event.target.value })}
-          />
-          <span>:</span>
-          <input
-            className="hub-input"
-            type={secret ? 'password' : 'text'}
-            autoComplete="off"
-            value={row.value}
-            placeholder={valuePlaceholder || t('credentials.fieldValue')}
-            onChange={(event) => update(index, { value: event.target.value })}
-          />
-          <button
-            type="button"
-            className="hub-icon-btn sm"
-            aria-label={t('common.delete')}
-            onClick={() => {
-              const next = pairs.filter((_, itemIndex) => itemIndex !== index);
-              onChange(next.length ? next : emptyPairs(1));
-            }}
-          >
-            -
-          </button>
-        </div>
-      ))}
+      {pairs.map((row, index) => {
+        const keyLocked = locked.has(row.key);
+        return (
+          <div key={index} className="ylune-kv-row">
+            <input
+              className={`hub-input${keyLocked ? ' is-locked' : ''}`}
+              value={row.key}
+              readOnly={keyLocked}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={keyPlaceholder || t('credentials.fieldKey')}
+              onChange={(event) => update(index, { key: event.target.value })}
+            />
+            <span>:</span>
+            <input
+              className="hub-input"
+              type={secret ? 'password' : 'text'}
+              autoComplete="off"
+              value={row.value}
+              placeholder={valuePlaceholder || t('credentials.fieldValue')}
+              onChange={(event) => update(index, { value: event.target.value })}
+            />
+            <button
+              type="button"
+              className="hub-icon-btn sm"
+              aria-label={t('common.delete')}
+              disabled={keyLocked}
+              onClick={() => {
+                if (keyLocked) {
+                  return;
+                }
+                const next = pairs.filter((_, itemIndex) => itemIndex !== index);
+                onChange(next.length ? next : emptyPairs(1));
+              }}
+            >
+              -
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 };

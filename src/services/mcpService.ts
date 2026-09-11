@@ -67,6 +67,7 @@ import {
 } from '../dao/index.js';
 import { openCredentialFields } from './credentialService.js';
 import { overlayCredentialFields } from '../utils/envPreflight.js';
+import { findUserServerCredential } from './credentialBindingService.js';
 import { initializeAllOAuthClients } from './oauthService.js';
 import { createOAuthProvider } from './mcpOAuthProvider.js';
 import {
@@ -888,6 +889,54 @@ const getOrCreateCredentialClient = async (
   } finally {
     credentialClientLocks.delete(cacheKey);
   }
+};
+
+const resolveToolViaAssignedCredential = async (
+  toolName: string,
+): Promise<{ serverInfo: ServerInfo; tool: Tool; routeToolName: string } | undefined> => {
+  const separator = getNameSeparator();
+  const prefixIndex = toolName.indexOf(separator);
+  const candidates = getVisibleServerInfos().filter((serverInfo) => serverInfo.enabled !== false);
+  const hinted =
+    prefixIndex > 0
+      ? candidates.find((serverInfo) => serverInfo.name === toolName.slice(0, prefixIndex))
+      : undefined;
+  const servers = hinted ? [hinted] : candidates;
+  for (const serverInfo of servers) {
+    try {
+      const runtime = await listToolsViaAssignedCredential(serverInfo);
+      if (!runtime) {
+        continue;
+      }
+      const raw = normalizeToolNameForServer(serverInfo.name, toolName);
+      const tool = runtime.find((item) => item.name === raw || item.name === toolName);
+      if (tool) {
+        return { serverInfo, tool, routeToolName: tool.name };
+      }
+    } catch (error) {
+      logger.warn('Failed to resolve tool via assigned credential', {
+        serverName: serverInfo.name,
+        error: summarizeErrorForLogging(error),
+      });
+    }
+  }
+  return undefined;
+};
+
+const listToolsViaAssignedCredential = async (serverInfo: ServerInfo): Promise<Tool[] | null> => {
+  const username =
+    UserContextService.getInstance().getCurrentUser()?.username ||
+    RequestContextService.getInstance().getUsernameContext();
+  if (!username) {
+    return null;
+  }
+  const pick = await findUserServerCredential(username, serverInfo.name);
+  if (!pick?.credentialId) {
+    return null;
+  }
+  const isolated = await getOrCreateCredentialClient(serverInfo, pick.credentialId);
+  const listed = await isolated.client.listTools({}, serverInfo.options || {});
+  return (listed.tools || []).map((tool) => normalizeToolForCache(serverInfo.name, tool));
 };
 
 export const probeServerWithCredential = async (
@@ -3324,11 +3373,22 @@ export const handleListToolsRequest = async (_: any, extra: any) => {
 
   const allTools = [];
   for (const serverInfo of filteredServerInfos) {
-    if (serverInfo.tools && serverInfo.tools.length > 0) {
+    let runtimeTools = serverInfo.tools || [];
+    if (runtimeTools.length === 0) {
+      try {
+        runtimeTools = (await listToolsViaAssignedCredential(serverInfo)) || [];
+      } catch (error) {
+        logger.warn('Failed to list tools via assigned credential', {
+          serverName: serverInfo.name,
+          error: summarizeErrorForLogging(error),
+        });
+      }
+    }
+    if (runtimeTools.length > 0) {
       const groupServerConfig = serverConfigsByName.get(serverInfo.name);
 
       // Filter tools based on server configuration
-      let tools = await filterToolsByConfig(serverInfo.name, serverInfo.tools);
+      let tools = await filterToolsByConfig(serverInfo.name, runtimeTools);
 
       // If this is a group request, apply group-level tool filtering
       tools = await filterToolsByGroup(group, serverInfo.name, tools, groupServerConfig);
@@ -3719,13 +3779,21 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       !singleServerAppsRoute && lookupGroup
         ? await resolveToolInGroup(lookupGroup, request.params.name, false)
         : undefined;
-    const serverInfo = singleServerAppsRoute
+    let serverInfo = singleServerAppsRoute
       ? appsRouteContext.serverInfo
       : (groupTool?.serverInfo ?? (lookupGroup ? undefined : getServerByTool(request.params.name)));
-    const routeToolName = groupTool?.toolName ?? request.params.name;
-    const tool =
+    let routeToolName = groupTool?.toolName ?? request.params.name;
+    let tool =
       groupTool?.tool ??
       (serverInfo ? findToolOnServer(serverInfo, routeToolName, singleServerAppsRoute) : undefined);
+    if (!serverInfo || !tool) {
+      const viaCredential = await resolveToolViaAssignedCredential(request.params.name);
+      if (viaCredential) {
+        serverInfo = viaCredential.serverInfo;
+        tool = viaCredential.tool;
+        routeToolName = viaCredential.routeToolName;
+      }
+    }
     if (!serverInfo || !tool) {
       throw new ToolUnavailableError(
         `Tool not available: ${request.params.name}`,

@@ -84,7 +84,7 @@ const ServersPage: React.FC = () => {
   };
 
   return (
-    <div className="servers-page">
+    <div className="hub-page-stack servers-page">
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('pages.servers.title')}</h1>
@@ -117,7 +117,7 @@ const ServersPage: React.FC = () => {
 
       {error && (
         <div
-          className="hub-card flex items-center justify-between gap-3 mb-4"
+          className="hub-card flex items-center justify-between gap-3"
           style={{
             padding: '10px 14px',
             borderColor: 'oklch(0.85 0.1 25)',
@@ -183,7 +183,7 @@ const ServersPage: React.FC = () => {
       </div>
 
       {searchTags.length > 0 && (
-        <div className="servers-filters" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+        <div className="servers-filters" style={{ flexWrap: 'wrap' }}>
           {searchTags.map((tag) => (
             <button
               key={tag}
@@ -210,52 +210,47 @@ const ServersPage: React.FC = () => {
           <p>{servers.length === 0 ? t('app.noServers') : t('market.noServers')}</p>
         </div>
       ) : (
-        <>
-          <div className="hub-card overflow-visible servers-table">
-            {visibleServers.map((server) => (
-              <ServerCard
-                key={server.name}
-                server={server}
-                cost={serverCosts.find((c) => c.name === server.name)}
-                onRemove={handleServerRemove}
-                onEdit={handleEditClick}
-                onToggle={handleServerToggle}
-                onVisibilityChange={handleServerVisibilityChange}
-                onRefresh={triggerRefresh}
-                onReload={handleServerReload}
-                onReinstall={handleServerReinstall}
-                onOAuthDisconnect={handleServerOAuthDisconnect}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center mt-4 text-[12px]" style={{ color: 'var(--hub-ink-3)' }}>
-            <div className="flex-[2]">
+        <div className="hub-card overflow-visible servers-table">
+          {visibleServers.map((server) => (
+            <ServerCard
+              key={server.name}
+              server={server}
+              cost={serverCosts.find((c) => c.name === server.name)}
+              onRemove={handleServerRemove}
+              onEdit={handleEditClick}
+              onToggle={handleServerToggle}
+              onVisibilityChange={handleServerVisibilityChange}
+              onRefresh={triggerRefresh}
+              onReload={handleServerReload}
+              onReinstall={handleServerReinstall}
+              onOAuthDisconnect={handleServerOAuthDisconnect}
+            />
+          ))}
+          <div className="hub-card-foot is-split">
+            <span className="hub-pager-meta">
               {t('common.showing', {
                 start: (clientPagination.page - 1) * clientPagination.limit + 1,
                 end: Math.min(clientPagination.page * clientPagination.limit, clientPagination.total),
                 total: clientPagination.total,
               })}
-            </div>
-            <div className="flex-[4] flex justify-center">
-              {clientPagination.totalPages > 1 && (
-                <Pagination
-                  currentPage={clientPagination.page}
-                  totalPages={clientPagination.totalPages}
-                  onPageChange={setCurrentPage}
-                  disabled={isLoading}
-                />
-              )}
-            </div>
-            <div className="flex-[2] flex items-center justify-end gap-2">
-              <label htmlFor="perPage">{t('common.itemsPerPage')}:</label>
+            </span>
+            <Pagination
+              currentPage={clientPagination.page}
+              totalPages={clientPagination.totalPages}
+              onPageChange={setCurrentPage}
+              disabled={isLoading}
+            />
+            <div className="hub-pager">
+              <label className="hub-pager-meta" htmlFor="perPage">
+                {t('common.itemsPerPage')}
+              </label>
               <select
                 id="perPage"
                 value={serversPerPage}
                 onChange={(e) => setServersPerPage(Number(e.target.value))}
                 disabled={isLoading}
                 className="hub-input"
-                style={{ height: 26, width: 70, padding: '0 6px', fontSize: 12 }}
+                style={{ height: 30, width: 72, padding: '0 8px', fontSize: 12 }}
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
@@ -264,7 +259,7 @@ const ServersPage: React.FC = () => {
               </select>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {editingServer && (

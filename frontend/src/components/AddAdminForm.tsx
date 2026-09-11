@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '@/hooks/useUserData';
-import { User } from '@/types';
+import { CredentialContract, User, UserServerCredential } from '@/types';
 import TokenLifetimeFields, {
   TokenLifetimeValue,
   isCustomExpiryInPast,
@@ -11,6 +11,8 @@ import TokenLifetimeFields, {
 import PastExpiryAlert from './ui/PastExpiryAlert';
 import SecretReveal from './ui/SecretReveal';
 import McpJsonPanel from './McpJsonPanel';
+import McpCredentialAssign from './McpCredentialAssign';
+import { getCredentialContracts } from '@/services/credentialService';
 
 interface AddAdminFormProps {
   onAdd: () => void;
@@ -30,6 +32,16 @@ const AddAdminForm = ({ onAdd, onCancel }: AddAdminFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdUser, setCreatedUser] = useState<User | null>(null);
   const [pastAlertOpen, setPastAlertOpen] = useState(false);
+  const [contracts, setContracts] = useState<CredentialContract[]>([]);
+  const [serverCredentials, setServerCredentials] = useState<UserServerCredential[]>([]);
+
+  useEffect(() => {
+    void getCredentialContracts().then((response) => {
+      if (response?.success && Array.isArray(response.data)) {
+        setContracts(response.data);
+      }
+    });
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -60,7 +72,7 @@ const AddAdminForm = ({ onAdd, onCancel }: AddAdminFormProps) => {
         isAdmin: true,
         consoleEnabled: true,
         mcpEnabled,
-        ...(mcpEnabled ? toExpiryPayload(tokenLifetime, tokenCustomAt) : {}),
+        ...(mcpEnabled ? { serverCredentials, ...toExpiryPayload(tokenLifetime, tokenCustomAt) } : {}),
       });
       if (result?.success && result.data) {
         setCreatedUser(result.data);
@@ -107,7 +119,7 @@ const AddAdminForm = ({ onAdd, onCancel }: AddAdminFormProps) => {
 
   return (
     <div className="ylune-dialog-backdrop">
-      <div className="ylune-dialog">
+      <div className="ylune-dialog is-lg">
         <form onSubmit={handleSubmit}>
           <div className="ylune-dialog-head">
             <h2 className="ylune-dialog-title">{t('users.addAdmin')}</h2>
@@ -165,13 +177,25 @@ const AddAdminForm = ({ onAdd, onCancel }: AddAdminFormProps) => {
               {t('users.allowMcp')}
             </label>
             {mcpEnabled && (
-              <TokenLifetimeFields
-                lifetime={tokenLifetime}
-                customAt={tokenCustomAt}
-                onLifetimeChange={setTokenLifetime}
-                onCustomAtChange={setTokenCustomAt}
-                disabled={isSubmitting}
-              />
+              <>
+                <TokenLifetimeFields
+                  lifetime={tokenLifetime}
+                  customAt={tokenCustomAt}
+                  onLifetimeChange={setTokenLifetime}
+                  onCustomAtChange={setTokenCustomAt}
+                  disabled={isSubmitting}
+                />
+                <div>
+                  <label className="ylune-label">{t('users.adminCredentials')}</label>
+                  <p className="ylune-help">{t('users.adminCredentialsHint')}</p>
+                  <McpCredentialAssign
+                    contracts={contracts}
+                    value={serverCredentials}
+                    onChange={setServerCredentials}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </>
             )}
           </div>
           <div className="ylune-dialog-foot">
