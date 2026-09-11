@@ -24,6 +24,7 @@ export class UserDaoDbImpl implements UserDao {
       isAdmin: flags.isAdmin,
       consoleEnabled: flags.consoleEnabled,
       mcpEnabled: flags.mcpEnabled,
+      demo: flags.demo,
       email: u.email ?? undefined,
       ssoUserId: u.ssoUserId ?? undefined,
       remark: u.remark ?? undefined,
@@ -68,6 +69,7 @@ export class UserDaoDbImpl implements UserDao {
       isAdmin: flags.isAdmin,
       consoleEnabled: flags.consoleEnabled,
       mcpEnabled: flags.mcpEnabled,
+      demo: flags.demo,
       email: entity.email ?? null,
       ssoUserId: entity.ssoUserId ?? null,
       remark: entity.remark ?? null,
@@ -86,7 +88,7 @@ export class UserDaoDbImpl implements UserDao {
     remark?: string,
     grants?: IGroupServerConfig[],
     tokenExpiresAt?: Date | null,
-    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
+    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean; demo?: boolean },
   ): Promise<IUser> {
     const hashedPassword = await bcrypt.hash(password, 10);
     return await this.create({
@@ -95,6 +97,7 @@ export class UserDaoDbImpl implements UserDao {
       isAdmin,
       consoleEnabled: account?.consoleEnabled,
       mcpEnabled: account?.mcpEnabled,
+      demo: account?.demo,
       email,
       ssoUserId,
       remark,
@@ -109,6 +112,7 @@ export class UserDaoDbImpl implements UserDao {
     if (entity.isAdmin !== undefined) updateData.isAdmin = entity.isAdmin;
     if (entity.consoleEnabled !== undefined) updateData.consoleEnabled = entity.consoleEnabled;
     if (entity.mcpEnabled !== undefined) updateData.mcpEnabled = entity.mcpEnabled;
+    if (entity.demo !== undefined) updateData.demo = entity.demo;
     if (entity.email !== undefined) updateData.email = entity.email ?? null;
     if (entity.ssoUserId !== undefined) updateData.ssoUserId = entity.ssoUserId ?? null;
     if (entity.remark !== undefined) updateData.remark = entity.remark ?? null;

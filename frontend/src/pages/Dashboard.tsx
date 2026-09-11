@@ -9,6 +9,7 @@ import { formatTokens } from '@/utils/contextCost';
 import { checkActivityAvailable, getActivityUsage } from '@/services/activityService';
 import { ActivityUsage, IGroupServerConfig, IUser, Server, User } from '@/types';
 import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
+import { isDemoUser } from '@/utils/navigationPermissions';
 import DiagnosticsBanner from '@/components/DiagnosticsBanner';
 import ConfigBackupButton from '@/components/ConfigBackupButton';
 import ExpiryCenter from '@/components/ExpiryCenter';
@@ -57,6 +58,7 @@ const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const { auth } = useAuth();
   const isAdmin = auth.user?.isAdmin === true;
+  const isDemo = isDemoUser(auth.user);
   const username = auth.user?.username || '';
   const { allServers, error, setError, isLoading, triggerRefresh } = useServerData();
   const { serverCosts } = useCostData();
@@ -188,7 +190,9 @@ const DashboardPage: React.FC = () => {
             type="button"
             onClick={() => {
               triggerRefresh();
-              refreshUsers();
+              if (!isDemo) {
+                refreshUsers();
+              }
               void loadUsage();
             }}
           >
@@ -235,16 +239,18 @@ const DashboardPage: React.FC = () => {
               <div className="stat-label">{t('cost.totalFootprint')}</div>
               <p className="stat-note mono">CONTEXT TOKENS</p>
             </article>
-            <article className="stat-card">
-              <div className="stat-num">{users.length}</div>
-              <div className="stat-label">{t('pages.dashboard.usersStat')}</div>
-              <p className="stat-note mono">
-                {t('pages.dashboard.usersStatNote', {
-                  admins: stats.admins,
-                  regulars: stats.regulars,
-                })}
-              </p>
-            </article>
+            {!isDemo && (
+              <article className="stat-card">
+                <div className="stat-num">{users.length}</div>
+                <div className="stat-label">{t('pages.dashboard.usersStat')}</div>
+                <p className="stat-note mono">
+                  {t('pages.dashboard.usersStatNote', {
+                    admins: stats.admins,
+                    regulars: stats.regulars,
+                  })}
+                </p>
+              </article>
+            )}
           </>
         )}
       </div>
@@ -312,6 +318,37 @@ const DashboardPage: React.FC = () => {
               <code>{mcpEndpoint}</code>
             </div>
           </article>
+        ) : isDemo ? (
+          <article className="dash-session">
+            <header className="dash-identity">
+              <div>
+                <p className="dash-identity-kicker">{t('pages.dashboard.sessionTitle')}</p>
+                <h2 className="hub-mono">{username || 'demo'}</h2>
+              </div>
+              <span className="hub-tag muted">{t('users.roleDemo')}</span>
+            </header>
+            <p className="ylune-help dash-identity-hint">{t('pages.dashboard.youAreDemo')}</p>
+            <div className="dash-snapshot">
+              <div className="dash-snapshot-item">
+                <span>{t('pages.dashboard.onlineServers')}</span>
+                <b className="hub-num">
+                  {stats.online}/{stats.total}
+                </b>
+              </div>
+              <div className="dash-snapshot-item">
+                <span>{t('server.tools')}</span>
+                <b className="hub-num">{stats.tools}</b>
+              </div>
+              <div className="dash-snapshot-item">
+                <span>{t('pages.dashboard.offlineServers')}</span>
+                <b className={`hub-num${stats.offline > 0 ? ' is-warn' : ''}`}>{stats.offline}</b>
+              </div>
+              <div className="dash-snapshot-item">
+                <span>{t('pages.dashboard.disabledServers')}</span>
+                <b className="hub-num">{stats.disabled}</b>
+              </div>
+            </div>
+          </article>
         ) : (
           <article className="dash-session">
             <header className="dash-identity">
@@ -355,7 +392,7 @@ const DashboardPage: React.FC = () => {
           </article>
         )}
 
-        {isAdmin ? (
+        {isAdmin || isDemo ? (
           <div className="dash-stack">
             <article className="dash-roster">
               <div className="dash-roster-head">
@@ -391,6 +428,7 @@ const DashboardPage: React.FC = () => {
               )}
             </article>
 
+            {isAdmin && (
             <article className="dash-roster is-users">
               <div className="dash-roster-head">
                 <h3>{t('pages.dashboard.usersNow')}</h3>
@@ -447,6 +485,7 @@ const DashboardPage: React.FC = () => {
                 })
               )}
             </article>
+            )}
           </div>
         ) : (
           <article className="dash-roster">

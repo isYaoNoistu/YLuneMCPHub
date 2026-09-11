@@ -59,6 +59,11 @@
   box-sizing: border-box;
 }
 
+html:has(.ylune-login),
+html:has(.ylune-login) body {
+  background: #0a0a0b;
+}
+
 .ylune-login img {
   display: block;
   max-width: 100%;

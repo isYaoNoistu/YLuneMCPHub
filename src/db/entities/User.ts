@@ -29,6 +29,9 @@ export class User {
   @Column({ type: 'boolean', default: true, name: 'mcp_enabled' })
   mcpEnabled: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  demo: boolean;
+
   @Column({ type: 'varchar', length: 255, nullable: true, unique: true })
   email: string | null;
 

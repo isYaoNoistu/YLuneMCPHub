@@ -114,3 +114,34 @@ export const formatUserMcpJson = (
   username: string,
   installBaseUrl?: string,
 ): string => JSON.stringify(buildUserMcpConfig(token, username, installBaseUrl), null, 2);
+
+export type McpCopyFormat = 'json' | 'toml';
+
+export const escapeTomlString = (value: string): string =>
+  value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+/** Codex reads ~/.codex/config.toml — a table fragment to merge, not a whole file. */
+export const formatUserMcpToml = (
+  token: string,
+  username: string,
+  installBaseUrl?: string,
+): string => {
+  const name = sanitizeServerName(username);
+  const url = escapeTomlString(getMcpEndpointUrl(installBaseUrl));
+  const authorization = escapeTomlString(`Bearer ${token}`);
+  return [
+    `[mcp_servers.${name}]`,
+    `url = "${url}"`,
+    `http_headers = { Authorization = "${authorization}" }`,
+  ].join('\n');
+};
+
+export const formatUserMcpSnippet = (
+  format: McpCopyFormat,
+  token: string,
+  username: string,
+  installBaseUrl?: string,
+): string =>
+  format === 'toml'
+    ? formatUserMcpToml(token, username, installBaseUrl)
+    : formatUserMcpJson(token, username, installBaseUrl);

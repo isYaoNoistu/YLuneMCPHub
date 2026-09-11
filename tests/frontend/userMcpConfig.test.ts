@@ -1,4 +1,7 @@
 import {
+  escapeTomlString,
+  formatUserMcpSnippet,
+  formatUserMcpToml,
   isLoopbackHostname,
   joinMcpUrl,
   resolveHubOrigin,
@@ -42,5 +45,31 @@ describe('hub origin for agent mcp.json', () => {
     expect(joinMcpUrl('https://ylune.example.com/ylune', '/ylune')).toBe(
       'https://ylune.example.com/ylune/mcp',
     );
+  });
+});
+
+describe('agent connect snippets', () => {
+  it('formats a Codex toml fragment to merge, not a whole file', () => {
+    expect(formatUserMcpToml('ylune_abc', 'Jenkins', 'https://ylune.example.com')).toBe(
+      [
+        '[mcp_servers.ylune-jenkins]',
+        'url = "https://ylune.example.com/mcp"',
+        'http_headers = { Authorization = "Bearer ylune_abc" }',
+      ].join('\n'),
+    );
+  });
+
+  it('escapes quotes and backslashes in toml strings', () => {
+    expect(escapeTomlString('a"b\\c')).toBe('a\\"b\\\\c');
+    expect(formatUserMcpToml('tok"en\\x', 'user', 'https://example.com')).toContain(
+      'Bearer tok\\"en\\\\x',
+    );
+  });
+
+  it('picks json or toml from the copy format', () => {
+    const json = formatUserMcpSnippet('json', 'k', 'ops', 'https://example.com');
+    const toml = formatUserMcpSnippet('toml', 'k', 'ops', 'https://example.com');
+    expect(json).toContain('"mcpServers"');
+    expect(toml).toContain('[mcp_servers.ylune-ops]');
   });
 });

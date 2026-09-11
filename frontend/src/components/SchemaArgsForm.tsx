@@ -6,9 +6,10 @@ interface SchemaArgsFormProps {
   schema?: ToolInputSchema;
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
+  disabled?: boolean;
 }
 
-const SchemaArgsForm = ({ schema, value, onChange }: SchemaArgsFormProps) => {
+const SchemaArgsForm = ({ schema, value, onChange, disabled = false }: SchemaArgsFormProps) => {
   const { t } = useTranslation();
   const properties = schema?.properties || {};
   const required = schema?.required || [];
@@ -19,6 +20,7 @@ const SchemaArgsForm = ({ schema, value, onChange }: SchemaArgsFormProps) => {
   }
 
   const setField = (name: string, next: unknown) => {
+    if (disabled) return;
     onChange({ ...value, [name]: next });
   };
 
@@ -37,6 +39,7 @@ const SchemaArgsForm = ({ schema, value, onChange }: SchemaArgsFormProps) => {
                 type="checkbox"
                 checked={Boolean(current)}
                 onChange={(event) => setField(name, event.target.checked)}
+                disabled={disabled}
               />
               {name}
               {isRequired ? ' *' : ''}
@@ -59,6 +62,8 @@ const SchemaArgsForm = ({ schema, value, onChange }: SchemaArgsFormProps) => {
                 onChange={(event) =>
                   setField(name, event.target.value === '' ? undefined : Number(event.target.value))
                 }
+                disabled={disabled}
+                readOnly={disabled}
               />
             </div>
           );
@@ -84,6 +89,8 @@ const SchemaArgsForm = ({ schema, value, onChange }: SchemaArgsFormProps) => {
                     setField(name, event.target.value);
                   }
                 }}
+                disabled={disabled}
+                readOnly={disabled}
               />
             </div>
           );
@@ -99,6 +106,8 @@ const SchemaArgsForm = ({ schema, value, onChange }: SchemaArgsFormProps) => {
               className="hub-input"
               value={current === undefined || current === null ? '' : String(current)}
               onChange={(event) => setField(name, event.target.value)}
+              disabled={disabled}
+              readOnly={disabled}
             />
           </div>
         );

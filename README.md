@@ -41,11 +41,11 @@
 
 ## 界面
 
-控制台是黑底 + 月光青。按功能看一眼就知道月弦管什么。
+控制台默认黑底 + 月光青，右上角灯泡可切浅色，登录页始终是黑的。按功能看一眼就知道月弦管什么。
 
 ### 登录
 
-内部入口，没有公开注册。**只有控制台账号能登录**；MCP 用户只拿 Access Key。同一来源短时间失败太多次会被暂时拒绝。智能体不走这页。
+内部入口，没有公开注册。**只有控制台账号能登录**；MCP 用户只拿 Access Key。管理员还可以建 **Demo 账号**：能登录看工作区，但不能改配置、不能看用户/凭据/设置。同一来源短时间失败太多次会被暂时拒绝。智能体不走这页。
 
 ![登录](docs/images/login.jpg)
 
@@ -57,7 +57,7 @@
 
 ### 用户权限
 
-管理员按人勾 MCP 和 **具体 tools**。勾选时有权限预览。需要凭据的 MCP 在该服务器下面勾凭据，可多选。管理员开了 MCP 后也按 MCP 勾凭据。不勾则这个 Access Key 连 `/mcp` 看不到任何工具。MCP 用户不能登录控制台。仅后台管理员能登录，默认不签发 Key。Key 过期只挡住智能体，不影响后台。侧栏还有凭据中心、调试台和操作审计。
+管理员按人勾 MCP 和 **具体 tools**。勾选时有权限预览。需要凭据的 MCP 在该服务器下面勾凭据，可多选。管理员开了 MCP 后也按 MCP 勾凭据。不勾则这个 Access Key 连 `/mcp` 看不到任何工具。MCP 用户不能登录控制台。仅后台管理员能登录，默认不签发 Key。**Demo 账号**能登录，但只能看仪表盘/服务器/提示词/资源/调试台，系统菜单发灰，页面按钮不可用。Key 过期只挡住智能体，不影响后台。侧栏还有凭据中心、调试台和操作审计。
 
 ![用户权限：按人勾选服务器和工具](docs/images/add-user.png)
 
@@ -73,14 +73,14 @@
 | 一个人值班  | `mcp.json` 写三个 stdio，本机直连           | 用得上，但不必                      |
 | 多人共用   | 每人一份路径和 Token，工具全集都在               | 管理员建用户、按人勾工具；用户只贴一段 `/mcp` + 自己的 Key        |
 | 工具变多   | 客户端工具数容易顶满                            | 默认 `/mcp` 只暴露该用户勾过的工具 |
-| 新同事入职 | 再抄一份本机配置                              | 控制台建用户，复制生成的 `mcp.json` 即可                   |
+| 新同事入职 | 再抄一份本机配置                              | 控制台建用户，复制生成的 JSON 或 TOML 即可                   |
 
 
 ## 它做什么
 
 - **统一网关** — 一个进程对外提供 `/mcp`、`/mcp/{服务}`、`/mcp/$smart`。上游可以是 stdio、HTTP、SSE、OpenAPI。
 - **按用户授权** — 管理员在用户页勾该用户能用的 MCP 和 tools。普通用户默认 `/mcp` = 自己的授权清单；空清单 = 零工具。管理员默认全部已启用服务。
-- **用户与 Access Key** — 创建 MCP 用户后系统才签发 Access Key。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy `mcp.json`，也可以轮换 Key。仅后台管理员没有 Key。
+- **用户与 Access Key** — 创建 MCP 用户后系统才签发 Access Key。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy 的 JSON，或 Codex 的 TOML（合并进 `~/.codex/config.toml`，不要整文件覆盖），也可以轮换 Key。仅后台管理员没有 Key。
 - **控制台** — 服务器、用户、凭据中心、调试台、操作审计、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。
 - **凭据中心** — 一条凭据就是一个键值包，默认带出 HOST / PORT / TOKEN，绑定 MCP 可选且不改字段。平台会扫 MCP 配置里的 env / `${VAR}` 并在绑定区标明是否声明了变量；配置为空时仍可绑定。绑上之后，创建用户或管理员时能选它。同一页可对已绑凭据测试 `listTools`；测试或绑定成功后，服务器页显示在线并缓存工具。调用时覆盖该 MCP 的环境变量，不往工具参数里塞密文或租约 ID。主密钥是 `YLUNE_MASTER_KEY`。列表只显示变量名和「已配置」；管理员创建 / 编辑时明文可见，点编辑会载入已保存的值。多套环境请复制为新服务器并另建凭据，不要把多个地址堆在同一 MCP 上。
 - **可选能力** — 智能路由（`$smart` + pgvector）、工具结果压缩、OAuth 2.0 授权服务器、Better Auth 第三方登录、PostgreSQL 配置库、CLI。
@@ -115,7 +115,7 @@
 1. 按 [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) 编出三个二进制（`deploy/pack-linux.sh` 或 `pack-windows.cmd`），本机验收 `command` / `env` 能通。
 2. 在月弦控制台把它们加成服务器（类型 STDIO，`command` 填月弦进程能看见的绝对路径）。Docker 月弦用 DevOpsMCP 的 `deploy/attach.sh` 自动注册。
 3. 在用户页给普通用户勾需要的服务器和工具。
-4. 用户把控制台给出的 `mcp.json` 贴进 Cursor / WorkBuddy，只连月弦。
+4. 用户把控制台给出的 JSON（Cursor / WorkBuddy）或 TOML（Codex）贴进智能体，只连月弦。
 
 Linux 上若目录是 `/data/DevOpsMCP` + `/data/YLuneMCPHub`：月弦 `docker compose up`，再 `DevOpsMCP/deploy/attach.sh`。见 [docs/linux-deploy.md](docs/linux-deploy.md)。
 
@@ -135,9 +135,9 @@ DevOpsMCP 的凭据约定仍然成立：仓库和文档不写 Token；Jenkins / 
 
 | 客户端              | 配置放哪                         | 怎么接                                                                 |
 | ---------------- | ---------------------------- | ------------------------------------------------------------------- |
-| **WorkBuddy**    | 用户级或项目 `mcp.json`            | 用控制台「复制 mcp.json」，或手写 `url` + `headers.Authorization`           |
+| **WorkBuddy**    | 用户级或项目 `mcp.json`            | 用控制台选 JSON 再「复制内容」，或手写 `url` + `headers.Authorization`           |
 | **Cursor**       | `~/.cursor/mcp.json` 或项目级    | 同一份 JSON。保存后在 MCP 面板确认该服务是绿的                                      |
-| **Codex**        | `~/.codex/config.toml`       | 写成 HTTP MCP：`url` + bearer，不是 `command`                             |
+| **Codex**        | `~/.codex/config.toml`       | 控制台选 TOML 复制，**合并**进该文件，不要整文件覆盖；写成 HTTP MCP：`url` + bearer，不是 `command` |
 | **Claude Code**  | 用户级 MCP JSON                  | 同一套 `url` + Header                                                 |
 | **其它 MCP 客户端**   | 以该产品文档为准                     | 只要支持远程 / HTTP MCP，指向月弦的 `/mcp` 即可                                  |
 
@@ -220,7 +220,7 @@ Credential 加密进库，控制台永不回显明文
 | [使用教程](docs/user-guide.md)                      | 登录、加服务器、用户授权、设置里每一项怎么填                                                                    |
 | [配置与数据](docs/config-and-data.md)                    | 配置进 PostgreSQL；JSON 不是运行时存储                                                           |
 | [和 DevOpsMCP](#和-devopsmcp)               | [DevOpsMCP 仓库](https://github.com/isYaoNoistu/DevOpsMCP) · 夜莺 / Jenkins / PostgreSQL 怎么编、怎么拿凭据 |
-| [适配的智能体](#适配的智能体)                         | 控制台用户页给出的 `mcp.json`                                                                         |
+| [适配的智能体](#适配的智能体)                         | 控制台用户页给出的 JSON / TOML                                                                        |
 | [Docker 部署](deploy/README.md)             | Compose、环境变量、验收、反代；Linux 两仓示例：[docs/linux-deploy.md](docs/linux-deploy.md) |
 
 
@@ -228,7 +228,7 @@ Credential 加密进库，控制台永不回显明文
 
 ```text
 src/           网关与管理 API
-frontend/      控制台（黑底 + 月光青）
+frontend/      控制台（默认黑底，可切浅色）
 hub/           控制台视觉标尺（静态）
 login/         登录页视觉标尺（静态）
 locales/       文案

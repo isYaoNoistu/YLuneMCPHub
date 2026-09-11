@@ -73,6 +73,7 @@ type ServerRecord = ServerConfig & { name: string };
 type RequestUser = {
   username: string;
   isAdmin?: boolean;
+  demo?: boolean;
 };
 
 const getRequestUser = (req: Request): RequestUser | null => {
@@ -281,6 +282,7 @@ export const getAllServers = async (req: Request, res: Response): Promise<void> 
     // Get current user for filtering
     const currentUser = UserContextService.getInstance().getCurrentUser();
     const isAdmin = !currentUser || currentUser.isAdmin;
+    const canListAllServers = isAdmin || Boolean(currentUser?.demo);
 
     // Get servers info with pagination if limit is specified
     let serversInfo: Omit<ServerInfo, 'client' | 'transport'>[];
@@ -290,7 +292,7 @@ export const getAllServers = async (req: Request, res: Response): Promise<void> 
     if (limit !== undefined) {
       // Use DAO layer pagination with proper filtering
       const serverDao = getServerDao();
-      const paginatedResult = isAdmin
+      const paginatedResult = canListAllServers
         ? await serverDao.findAllPaginated(page, limit)
         : await serverDao.findVisibleToUserPaginated(currentUser!.username, page, limit);
 
@@ -454,9 +456,11 @@ export const getAllSettings = async (req: Request, res: Response): Promise<void>
                   baseUrl: systemConfigForResponse.install?.baseUrl,
                 },
               },
-              bearerKeys: settings.bearerKeys?.filter(
-                (key) => key.kind === 'user' && key.owner === getRequestUser(req)?.username,
-              ),
+              bearerKeys: getRequestUser(req)?.demo
+                ? []
+                : settings.bearerKeys?.filter(
+                    (key) => key.kind === 'user' && key.owner === getRequestUser(req)?.username,
+                  ),
             },
       ),
     };

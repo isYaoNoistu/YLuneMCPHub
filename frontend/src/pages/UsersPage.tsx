@@ -9,6 +9,7 @@ import { isExpiredUser, isExpiringSoon } from '@/utils/expiryCenter';
 import { copyUserGrants } from '@/services/opsService';
 import AddUserForm from '@/components/AddUserForm';
 import AddAdminForm from '@/components/AddAdminForm';
+import AddDemoForm from '@/components/AddDemoForm';
 import EditUserForm from '@/components/EditUserForm';
 import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw, Clock, KeyRound } from 'lucide-react';
 import ExpiryCenter from '@/components/ExpiryCenter';
@@ -46,7 +47,7 @@ const UsersPage: React.FC = () => {
   const [renewCustomAt, setRenewCustomAt] = useState('');
   const [renewBusy, setRenewBusy] = useState(false);
   const [pastAlertOpen, setPastAlertOpen] = useState(false);
-  const [showAddForm, setShowAddForm] = useState<'mcp' | 'admin' | null>(null);
+  const [showAddForm, setShowAddForm] = useState<'mcp' | 'admin' | 'demo' | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const { allServers } = useServerData();
   const [rotatingUser, setRotatingUser] = useState<User | null>(null);
@@ -68,7 +69,7 @@ const UsersPage: React.FC = () => {
     const mcpOn = user.mcpEnabled !== false;
     const expired = isExpiredUser(user);
     const expiring = isExpiringSoon(user, 7);
-    const noGrants = !user.isAdmin && (!user.grants || user.grants.length === 0);
+    const noGrants = !user.isAdmin && !user.demo && (!user.grants || user.grants.length === 0);
     if (filter === 'ok') return mcpOn && !expired && !expiring;
     if (filter === 'expiring') return expiring;
     if (filter === 'expired') return expired;
@@ -107,6 +108,9 @@ const UsersPage: React.FC = () => {
           </button>
           <button className="hub-btn" onClick={() => setShowAddForm('mcp')}>
             <Plus size={13} /> {t('users.addMcp')}
+          </button>
+          <button className="hub-btn" onClick={() => setShowAddForm('demo')}>
+            <Plus size={13} /> {t('users.addDemo')}
           </button>
           <button className="hub-btn primary" onClick={() => setShowAddForm('admin')}>
             <Plus size={13} /> {t('users.addAdmin')}
@@ -195,7 +199,7 @@ const UsersPage: React.FC = () => {
             <div>{t('users.remark')}</div>
             <div>{t('users.tokenLifetime')}</div>
             <div>{t('users.token')}</div>
-            <div>mcp.json</div>
+            <div>{t('users.mcpSnippet')}</div>
             <div className="text-right">{t('users.actions')}</div>
           </div>
           {filteredUsers.map((user) => {
@@ -237,12 +241,17 @@ const UsersPage: React.FC = () => {
                           {t('users.currentUser')}
                         </span>
                       )}
-                      {user.isAdmin && (
+                      {user.demo && (
+                        <span className="hub-tag muted" style={{ fontSize: 10 }}>
+                          {t('users.roleDemo')}
+                        </span>
+                      )}
+                      {user.isAdmin && !user.demo && (
                         <span className="hub-tag accent" style={{ fontSize: 10 }}>
                           {user.mcpEnabled === false ? t('users.roleConsole') : t('users.roleBoth')}
                         </span>
                       )}
-                      {!user.isAdmin && (
+                      {!user.isAdmin && !user.demo && (
                         <span className="hub-tag muted" style={{ fontSize: 10 }}>
                           {t('users.roleMcp')}
                         </span>
@@ -254,7 +263,9 @@ const UsersPage: React.FC = () => {
                       )}
                     </div>
                     <span className="ylune-help" style={{ margin: '2px 0 0', display: 'block' }}>
-                      {user.isAdmin
+                      {user.demo
+                        ? t('users.demoHint')
+                        : user.isAdmin
                         ? t('users.adminUnrestricted')
                         : t('users.grantPreviewHint', {
                             servers: grantRows.length,
@@ -279,17 +290,21 @@ const UsersPage: React.FC = () => {
                       color: expired ? 'var(--hub-err)' : 'var(--hub-ink-3)',
                     }}
                   >
-                    {!mcpOn
-                      ? t('users.adminNoMcp')
-                      : !user.tokenExpiresAt
+                    {!user.demo && mcpOn
+                      ? !user.tokenExpiresAt
                         ? t('users.tokenNeverExpires')
                         : t('users.tokenValidUntil', {
                             time: new Date(user.tokenExpiresAt).toLocaleString(),
-                          })}
+                          })
+                      : user.demo
+                        ? t('users.demoNoKey')
+                        : t('users.adminNoMcp')}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  {mcpOn ? (
+                  {user.demo ? (
+                    <span className="ylune-help">{t('users.demoNoKey')}</span>
+                  ) : mcpOn ? (
                     <SecretReveal
                       variant="plain"
                       value={user.token}
@@ -300,14 +315,16 @@ const UsersPage: React.FC = () => {
                   )}
                 </div>
                 <div className="min-w-0">
-                  {mcpOn && user.token ? (
+                  {user.demo ? (
+                    <span className="ylune-help">—</span>
+                  ) : mcpOn && user.token ? (
                     <McpJsonPanel username={user.username} token={user.token} compact />
                   ) : (
                     <span className="ylune-help">—</span>
                   )}
                 </div>
                 <div className="flex justify-end gap-1">
-                  {mcpOn && (
+                  {mcpOn && !user.demo && (
                     <button
                       onClick={() => {
                         setCopyingUser(user);
@@ -319,7 +336,7 @@ const UsersPage: React.FC = () => {
                       <RefreshCw size={13} />
                     </button>
                   )}
-                  {mcpOn && (
+                  {mcpOn && !user.demo && (
                     <button
                       onClick={() => {
                         setRenewingUser(user);
@@ -332,7 +349,7 @@ const UsersPage: React.FC = () => {
                       <Clock size={13} />
                     </button>
                   )}
-                  {mcpOn && (
+                  {mcpOn && !user.demo && (
                     <button
                       onClick={() => setRotatingUser(user)}
                       className="hub-icon-btn sm"
@@ -376,6 +393,15 @@ const UsersPage: React.FC = () => {
       )}
       {showAddForm === 'admin' && (
         <AddAdminForm
+          onAdd={() => {
+            setShowAddForm(null);
+            triggerRefresh();
+          }}
+          onCancel={() => setShowAddForm(null)}
+        />
+      )}
+      {showAddForm === 'demo' && (
+        <AddDemoForm
           onAdd={() => {
             setShowAddForm(null);
             triggerRefresh();

@@ -60,7 +60,9 @@
     "title": "主题",
     "light": "浅色",
     "dark": "深色",
-    "system": "系统"
+    "system": "系统",
+    "toggleLight": "切换浅色",
+    "toggleDark": "切换深色"
   },
   "auth": {
     "login": "登录",
@@ -399,7 +401,8 @@
     "lab": "调试台",
     "credentials": "凭据中心",
     "workspace": "工作区",
-    "system": "系统"
+    "system": "系统",
+    "demoLocked": "Demo 账号不能打开此页"
   },
   "pages": {
     "dashboard": {
@@ -421,6 +424,7 @@
       "snapshotHeading": "智能体 / 普通用户",
       "snapshotHint": "管理员账号一般不调工具。这里是网关上的调用，不是当前登录管理员自己的。",
       "youAreUser": "智能体用当前账号的授权连接 /mcp。本页只读。",
+      "youAreDemo": "这是只读演示账号：能看工作区页面，不能改配置、不能看用户和凭据，也不能调用工具。",
       "noGrantsYet": "还没有勾任何 MCP 工具，智能体连上后看不到工具。",
       "allToolsOnServer": "全部工具",
       "toolCount": "{{count}} 个工具",
@@ -1086,6 +1090,12 @@
     "add": "添加",
     "addMcp": "创建 MCP 用户",
     "addAdmin": "创建管理员",
+    "addDemo": "创建 Demo 账号",
+    "roleDemo": "Demo",
+    "demoHint": "只能登录控制台看工作区，不能改任何配置，也不能看用户、凭据和设置。",
+    "createDemoSuccessHint": "Demo 账号 {{username}} 已创建。用密码登录后只能浏览工作区。",
+    "demoNoKey": "Demo 账号没有 Access Key",
+    "demoCannotPromote": "Demo 账号不能改成管理员或开通 MCP。",
     "allowMcp": "允许 MCP 调用",
     "adminNoMcp": "未开通 MCP，没有 Access Key",
     "createAdminSuccessHint": "管理员 {{username}} 已创建。控制台用密码登录。",
@@ -1107,8 +1117,13 @@
     "createSuccessHint": "用户 {{username}} 已创建，专属接入密钥已生成。",
     "mcpJsonTitle": "Cursor / WorkBuddy 接入",
     "mcpJsonHint": "把下面这段复制到智能体的 mcp.json，保存即可直接用。地址是你当前打开控制台的公网地址，不要改成 /mcp/组名。用户列表上可以随时再复制。",
-    "mcpJsonAlwaysHint": "关闭后仍可在用户列表随时再复制这段 JSON，不会只允许复制一次。",
+    "mcpJsonAlwaysHint": "关闭后仍可在用户列表随时再复制这段配置，不会只允许复制一次。",
+    "mcpTomlTitle": "Codex 接入",
+    "mcpTomlHint": "把下面这段加进 ~/.codex/config.toml，不要整文件覆盖。地址和 Bearer 与 JSON 相同。用户列表上可以随时再复制。",
     "copyMcpJson": "复制 mcp.json",
+    "copyMcpToml": "复制 TOML",
+    "copyMcpSnippet": "复制内容",
+    "mcpSnippet": "接入配置",
     "pageHint": "控制台密码和 MCP Access Key 是两套身份。MCP 用户只拿 Key，不能登录后台。仅后台管理员能登录，默认不签发 Key。过期只挡住 /mcp，不影响控制台。凭据中心的自定义变量是第三套，给库和上游用。",
     "searchPlaceholder": "搜索用户名或备注",
     "filterAll": "全部",
@@ -1554,6 +1569,7 @@
   "lab": {
     "title": "MCP 调试台",
     "hint": "按所选用户的授权筛选工具，并用该用户的 Key 真正调用，用来验收授权是否生效。选管理员时用当前登录会话。",
+    "demoHint": "只能查看服务器和工具说明，不能实际调用。",
     "asUser": "以用户视角",
     "pickServer": "选择服务器",
     "tool": "工具",

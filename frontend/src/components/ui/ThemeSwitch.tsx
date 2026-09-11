@@ -1,24 +1,22 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Lightbulb } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Sun, Moon } from 'lucide-react';
 
 const ThemeSwitch: React.FC = () => {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
+  const isLight = theme === 'light';
 
   return (
     <button
-      onClick={toggleTheme}
-      className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 focus:outline-none"
-      title={theme === 'light' ? t('theme.dark') : t('theme.light')}
-      aria-label={theme === 'light' ? t('theme.dark') : t('theme.light')}
+      type="button"
+      className={`icon-btn theme-bulb${isLight ? ' is-on' : ''}`}
+      onClick={() => setTheme(isLight ? 'dark' : 'light')}
+      title={isLight ? t('theme.toggleDark') : t('theme.toggleLight')}
+      aria-label={isLight ? t('theme.toggleDark') : t('theme.toggleLight')}
     >
-      {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+      <Lightbulb size={16} fill={isLight ? 'currentColor' : 'none'} />
     </button>
   );
 };

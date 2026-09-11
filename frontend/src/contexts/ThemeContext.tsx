@@ -1,12 +1,33 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Theme = 'light' | 'dark' | 'system';
+type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  resolvedTheme: 'light' | 'dark'; // The actual theme used after resolving system preference
+  resolvedTheme: Theme;
 }
+
+const STORAGE_KEY = 'theme';
+
+const readStoredTheme = (): Theme => {
+  if (typeof window === 'undefined') {
+    return 'dark';
+  }
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
+};
+
+const applyTheme = (next: Theme) => {
+  const root = window.document.documentElement;
+  root.classList.toggle('dark', next === 'dark');
+  root.classList.toggle('light', next === 'light');
+  root.style.colorScheme = next;
+  document.body.style.backgroundColor = '';
+};
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -19,46 +40,29 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('dark');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const next = readStoredTheme();
+    if (typeof window !== 'undefined') {
+      applyTheme(next);
+    }
+    return next;
+  });
 
-  // Function to set theme and save to localStorage
-  const handleSetTheme = (newTheme: Theme) => {
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+  const setTheme = (next: Theme) => {
+    setThemeState(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
   };
 
-  // Effect to handle system theme changes and apply theme to document
   useEffect(() => {
-    const updateTheme = () => {
-      const root = window.document.documentElement;
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      
-      // Determine which theme to use
-      const themeToApply = theme === 'system' ? systemTheme : theme;
-      setResolvedTheme(themeToApply as 'light' | 'dark');
-      
-      // Apply or remove dark class based on theme
-      root.classList.add('dark');
-      document.body.style.backgroundColor = '#0a0a0b';
-      document.documentElement.style.colorScheme = 'dark';
-    };
-
-    // Set up listeners for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', updateTheme);
-    
-    // Initial theme setup
-    updateTheme();
-
-    // Cleanup
-    return () => {
-      mediaQuery.removeEventListener('change', updateTheme);
-    };
+    applyTheme(theme);
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme: handleSetTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme: theme }}>
       {children}
     </ThemeContext.Provider>
   );

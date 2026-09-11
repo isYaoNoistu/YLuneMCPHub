@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useServerData } from '@/hooks/useServerData';
 import { useUserData } from '@/hooks/useUserData';
 import { callTool } from '@/services/toolService';
+import { isDemoUser } from '@/utils/navigationPermissions';
 import { summarizeGrants } from '@/utils/grantPreview';
 import SchemaArgsForm, { exampleFromSchema } from '@/components/SchemaArgsForm';
 import { Server, Tool } from '@/types';
@@ -20,6 +21,7 @@ const LabPage = () => {
   const { t } = useTranslation();
   const { auth } = useAuth();
   const isAdmin = auth.user?.isAdmin === true;
+  const isDemo = isDemoUser(auth.user);
   const { allServers } = useServerData();
   const { users } = useUserData();
   const [asUser, setAsUser] = useState(auth.user?.username || '');
@@ -42,15 +44,15 @@ const LabPage = () => {
   const preview = summarizeGrants(
     selectedUser?.grants,
     allServers,
-    selectedUser?.isAdmin || (!selectedUser && isAdmin),
+    isDemo || selectedUser?.isAdmin || (!selectedUser && isAdmin),
   );
   const allowedServers = useMemo(() => {
-    if (selectedUser?.isAdmin || (!selectedUser && isAdmin)) {
+    if (isDemo || selectedUser?.isAdmin || (!selectedUser && isAdmin)) {
       return allServers.filter((server) => server.enabled !== false);
     }
     const names = new Set(preview.map((row) => row.server));
     return allServers.filter((server) => names.has(server.name));
-  }, [allServers, isAdmin, preview, selectedUser]);
+  }, [allServers, isAdmin, isDemo, preview, selectedUser]);
 
   const currentServer: Server | undefined = allowedServers.find((server) => server.name === serverName);
   const tools: Tool[] = currentServer?.tools || [];
@@ -87,6 +89,9 @@ const LabPage = () => {
   };
 
   const run = async () => {
+    if (isDemo) {
+      return;
+    }
     setBusy(true);
     setResult('');
     setMeta(null);
@@ -125,7 +130,7 @@ const LabPage = () => {
     }
   };
 
-  if (!isAdmin) {
+  if (!isAdmin && !isDemo) {
     return (
       <div className="hub-card p-6 text-center" style={{ color: 'var(--hub-err)' }}>
         {t('users.adminRequired')}
@@ -138,29 +143,33 @@ const LabPage = () => {
       <div className="hub-page-head">
         <div>
           <h1 className="hub-h1">{t('lab.title')}</h1>
-          <p className="hub-sub">{t('lab.hint')}</p>
+          <p className="hub-sub">{isDemo ? t('lab.demoHint') : t('lab.hint')}</p>
         </div>
       </div>
 
       <div className="hub-card lab-card">
         <div className="ylune-dialog-body">
-          <label className="ylune-label">{t('lab.asUser')}</label>
-          <select
-            className="hub-input"
-            value={asUser}
-            onChange={(event) => {
-              setAsUser(event.target.value);
-              setServerName('');
-              setToolName('');
-            }}
-          >
-            {users.map((user) => (
-              <option key={user.username} value={user.username}>
-                {user.username}
-                {user.isAdmin ? ` (${t('users.admin')})` : ''}
-              </option>
-            ))}
-          </select>
+          {!isDemo && (
+            <>
+              <label className="ylune-label">{t('lab.asUser')}</label>
+              <select
+                className="hub-input"
+                value={asUser}
+                onChange={(event) => {
+                  setAsUser(event.target.value);
+                  setServerName('');
+                  setToolName('');
+                }}
+              >
+                {users.map((user) => (
+                  <option key={user.username} value={user.username}>
+                    {user.username}
+                    {user.isAdmin ? ` (${t('users.admin')})` : ''}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
 
           <label className="ylune-label">{t('nav.servers')}</label>
           <select
@@ -194,35 +203,42 @@ const LabPage = () => {
             ))}
           </select>
 
-          <div className="flex gap-2 mb-2">
-            <button
-              type="button"
-              className={`hub-btn${mode === 'form' ? ' primary' : ''}`}
-              onClick={() => setMode('form')}
-            >
-              {t('lab.formTab')}
-            </button>
-            <button
-              type="button"
-              className={`hub-btn${mode === 'raw' ? ' primary' : ''}`}
-              onClick={() => setMode('raw')}
-            >
-              {t('lab.rawTab')}
-            </button>
-            <button
-              type="button"
-              className="hub-btn"
-              onClick={() => syncFromForm(exampleFromSchema(currentTool?.inputSchema))}
-            >
-              {t('lab.fillExample')}
-            </button>
-            <button type="button" className="hub-btn" onClick={() => syncFromForm({})}>
-              {t('lab.clear')}
-            </button>
-          </div>
+          {!isDemo && (
+            <div className="flex gap-2 mb-2">
+              <button
+                type="button"
+                className={`hub-btn${mode === 'form' ? ' primary' : ''}`}
+                onClick={() => setMode('form')}
+              >
+                {t('lab.formTab')}
+              </button>
+              <button
+                type="button"
+                className={`hub-btn${mode === 'raw' ? ' primary' : ''}`}
+                onClick={() => setMode('raw')}
+              >
+                {t('lab.rawTab')}
+              </button>
+              <button
+                type="button"
+                className="hub-btn"
+                onClick={() => syncFromForm(exampleFromSchema(currentTool?.inputSchema))}
+              >
+                {t('lab.fillExample')}
+              </button>
+              <button type="button" className="hub-btn" onClick={() => syncFromForm({})}>
+                {t('lab.clear')}
+              </button>
+            </div>
+          )}
 
-          {mode === 'form' ? (
-            <SchemaArgsForm schema={currentTool?.inputSchema} value={args} onChange={syncFromForm} />
+          {mode === 'form' || isDemo ? (
+            <SchemaArgsForm
+              schema={currentTool?.inputSchema}
+              value={args}
+              onChange={syncFromForm}
+              disabled={isDemo}
+            />
           ) : (
             <>
               <label className="ylune-label">{t('lab.args')}</label>
@@ -235,15 +251,17 @@ const LabPage = () => {
             </>
           )}
 
-          <button
-            type="button"
-            className="hub-btn primary"
-            disabled={busy || !serverName || !toolName}
-            onClick={() => void run()}
-            style={{ marginTop: 12 }}
-          >
-            {busy ? t('common.processing') : t('lab.run')}
-          </button>
+          {!isDemo && (
+            <button
+              type="button"
+              className="hub-btn primary"
+              disabled={busy || !serverName || !toolName}
+              onClick={() => void run()}
+              style={{ marginTop: 12 }}
+            >
+              {busy ? t('common.processing') : t('lab.run')}
+            </button>
+          )}
 
           {meta && (
             <p className="ylune-help" style={{ marginTop: 12 }}>

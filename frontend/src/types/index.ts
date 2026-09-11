@@ -474,6 +474,7 @@ export interface IUser {
   isAdmin?: boolean;
   consoleEnabled?: boolean;
   mcpEnabled?: boolean;
+  demo?: boolean;
   permissions?: string[];
   grants?: IGroupServerConfig[];
   tokenExpiresAt?: string | null;
@@ -488,6 +489,7 @@ export interface User {
   isAdmin: boolean;
   consoleEnabled?: boolean;
   mcpEnabled?: boolean;
+  demo?: boolean;
   email?: string;
   remark?: string;
   token?: string;
@@ -508,6 +510,7 @@ export interface UserFormData {
   isAdmin?: boolean;
   consoleEnabled?: boolean;
   mcpEnabled?: boolean;
+  demo?: boolean;
   email?: string;
   grants?: IGroupServerConfig[];
   tokenLifetime?: string;

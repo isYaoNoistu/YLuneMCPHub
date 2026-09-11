@@ -1,4 +1,4 @@
-import { isConsoleEnabled, isMcpEnabled, resolveAccountFlags } from '../../src/utils/userAccount.js';
+import { isConsoleEnabled, isMcpEnabled, isDemoUser, resolveAccountFlags } from '../../src/utils/userAccount.js';
 
 describe('userAccount flags', () => {
   it('treats old admin rows as console plus MCP', () => {
@@ -6,6 +6,7 @@ describe('userAccount flags', () => {
       isAdmin: true,
       consoleEnabled: true,
       mcpEnabled: true,
+      demo: false,
     });
   });
 
@@ -14,6 +15,7 @@ describe('userAccount flags', () => {
       isAdmin: false,
       consoleEnabled: false,
       mcpEnabled: true,
+      demo: false,
     });
     expect(isConsoleEnabled({ isAdmin: false })).toBe(false);
     expect(isMcpEnabled({})).toBe(true);
@@ -26,7 +28,22 @@ describe('userAccount flags', () => {
       isAdmin: true,
       consoleEnabled: true,
       mcpEnabled: false,
+      demo: false,
     });
     expect(isMcpEnabled({ mcpEnabled: false })).toBe(false);
+  });
+
+  it('makes demo accounts console-only viewers', () => {
+    expect(
+      resolveAccountFlags({ demo: true, isAdmin: true, mcpEnabled: true, consoleEnabled: false }),
+    ).toEqual({
+      isAdmin: false,
+      demo: true,
+      consoleEnabled: true,
+      mcpEnabled: false,
+    });
+    expect(isConsoleEnabled({ demo: true })).toBe(true);
+    expect(isMcpEnabled({ demo: true })).toBe(false);
+    expect(isDemoUser({ demo: true, isAdmin: true })).toBe(true);
   });
 });

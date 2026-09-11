@@ -8,7 +8,8 @@
 
 /* 标尺：hub/index.html。原组件仍走 --hub-*，全部映射到月弦令牌 */
 :root,
-.dark {
+.dark,
+html.light {
   --hub-bg: var(--color-bg);
   --hub-bg-2: var(--color-surface);
   --hub-surface: var(--color-surface);
@@ -20,7 +21,7 @@
   --hub-line: var(--color-border);
   --hub-line-2: var(--color-border);
   --hub-accent: var(--color-accent);
-  --hub-accent-soft: rgba(94, 234, 212, 0.12);
+  --hub-accent-soft: var(--color-accent-soft);
   --hub-ok: var(--color-accent);
   --hub-warn: #e7c27a;
   --hub-err: var(--color-danger);
@@ -176,7 +177,7 @@
     minmax(80px, 0.55fr)
     minmax(96px, 0.5fr)
     minmax(140px, 0.7fr)
-    118px
+    minmax(240px, 1.1fr)
     108px;
   gap: 16px;
   padding: 14px 18px;
@@ -680,7 +681,7 @@
   background: var(--hub-surface);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   color: var(--hub-ink);
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 
 .hub-multiselect-menu.is-portal {
@@ -690,9 +691,9 @@
   max-height: 260px;
   display: flex;
   flex-direction: column;
-  background: #121214;
-  color: #f2f0ea;
-  border-color: rgba(242, 240, 234, 0.16);
+  background: var(--hub-surface);
+  color: var(--hub-ink);
+  border-color: var(--hub-line);
 }
 
 .hub-multiselect-menu.is-portal .hub-multiselect-list {
@@ -700,10 +701,10 @@
 }
 
 .hub-multiselect-menu.is-portal .hub-input {
-  background: #0a0a0b;
-  color: #f2f0ea;
-  border-color: rgba(242, 240, 234, 0.16);
-  color-scheme: dark;
+  background: var(--hub-bg);
+  color: var(--hub-ink);
+  border-color: var(--hub-line);
+  color-scheme: inherit;
 }
 
 .hub-multiselect-search {
@@ -804,6 +805,15 @@
   border-color: var(--hub-accent);
 }
 .dark .hub-btn.primary:hover { filter: brightness(1.06); background: var(--hub-accent); }
+html.light .hub-btn.primary {
+  background: var(--hub-accent);
+  color: #fff;
+  border-color: var(--hub-accent);
+}
+html.light .hub-btn.primary:hover {
+  filter: none;
+  background: var(--color-accent-2);
+}
 .hub-btn.ghost { border-color: transparent; }
 .hub-btn.ghost:hover { background: var(--hub-surface-hover); border-color: var(--hub-line); }
 .hub-btn.danger { color: var(--hub-err); }

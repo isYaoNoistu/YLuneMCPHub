@@ -60,7 +60,9 @@
     "title": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "system": "System",
+    "toggleLight": "Switch to light",
+    "toggleDark": "Switch to dark"
   },
   "auth": {
     "login": "Login",
@@ -397,7 +399,8 @@
     "lab": "Lab",
     "credentials": "Credentials",
     "workspace": "Workspace",
-    "system": "System"
+    "system": "System",
+    "demoLocked": "Demo accounts cannot open this page"
   },
   "pages": {
     "dashboard": {
@@ -419,6 +422,7 @@
       "snapshotHeading": "Agents / regular users",
       "snapshotHint": "Admins rarely call tools. These numbers are gateway traffic, not this admin account.",
       "youAreUser": "Agents use this account's grants on /mcp. This page is read-only.",
+      "youAreDemo": "This is a view-only demo account. You can browse the workspace, but you cannot change anything, see users or credentials, or call tools.",
       "noGrantsYet": "No MCP tools are granted yet, so an agent will see an empty tool list.",
       "allToolsOnServer": "All tools",
       "toolCount": "{{count}} tools",
@@ -1083,6 +1087,12 @@
     "add": "Add User",
     "addMcp": "Create MCP user",
     "addAdmin": "Create admin",
+    "addDemo": "Create demo account",
+    "roleDemo": "Demo",
+    "demoHint": "Can sign in and browse the workspace only. No edits, and no access to users, credentials, or settings.",
+    "createDemoSuccessHint": "Demo account {{username}} is ready. Sign in with the password to browse the workspace.",
+    "demoNoKey": "Demo accounts have no Access Key",
+    "demoCannotPromote": "A demo account cannot become admin or gain MCP access.",
     "allowMcp": "Allow MCP access",
     "adminNoMcp": "MCP is off. No Access Key.",
     "createAdminSuccessHint": "Admin {{username}} is ready. Sign in to the console with the password.",
@@ -1104,8 +1114,13 @@
     "createSuccessHint": "{{username}} is ready. A dedicated access key has been issued.",
     "mcpJsonTitle": "Cursor / WorkBuddy access",
     "mcpJsonHint": "Copy this block into the agent's mcp.json. The URL is the public origin you used to open the console. Do not change it to /mcp/{group}. You can copy it again from the user list at any time.",
-    "mcpJsonAlwaysHint": "After you close this dialog, the user list still has Copy mcp.json. It is not one-time.",
+    "mcpJsonAlwaysHint": "After you close this dialog, the user list still has Copy snippet. It is not one-time.",
+    "mcpTomlTitle": "Codex access",
+    "mcpTomlHint": "Merge this table into ~/.codex/config.toml. Do not replace the whole file. Same URL and Bearer as the JSON. You can copy it again from the user list at any time.",
     "copyMcpJson": "Copy mcp.json",
+    "copyMcpToml": "Copy TOML",
+    "copyMcpSnippet": "Copy snippet",
+    "mcpSnippet": "Agent config",
     "pageHint": "Console password and MCP Access Key are separate. MCP users get a key only and cannot sign in. Console-only admins can sign in and do not get a key. Expiry blocks /mcp, not the console. Credential Center variables are a third identity, used toward databases and upstreams.",
     "searchPlaceholder": "Search username or remark",
     "filterAll": "All",
@@ -1552,6 +1567,7 @@
   "lab": {
     "title": "MCP lab",
     "hint": "Tools are filtered by the selected user's grants, and the call uses that user's key so you can verify access. Admin accounts use the current login session.",
+    "demoHint": "You can inspect servers and tool schemas. Calls are disabled.",
     "asUser": "As user",
     "pickServer": "Pick a server",
     "tool": "Tool",

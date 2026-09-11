@@ -43,6 +43,10 @@ jest.mock('./userContext.js', () => ({
   userContextMiddleware: jest.fn((_req, _res, next) => next()),
 }));
 
+jest.mock('./demoGuard.js', () => ({
+  demoGuard: jest.fn((_req, _res, next) => next()),
+}));
+
 jest.mock('./i18n.js', () => ({
   i18nMiddleware: jest.fn((_req, _res, next) => next()),
 }));

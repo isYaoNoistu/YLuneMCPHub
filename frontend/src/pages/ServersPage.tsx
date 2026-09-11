@@ -10,12 +10,16 @@ import JSONImportForm from '@/components/JSONImportForm';
 import Pagination from '@/components/ui/Pagination';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
+import { useAuth } from '@/contexts/AuthContext';
+import { isDemoUser } from '@/utils/navigationPermissions';
 import { selectServerPage, getServerFilterCounts, type ServerFilter } from '@/utils/serverFilters';
 import ToolChangeBanner from '@/components/ToolChangeBanner';
 import { extractSearchTags } from '@/utils/toolInventory';
 
 const ServersPage: React.FC = () => {
   const { t } = useTranslation();
+  const { auth } = useAuth();
+  const isDemo = isDemoUser(auth.user);
   const {
     servers,
     allServers,
@@ -96,12 +100,16 @@ const ServersPage: React.FC = () => {
           </p>
         </div>
         <div className="view-actions">
-          <button className="hub-btn" onClick={() => setShowJsonImport(true)}>
-            <FileCode size={13} /> {t('jsonImport.button')}
-          </button>
-          <button className="hub-btn" onClick={() => setShowMcpbUpload(true)}>
-            <Upload size={13} /> {t('mcpb.upload')}
-          </button>
+          {!isDemo && (
+            <>
+              <button className="hub-btn" onClick={() => setShowJsonImport(true)}>
+                <FileCode size={13} /> {t('jsonImport.button')}
+              </button>
+              <button className="hub-btn" onClick={() => setShowMcpbUpload(true)}>
+                <Upload size={13} /> {t('mcpb.upload')}
+              </button>
+            </>
+          )}
           <button
             className="hub-btn"
             onClick={handleRefresh}
@@ -111,7 +119,7 @@ const ServersPage: React.FC = () => {
             <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
             {t('common.refresh')}
           </button>
-          <AddServerForm onAdd={handleServerAdd} />
+          {!isDemo && <AddServerForm onAdd={handleServerAdd} />}
         </div>
       </div>
 
@@ -139,7 +147,7 @@ const ServersPage: React.FC = () => {
         </div>
       )}
 
-      <ToolChangeBanner />
+      {!isDemo && <ToolChangeBanner />}
 
       <div className="servers-toolbar">
         <div className="servers-filters">
@@ -262,7 +270,7 @@ const ServersPage: React.FC = () => {
         </div>
       )}
 
-      {editingServer && (
+      {!isDemo && editingServer && (
         <EditServerForm
           server={editingServer}
           onEdit={() => {
@@ -272,7 +280,7 @@ const ServersPage: React.FC = () => {
           onCancel={() => setEditingServer(null)}
         />
       )}
-      {showMcpbUpload && (
+      {!isDemo && showMcpbUpload && (
         <McpbUploadForm
           onSuccess={() => {
             setShowMcpbUpload(false);
@@ -281,7 +289,7 @@ const ServersPage: React.FC = () => {
           onCancel={() => setShowMcpbUpload(false)}
         />
       )}
-      {showJsonImport && (
+      {!isDemo && showJsonImport && (
         <JSONImportForm
           onSuccess={() => {
             setShowJsonImport(false);

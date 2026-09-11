@@ -40,7 +40,7 @@ export interface UserDao extends BaseDao<IUser, string> {
     remark?: string,
     grants?: IGroupServerConfig[],
     tokenExpiresAt?: Date | null,
-    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
+    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean; demo?: boolean },
   ): Promise<IUser>;
 
   /**
@@ -122,7 +122,7 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
     remark?: string,
     grants?: IGroupServerConfig[],
     tokenExpiresAt?: Date | null,
-    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
+    account?: { consoleEnabled?: boolean; mcpEnabled?: boolean; demo?: boolean },
   ): Promise<IUser> {
     const users = await this.getAll();
 
@@ -132,12 +132,19 @@ export class UserDaoImpl extends JsonFileBaseDao implements UserDao {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const flags = resolveAccountFlags({
+      isAdmin,
+      consoleEnabled: account?.consoleEnabled,
+      mcpEnabled: account?.mcpEnabled,
+      demo: account?.demo,
+    });
     const newUser: IUser = {
       username,
       password: hashedPassword,
-      isAdmin,
-      consoleEnabled: account?.consoleEnabled ?? isAdmin,
-      mcpEnabled: account?.mcpEnabled ?? true,
+      isAdmin: flags.isAdmin,
+      consoleEnabled: flags.consoleEnabled,
+      mcpEnabled: flags.mcpEnabled,
+      demo: flags.demo,
       email,
       ssoUserId,
       remark: remark || undefined,

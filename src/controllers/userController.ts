@@ -116,6 +116,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       isAdmin,
       consoleEnabled,
       mcpEnabled,
+      demo,
       email,
       remark,
       token,
@@ -132,15 +133,18 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const creatingAdmin = Boolean(isAdmin) || consoleEnabled === true;
-    const wantsMcp = mcpEnabled !== false && (mcpEnabled === true || !creatingAdmin);
+    const creatingDemo = Boolean(demo);
+    const creatingAdmin = !creatingDemo && (Boolean(isAdmin) || consoleEnabled === true);
+    const wantsMcp = !creatingDemo && mcpEnabled !== false && (mcpEnabled === true || !creatingAdmin);
     const resolvedPassword =
       typeof password === 'string' && password.trim() ? password : generateInternalPassword();
 
-    if (creatingAdmin && !(typeof password === 'string' && password.trim())) {
+    if ((creatingAdmin || creatingDemo) && !(typeof password === 'string' && password.trim())) {
       res.status(400).json({
         success: false,
-        message: 'Password is required for console administrators',
+        message: creatingDemo
+          ? 'Password is required for demo accounts'
+          : 'Password is required for console administrators',
       });
       return;
     }
@@ -184,16 +188,18 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const grantList = grants !== undefined ? normalizeUserGrants(grants) : [];
-    await validateUserServerCredentials(username.trim(), req.body, {
-      grants: grantList,
-      isAdmin: creatingAdmin,
-    });
+    const grantList = creatingDemo ? [] : grants !== undefined ? normalizeUserGrants(grants) : [];
+    if (!creatingDemo) {
+      await validateUserServerCredentials(username.trim(), req.body, {
+        grants: grantList,
+        isAdmin: creatingAdmin,
+      });
+    }
 
     const newUser = await createNewUser(
       username.trim(),
       resolvedPassword,
-      Boolean(isAdmin) || creatingAdmin,
+      Boolean(isAdmin) && !creatingDemo,
       email,
       typeof remark === 'string' ? remark : undefined,
       grantList,
@@ -203,8 +209,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         tokenExpiresAt,
       }),
       {
-        consoleEnabled: creatingAdmin,
+        consoleEnabled: creatingAdmin || creatingDemo,
         mcpEnabled: wantsMcp,
+        demo: creatingDemo,
       },
     );
     if (!newUser) {
@@ -221,10 +228,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         typeof token === 'string' ? token : undefined,
       );
     }
-    await saveUserServerCredentials(newUser.username, req.body, {
-      grants: newUser.grants || [],
-      isAdmin: Boolean(newUser.isAdmin),
-    });
+    if (!creatingDemo) {
+      await saveUserServerCredentials(newUser.username, req.body, {
+        grants: newUser.grants || [],
+        isAdmin: Boolean(newUser.isAdmin),
+      });
+    }
     const response: ApiResponse = {
       success: true,
       data: (await attachUserServerCredentials([await toPublicUser(newUser)]))[0],
@@ -234,7 +243,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       action: 'user.create',
       resourceType: 'user',
       resourceId: newUser.username,
-      after: { username: newUser.username, isAdmin: newUser.isAdmin, mcpEnabled: wantsMcp },
+      after: {
+        username: newUser.username,
+        isAdmin: newUser.isAdmin,
+        mcpEnabled: wantsMcp,
+        demo: creatingDemo,
+      },
     });
     res.status(201).json(response);
   } catch (error) {
@@ -413,6 +427,13 @@ export const updateExistingUser = async (req: Request, res: Response): Promise<v
       });
       return;
     }
+    if (error instanceof Error && error.message.includes('Demo accounts cannot')) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
     if (
       error instanceof Error &&
       (error.message.startsWith('MCP requires an assigned credential') ||
@@ -533,6 +554,10 @@ export const copyExistingUserGrants = async (req: Request, res: Response): Promi
     const target = await getUserByUsername(username);
     if (!source || !target) {
       res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    if (target.demo) {
+      res.status(400).json({ success: false, message: 'Demo accounts cannot gain admin or MCP access' });
       return;
     }
     const grants = normalizeUserGrants(source.grants || []);

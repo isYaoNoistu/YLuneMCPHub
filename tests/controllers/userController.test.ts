@@ -90,7 +90,7 @@ describe('userController', () => {
         undefined,
         [],
         null,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(
@@ -122,7 +122,7 @@ describe('userController', () => {
         undefined,
         [],
         null,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
     });
 
@@ -148,7 +148,7 @@ describe('userController', () => {
         '值班账号',
         [],
         null,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
       expect(mockEnsureUserAccessToken).toHaveBeenCalledWith('ops', undefined);
       expect(res.status).toHaveBeenCalledWith(201);
@@ -175,7 +175,7 @@ describe('userController', () => {
         undefined,
         [],
         expect.any(Date),
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
       const expiresAt = mockCreateNewUser.mock.calls[0][6] as Date;
       const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -247,9 +247,51 @@ describe('userController', () => {
         undefined,
         [],
         null,
-        { consoleEnabled: true, mcpEnabled: false },
+        { consoleEnabled: true, mcpEnabled: false, demo: false },
       );
       expect(mockEnsureUserAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('creates a demo account without MCP or Access Key', async () => {
+      mockCreateNewUser.mockResolvedValue({
+        username: 'guest',
+        isAdmin: false,
+        consoleEnabled: true,
+        mcpEnabled: false,
+        demo: true,
+      });
+
+      const req = makeReq({
+        body: { username: 'guest', password: 'Passw0rd!', demo: true, isAdmin: true },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(mockCreateNewUser).toHaveBeenCalledWith(
+        'guest',
+        'Passw0rd!',
+        false,
+        undefined,
+        undefined,
+        [],
+        null,
+        { consoleEnabled: true, mcpEnabled: false, demo: true },
+      );
+      expect(mockEnsureUserAccessToken).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('requires a password for demo accounts', async () => {
+      const req = makeReq({
+        body: { username: 'guest', demo: true },
+      });
+      const res = makeRes();
+
+      await createUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockCreateNewUser).not.toHaveBeenCalled();
     });
 
     it('should require username', async () => {

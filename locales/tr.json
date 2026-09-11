@@ -60,7 +60,9 @@
     "title": "Tema",
     "light": "Açık",
     "dark": "Koyu",
-    "system": "Sistem"
+    "system": "Sistem",
+    "toggleLight": "Açık temaya geç",
+    "toggleDark": "Koyu temaya geç"
   },
   "auth": {
     "login": "Giriş Yap",
@@ -385,6 +387,7 @@
     "lab": "Laboratuvar",
     "credentials": "Kimlik bilgileri",
     "workspace": "Çalışma Alanı",
+    "demoLocked": "Demo hesap bu sayfayı açamaz",
     "system": "Sistem"
   },
   "pages": {
@@ -994,6 +997,12 @@
     "add": "Kullanıcı Ekle",
     "addMcp": "MCP kullanıcısı oluştur",
     "addAdmin": "Yönetici oluştur",
+    "addDemo": "Demo hesap oluştur",
+    "roleDemo": "Demo",
+    "demoHint": "Yalnızca oturum açıp çalışma alanına bakabilir.",
+    "createDemoSuccessHint": "Demo hesap {{username}} hazır. Parola ile giriş, salt okunur.",
+    "demoNoKey": "Demo hesapların Access Key'i yok",
+    "demoCannotPromote": "Demo hesap yönetici yapılamaz ve MCP alamaz.",
     "allowMcp": "MCP erişimine izin ver",
     "adminNoMcp": "MCP kapalı. Access Key yok.",
     "createAdminSuccessHint": "Yönetici {{username}} hazır. Konsola parola ile giriş yapın.",
@@ -1015,7 +1024,12 @@
     "createSuccessHint": "{{username}} hazır. Kullanıcıya özel erişim anahtarı üretildi.",
     "mcpJsonTitle": "Cursor / WorkBuddy erişimi",
     "mcpJsonHint": "Bu bloğu ajanın mcp.json dosyasına yapıştırıp kaydedin.",
+    "mcpTomlTitle": "Codex erişimi",
+    "mcpTomlHint": "Bu tabloyu ~/.codex/config.toml dosyasına ekleyin; tüm dosyayı değiştirmeyin. URL ve Bearer JSON ile aynıdır.",
     "copyMcpJson": "mcp.json kopyala",
+    "copyMcpToml": "TOML kopyala",
+    "copyMcpSnippet": "İçeriği kopyala",
+    "mcpSnippet": "Ajan yapılandırması",
     "pageHint": "Konsol parolası ve MCP Access Key ayrıdır. MCP kullanıcıları yalnızca anahtar alır, giriş yapamaz. Yalnızca konsol yöneticileri giriş yapar ve anahtar almaz. Süre dolumu /mcp'yi engeller, konsolu değil.",
     "tokenLifetime": "Token süresi",
     "tokenLifetimeHint": "Hiç dolmaz veya bir süre geçerlidir. Süre dolunca Key /mcp çağıramaz. Satır solar; yenileyin veya silin.",
@@ -1460,6 +1474,7 @@
   "lab": {
     "title": "MCP laboratuvarı",
     "hint": "Araçlar seçilen kullanıcının izinlerine göre süzülür ve çağrı o kullanıcının anahtarıyla yapılır. Yönetici hesabı mevcut oturumu kullanır.",
+    "demoHint": "Sunucuları ve araç şemalarını görebilirsiniz. Çağrı kapalı.",
     "asUser": "Kullanıcı olarak",
     "pickServer": "Sunucu seç",
     "tool": "Araç",

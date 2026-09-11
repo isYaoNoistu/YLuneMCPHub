@@ -30,6 +30,7 @@ jest.mock('../../src/dao/index.js', () => ({
     create: mockCreateBearerKey,
   })),
   getActivityDao: jest.fn(() => undefined),
+  getResourceDao: jest.fn(() => undefined),
 }));
 
 import {
@@ -68,7 +69,7 @@ describe('userService', () => {
         undefined,
         [],
         null,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
     });
 
@@ -90,7 +91,7 @@ describe('userService', () => {
         undefined,
         [],
         null,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
     });
 
@@ -113,7 +114,7 @@ describe('userService', () => {
         '值班',
         [],
         null,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
     });
 
@@ -137,7 +138,7 @@ describe('userService', () => {
         undefined,
         [],
         expires,
-        { consoleEnabled: false, mcpEnabled: true },
+        { consoleEnabled: false, mcpEnabled: true, demo: false },
       );
     });
 
@@ -199,6 +200,21 @@ describe('userService', () => {
       await updateUser('testuser', { email: '' });
 
       expect(mockUpdate).toHaveBeenCalledWith('testuser', { email: null });
+    });
+
+    it('does not let a demo account become admin or receive grants', async () => {
+      mockFindByUsername.mockResolvedValue({
+        username: 'guest',
+        isAdmin: false,
+        demo: true,
+        consoleEnabled: true,
+        mcpEnabled: false,
+      });
+
+      await expect(
+        updateUser('guest', { isAdmin: true, grants: [{ name: 'jenkins', tools: 'all' }] }),
+      ).rejects.toThrow('Demo accounts cannot gain admin or MCP access');
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
   });
 

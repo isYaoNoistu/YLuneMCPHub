@@ -1,16 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { User, ApiResponse, UserFormData, UserUpdateData } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut } from '../utils/fetchInterceptor';
 
 export const useUserData = () => {
   const { t } = useTranslation();
+  const { auth } = useAuth();
+  const canFetchUsers = auth.user?.isAdmin === true;
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(canFetchUsers);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchUsers = useCallback(async () => {
+    if (!canFetchUsers) {
+      setUsers([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setLoading(true);
       const data: ApiResponse<User[]> = await apiGet('/users');
@@ -34,7 +43,7 @@ export const useUserData = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canFetchUsers, t]);
 
   // Trigger a refresh of the users data
   const triggerRefresh = useCallback(() => {

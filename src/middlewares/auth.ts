@@ -197,14 +197,17 @@ export const auth = async (req: Request, res: Response, next: NextFunction): Pro
     if (payloadUser?.username) {
       const { findUserByUsername } = await import('../models/User.js');
       const stored = await findUserByUsername(payloadUser.username);
-      const { isConsoleEnabled } = await import('../utils/userAccount.js');
+      const { isConsoleEnabled, resolveAccountFlags } = await import('../utils/userAccount.js');
       if (stored && !isConsoleEnabled(stored)) {
         res.status(403).json({ success: false, message: 'Console access is disabled' });
         return;
       }
       if (stored) {
-        payloadUser.isAdmin = stored.isAdmin || false;
-        payloadUser.consoleEnabled = isConsoleEnabled(stored);
+        const flags = resolveAccountFlags(stored);
+        payloadUser.isAdmin = flags.isAdmin;
+        payloadUser.consoleEnabled = flags.consoleEnabled;
+        payloadUser.demo = flags.demo;
+        payloadUser.mcpEnabled = flags.mcpEnabled;
       }
     }
     (req as any).user = payloadUser;

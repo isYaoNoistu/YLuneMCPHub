@@ -73,6 +73,22 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (user.demo) {
+      setIsSubmitting(true);
+      try {
+        const result = await updateUser(user.username, { remark });
+        if (result?.success) {
+          onEdit();
+        } else {
+          setError(result?.message || t('users.updateError'));
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('users.updateError'));
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
     if (mcpEnabled && isCustomExpiryMissing(tokenLifetime, tokenCustomAt)) {
       setError(t('users.tokenCustomRequired'));
       return;
@@ -97,13 +113,19 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
     try {
       const result = await updateUser(user.username, {
         remark,
-        mcpEnabled,
-        serverCredentials,
-        ...(user.isAdmin ? {} : { grants }),
-        ...(mcpEnabled && expiryChanged ? toExpiryPayload(tokenLifetime, tokenCustomAt) : {}),
+        ...(user.demo
+          ? {}
+          : {
+              mcpEnabled,
+              serverCredentials,
+              ...(user.isAdmin ? {} : { grants }),
+              ...(mcpEnabled && expiryChanged ? toExpiryPayload(tokenLifetime, tokenCustomAt) : {}),
+            }),
       });
       if (result?.success) {
-        await setUserResourceGroups(user.username, resourceGroupIds);
+        if (!user.demo) {
+          await setUserResourceGroups(user.username, resourceGroupIds);
+        }
         onEdit();
       } else {
         setError(result?.message || t('users.updateError'));
@@ -149,7 +171,9 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
               />
             </div>
 
-            {user.isAdmin && (
+            {user.demo && <p className="ylune-help">{t('users.demoCannotPromote')}</p>}
+
+            {!user.demo && user.isAdmin && (
               <label className="token-lifetime-option">
                 <input
                   type="checkbox"
@@ -161,7 +185,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
               </label>
             )}
 
-            {mcpEnabled ? (
+            {!user.demo && mcpEnabled ? (
               <>
                 <div>
                   <label className="ylune-label">{t('users.token')}</label>
@@ -235,7 +259,7 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
                 )}
               </>
             ) : (
-              <p className="ylune-help">{t('users.adminNoMcp')}</p>
+              <p className="ylune-help">{user.demo ? t('users.demoNoKey') : t('users.adminNoMcp')}</p>
             )}
           </div>
 

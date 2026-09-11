@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { auth } from './auth.js';
 import { userContextMiddleware } from './userContext.js';
+import { demoGuard } from './demoGuard.js';
 import { i18nMiddleware } from './i18n.js';
 import config from '../config/index.js';
 import { getSystemConfigDao } from '../dao/index.js';
@@ -84,7 +85,13 @@ export const initMiddlewares = (app: express.Application): void => {
           next(err);
         } else {
           // Apply user context middleware after successful authentication
-          userContextMiddleware(req, res, next);
+          userContextMiddleware(req, res, (contextError) => {
+            if (contextError) {
+              next(contextError);
+              return;
+            }
+            demoGuard(req, res, next);
+          });
         }
       });
     } catch (error) {

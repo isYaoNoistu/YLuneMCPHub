@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 import { useEmbeddingSync } from '@/contexts/EmbeddingSyncContext';
+import ThemeSwitch from '@/components/ui/ThemeSwitch';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -81,6 +82,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           ))}
       </div>
       <div className="topbar-right">
+        <ThemeSwitch />
         <button type="button" className="topbar-lang mono" onClick={toggleLanguage}>
           {i18n.language.startsWith('zh') ? 'EN' : '中文'}
         </button>

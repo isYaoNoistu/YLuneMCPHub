@@ -14,6 +14,8 @@ export interface IUser {
   consoleEnabled?: boolean;
   /** May call /mcp with this user's Access Key. Independent from console login. */
   mcpEnabled?: boolean;
+  /** Console login that can only view the workspace. Never admin, never MCP. */
+  demo?: boolean;
   email?: string | null;
   ssoUserId?: string | null;
   remark?: string | null;

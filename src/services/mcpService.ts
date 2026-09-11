@@ -2298,7 +2298,7 @@ export const getServersInfo = async (
   user?: any,
 ): Promise<Omit<ServerInfo, 'client' | 'transport'>[]> => {
   const dataService = getDataService();
-  const isNonAdminUser = Boolean(user && !user.isAdmin);
+  const isNonAdminUser = Boolean(user && !user.isAdmin && !user.demo);
 
   const isPaginated = limit !== undefined && page !== undefined;
   const allServers: ServerConfigWithName[] = isPaginated

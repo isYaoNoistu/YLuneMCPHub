@@ -1,15 +1,16 @@
 /* ═══════════════════════════════════════════════════════
    tokens.css — 设计令牌（与登录页同源）
-   黑底 + 单一月光青强调色；控制台走克制字阶
+   默认黑底 + 月光青；html.light 为浅色台
    ═══════════════════════════════════════════════════════ */
-:root {
+:root,
+html.dark {
   /* —— 颜色：60% 近黑表面 / 30% 中性灰阶 / 10% 月光青强调 —— */
   --color-bg:        #0a0a0b;
   --color-surface:   #121214;
   --color-surface-2: #1a1a1e;
   --color-text:      #f2f0ea;
   --color-muted:     #a6a099;
-  --color-accent:    #5eead4;   /* 月光青 */
+  --color-accent:    #5eead4;
   --color-accent-2:  #2dd4bf;
   --color-accent-deep:#0b6e64;
   --color-accent-dim:#2a7a6b;
@@ -17,6 +18,11 @@
   --color-danger:    #ff7a7a;
   --color-border:    rgba(242, 240, 234, 0.14);
   --color-border-strong: rgba(94, 234, 212, 0.45);
+  --color-accent-soft: rgba(94, 234, 212, 0.12);
+  --color-chrome:    rgba(18, 18, 20, 0.72);
+  --color-topbar:    rgba(10, 10, 11, 0.82);
+  --scrollbar-thumb: rgba(242, 240, 234, 0.34);
+  --scrollbar-track: rgba(242, 240, 234, 0.06);
 
   /* —— 字体 —— */
   --font-display: "Chakra Petch", "Noto Sans SC", sans-serif;
@@ -46,4 +52,29 @@
   --dur-fast: 160ms;
   --dur-base: 320ms;
   --dur-slow: 640ms;
+}
+
+html.light {
+  --color-bg:        #f4f3ef;
+  --color-surface:   #ffffff;
+  --color-surface-2: #eceae4;
+  --color-text:      #16151a;
+  --color-muted:     #6b675f;
+  --color-accent:    #0f766e;
+  --color-accent-2:  #0d9488;
+  --color-accent-deep:#115e59;
+  --color-accent-dim:#5eead4;
+  --color-ink:       #04211c;
+  --color-danger:    #c24141;
+  --color-border:    rgba(22, 21, 26, 0.12);
+  --color-border-strong: rgba(15, 118, 110, 0.35);
+  --color-accent-soft: rgba(15, 118, 110, 0.1);
+  --color-chrome:    rgba(255, 255, 255, 0.88);
+  --color-topbar:    rgba(244, 243, 239, 0.9);
+  --scrollbar-thumb: rgba(22, 21, 26, 0.28);
+  --scrollbar-track: rgba(22, 21, 26, 0.06);
+  --shadow-1: 0 2px 8px rgba(22, 21, 26, .08);
+  --shadow-2: 0 8px 24px rgba(22, 21, 26, .1);
+  --shadow-3: 0 20px 48px rgba(22, 21, 26, .12);
+  --glow-accent: 0 0 24px rgba(15, 118, 110, .12);
 }

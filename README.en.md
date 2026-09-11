@@ -41,11 +41,11 @@ A single operator can run the three DevOpsMCP binaries directly. Use YLune when 
 
 ## Console
 
-Black console, teal accent. One screen per job.
+Black by default, teal accent. A lightbulb in the top-right switches to light; the login page stays black.
 
 ### Login
 
-Internal only. No public signup. **Only console accounts can sign in.** MCP users receive an Access Key, not a login. Agents do not use this page.
+Internal only. No public signup. **Only console accounts can sign in.** MCP users receive an Access Key, not a login. Admins can also create a **demo account**: it can sign in and browse the workspace, but cannot change anything or open users / credentials / settings. Agents do not use this page.
 
 ![Login](docs/images/login.jpg)
 
@@ -57,7 +57,7 @@ Read-only gateway status: online servers, tool count, calls from agents and regu
 
 ### User grants
 
-Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. Key expiry blocks agents, not the console. Credential Center stores one encrypted key/value bag (host, port, token in the same record). The list never shows plaintext; the admin create/edit dialog does, and Edit loads saved values. Binding an MCP is optional.
+Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. **Demo accounts** can sign in but only view the workspace; system nav is disabled and mutation buttons do not work. Key expiry blocks agents, not the console. Credential Center stores one encrypted key/value bag (host, port, token in the same record). The list never shows plaintext; the admin create/edit dialog does, and Edit loads saved values. Binding an MCP is optional.
 
 ![User grants: pick servers and tools](docs/images/add-user.png)
 
@@ -73,14 +73,14 @@ One row per tool call: who, which server, which tool, success or failure, durati
 | One on-call      | Three stdio entries in `mcp.json`      | Works, but optional                                    |
 | Several people   | Everyone copies paths and tokens       | Admin creates a user and ticks that user's tools       |
 | Too many tools   | Clients hit tool-count limits          | Default `/mcp` is only the tools granted to that user  |
-| A new teammate   | Another local config copy              | Create a user in the console and copy the `mcp.json`   |
+| A new teammate   | Another local config copy              | Create a user in the console and copy JSON or TOML     |
 
 
 ## What it does
 
 - **Gateway** — `/mcp`, `/mcp/{server}`, `/mcp/$smart`. Upstream: stdio, HTTP, SSE, OpenAPI.
 - **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server.
-- **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy mcp.json any time. Console-only admins have no key.
+- **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy Cursor / WorkBuddy JSON or Codex TOML (merge into `~/.codex/config.toml`, do not replace the whole file) any time. Console-only admins have no key.
 - **Console** — Servers, users, Credential Center, lab, admin audit, settings, built-in prompts / resources, logs and activity.
 - **Credential Center** — One key/value bag; HOST / PORT / TOKEN are prefilled and can be renamed. Binding an MCP is optional and does not rewrite fields. The hub scans MCP env / `${VAR}` names and labels each server in the bind list. An empty config can still be bound. After it is bound, users and admins can pick it. Bound credentials can be tested with `listTools`; a successful test or bind marks the server online and caches its tools. Calls overlay the bag onto the MCP process env and do not put secrets or a lease id into tool arguments. Master key is `YLUNE_MASTER_KEY`. The list shows names and “configured”, never values. Admins see plaintext in the create/edit dialog; Edit loads saved values. For another environment, clone the server and bind a new credential.
 - **Optional** — Smart routing (`$smart` + pgvector), result compression, OAuth 2.0 authorization server, Better Auth, PostgreSQL config store, CLI.
@@ -111,7 +111,7 @@ Not another Nightingale / Jenkins / PostgreSQL client, and not a CMDB. Tools sta
 1. Build the three binaries from [DevOpsMCP](https://github.com/isYaoNoistu/DevOpsMCP) (`deploy/pack-linux.sh` or `pack-windows.cmd`) and confirm `command` / `env` locally.
 2. Add them in YLune as STDIO servers (`command` = the path the YLune process can see). For Docker YLune, run DevOpsMCP `deploy/attach.sh` instead of filling three forms.
 3. Create a group, tick the tools, add regular users. Do not add admins.
-4. Give each user the generated `mcp.json`. They only connect to YLune.
+4. Give each user the generated JSON (Cursor / WorkBuddy) or TOML (Codex). They only connect to YLune.
 
 If both clones live under `/data` and YLune runs in Docker: `docker compose up`, then `DevOpsMCP/deploy/attach.sh`. Chinese: [docs/linux-deploy.md](docs/linux-deploy.md).
 
@@ -131,9 +131,9 @@ YLune speaks **HTTP MCP** (`url` + `Authorization: Bearer`). That is not the sam
 
 | Client           | Where config lives              | How to connect                                              |
 | ---------------- | ------------------------------- | ----------------------------------------------------------- |
-| **WorkBuddy**    | User or project `mcp.json`      | Copy from the console, or write `url` + bearer header       |
+| **WorkBuddy**    | User or project `mcp.json`      | Copy JSON from the console, or write `url` + bearer header  |
 | **Cursor**       | `~/.cursor/mcp.json` or project | Same JSON. Confirm the server is green in the MCP panel     |
-| **Codex**        | `~/.codex/config.toml`          | HTTP MCP: `url` + bearer, not `command`                     |
+| **Codex**        | `~/.codex/config.toml`          | Copy TOML from the console and **merge** it in; HTTP MCP `url` + bearer, not `command` |
 | **Other**        | See that product’s docs         | Any remote / HTTP MCP client can point at `/mcp`            |
 
 

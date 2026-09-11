@@ -113,6 +113,7 @@ export const toSessionUser = async (
   grants: IGroupServerConfig[];
   consoleEnabled: boolean;
   mcpEnabled: boolean;
+  demo: boolean;
   tokenExpiresAt: string | null;
   expired: boolean;
   createdAt: string | null;
@@ -125,6 +126,7 @@ export const toSessionUser = async (
       isAdmin: flags.isAdmin,
       consoleEnabled: flags.consoleEnabled,
       mcpEnabled: flags.mcpEnabled,
+      demo: flags.demo,
       permissions,
       grants: flags.isAdmin ? [] : user.grants || [],
       tokenExpiresAt: serializeTokenExpiresAt(user.tokenExpiresAt),
@@ -200,7 +202,7 @@ export const createNewUser = async (
   remark?: string,
   grants?: IGroupServerConfig[],
   tokenExpiresAt?: Date | null,
-  account?: { consoleEnabled?: boolean; mcpEnabled?: boolean },
+  account?: { consoleEnabled?: boolean; mcpEnabled?: boolean; demo?: boolean },
 ): Promise<IUser | null> => {
   try {
     const reservedError = checkReservedUsername(username);
@@ -223,9 +225,13 @@ export const createNewUser = async (
       email || undefined,
       undefined,
       remark?.trim() || undefined,
-      grants ?? [],
+      flags.demo ? [] : grants ?? [],
       flags.mcpEnabled ? tokenExpiresAt ?? null : null,
-      { consoleEnabled: flags.consoleEnabled, mcpEnabled: flags.mcpEnabled },
+      {
+        consoleEnabled: flags.consoleEnabled,
+        mcpEnabled: flags.mcpEnabled,
+        demo: flags.demo,
+      },
     );
   } catch (error) {
     logger.error('Failed to create user:', error);
@@ -253,6 +259,22 @@ export const updateUser = async (
 
     if (!user) {
       return null;
+    }
+
+    const existingFlags = resolveAccountFlags(user);
+    if (existingFlags.demo) {
+      if (
+        data.isAdmin === true ||
+        data.mcpEnabled === true ||
+        data.consoleEnabled === false ||
+        data.grants !== undefined
+      ) {
+        throw new Error('Demo accounts cannot gain admin or MCP access');
+      }
+      data.isAdmin = undefined;
+      data.mcpEnabled = undefined;
+      data.consoleEnabled = undefined;
+      data.grants = undefined;
     }
 
     // Update admin status if provided
@@ -320,6 +342,9 @@ export const updateUser = async (
     // Return updated user
     return await userDao.findByUsername(username);
   } catch (error) {
+    if (error instanceof Error && error.message.includes('Demo accounts cannot')) {
+      throw error;
+    }
     logger.error('Failed to update user:', error);
     return null;
   }

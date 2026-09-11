@@ -57,6 +57,7 @@ export async function migrateToDatabase(): Promise<boolean> {
             isAdmin: flags.isAdmin,
             consoleEnabled: flags.consoleEnabled,
             mcpEnabled: flags.mcpEnabled,
+            demo: flags.demo,
             email: user.email ?? null,
             ssoUserId: (user as any).ssoUserId ?? null,
             remark: user.remark ?? null,

@@ -60,7 +60,9 @@
     "title": "Thème",
     "light": "Clair",
     "dark": "Sombre",
-    "system": "Système"
+    "system": "Système",
+    "toggleLight": "Passer en clair",
+    "toggleDark": "Passer en sombre"
   },
   "auth": {
     "login": "Connexion",
@@ -385,6 +387,7 @@
     "lab": "Labo",
     "credentials": "Identifiants",
     "workspace": "Espace de travail",
+    "demoLocked": "Un compte démo ne peut pas ouvrir cette page",
     "system": "Système"
   },
   "pages": {
@@ -995,6 +998,12 @@
     "add": "Ajouter un utilisateur",
     "addMcp": "Créer un utilisateur MCP",
     "addAdmin": "Créer un administrateur",
+    "addDemo": "Créer un compte démo",
+    "roleDemo": "Démo",
+    "demoHint": "Peut se connecter et parcourir l'espace de travail uniquement.",
+    "createDemoSuccessHint": "Le compte démo {{username}} est prêt. Connexion avec le mot de passe, lecture seule.",
+    "demoNoKey": "Un compte démo n'a pas d'Access Key",
+    "demoCannotPromote": "Un compte démo ne peut pas devenir administrateur ni obtenir un accès MCP.",
     "allowMcp": "Autoriser l'accès MCP",
     "adminNoMcp": "MCP désactivé. Pas d'Access Key.",
     "createAdminSuccessHint": "L'administrateur {{username}} est prêt. Connectez-vous à la console avec le mot de passe.",
@@ -1016,7 +1025,12 @@
     "createSuccessHint": "{{username}} est prêt. Une clé d'accès dédiée a été émise.",
     "mcpJsonTitle": "Accès Cursor / WorkBuddy",
     "mcpJsonHint": "Copiez ce bloc dans le mcp.json de l'agent et enregistrez. Il est prêt à l'emploi.",
+    "mcpTomlTitle": "Accès Codex",
+    "mcpTomlHint": "Fusionnez cette table dans ~/.codex/config.toml. Ne remplacez pas tout le fichier. URL et Bearer identiques au JSON.",
     "copyMcpJson": "Copier mcp.json",
+    "copyMcpToml": "Copier TOML",
+    "copyMcpSnippet": "Copier",
+    "mcpSnippet": "Config agent",
     "pageHint": "Le mot de passe console et l'Access Key MCP sont distincts. Les utilisateurs MCP reçoivent une clé et ne peuvent pas se connecter. Les administrateurs console uniquement se connectent sans clé. L'expiration bloque /mcp, pas la console.",
     "tokenLifetime": "Durée du jeton",
     "tokenLifetimeHint": "Jamais d'expiration, ou seulement pour un temps. Après expiration, la clé ne peut plus appeler /mcp. La ligne devient grise ; renouveler ou supprimer.",
@@ -1461,6 +1475,7 @@
   "lab": {
     "title": "Laboratoire MCP",
     "hint": "Les outils suivent les droits de l'utilisateur choisi. L'appel utilise sa clé. Un compte admin utilise la session actuelle.",
+    "demoHint": "Consultation des serveurs et schémas uniquement. Les appels sont désactivés.",
     "asUser": "En tant qu'utilisateur",
     "pickServer": "Choisir un serveur",
     "tool": "Outil",
