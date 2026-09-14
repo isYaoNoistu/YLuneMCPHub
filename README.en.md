@@ -55,11 +55,21 @@ Read-only gateway status: online servers, tool count, calls from agents and regu
 
 ![Dashboard](docs/images/dashboard.png)
 
+### Servers
+
+Add, import, enable or disable MCP servers. The list includes a built-in `ylune` card: it cannot be deleted, edited, or granted to regular users. Only an admin Access Key can call its read-only tools on `/mcp`. The lightbulb switches to light theme; this shot is the light one.
+
+![Servers](docs/images/servers.png)
+
 ### User grants
 
-Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. **Demo accounts** can sign in but only view the workspace; system nav is disabled and mutation buttons do not work. Key expiry blocks agents, not the console. Credential Center stores one encrypted key/value bag (host, port, token in the same record). The list never shows plaintext; the admin create/edit dialog does, and Edit loads saved values. Binding an MCP is optional.
+Admins tick MCP servers **and individual tools** per user. An empty list means that Access Key sees nothing on `/mcp`. MCP users cannot sign in. Console-only admins can sign in and do not get a key. **Demo accounts** can sign in but only view the workspace; system nav is disabled and mutation buttons do not work. Key expiry blocks agents, not the console. Credential Center stores one encrypted key/value bag (host, port, token in the same record). The list never shows plaintext; the admin create/edit dialog does, and Edit loads saved values. Binding an MCP is optional. Servers that need credentials show checkboxes under that server; you can tick more than one.
 
-![User grants: pick servers and tools](docs/images/add-user.png)
+![User grants: pick servers, tools, and credentials](docs/images/add-user.png)
+
+Same form in light theme:
+
+![User grants (light)](docs/images/add-user-light.png)
 
 ### Call log
 
@@ -79,7 +89,8 @@ One row per tool call: who, which server, which tool, success or failure, durati
 ## What it does
 
 - **Gateway** — `/mcp`, `/mcp/{server}`, `/mcp/$smart`. Upstream: stdio, HTTP, SSE, OpenAPI.
-- **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server.
+- **Built-in `ylune`** — A read-only card on the servers page that cannot be added, deleted, or edited. Tools: `list_servers`, `list_tools`, `usage_summary`, `recent_failures`. Only an **admin Access Key** can call them on `/mcp`. System keys, regular users, demo accounts, and console-only admins cannot. Do not use `/mcp/ylune`.
+- **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server (they cannot grant `ylune` to someone else).
 - **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy Cursor / WorkBuddy JSON or Codex TOML (merge into `~/.codex/config.toml`, do not replace the whole file) any time. Console-only admins have no key.
 - **Console** — Servers, users, Credential Center, lab, admin audit, settings, built-in prompts / resources, logs and activity.
 - **Credential Center** — One key/value bag; HOST / PORT / TOKEN are prefilled and can be renamed. Binding an MCP is optional and does not rewrite fields. The hub scans MCP env / `${VAR}` names and labels each server in the bind list. An empty config can still be bound. After it is bound, users and admins can pick it. Bound credentials can be tested with `listTools`; a successful test or bind marks the server online and caches its tools. Calls overlay the bag onto the MCP process env and do not put secrets or a lease id into tool arguments. Master key is `YLUNE_MASTER_KEY`. The list shows names and “configured”, never values. Admins see plaintext in the create/edit dialog; Edit loads saved values. For another environment, clone the server and bind a new credential.
@@ -168,9 +179,9 @@ Field-by-field console guide (Chinese): [docs/user-guide.md](docs/user-guide.md)
 
 | Principal              | Default `/mcp`                         | Edit grants |
 | ---------------------- | -------------------------------------- | ----------- |
-| Admin                  | Every enabled server                   | Yes         |
+| Admin (MCP key on)     | Every enabled server plus built-in `ylune` | Yes     |
 | Regular user key       | Tools granted to that user; none if empty | No       |
-| System key `all`       | Everything                             | No          |
+| System key `all`       | Every enabled upstream server, not `ylune` | No      |
 
 
 ## Security model

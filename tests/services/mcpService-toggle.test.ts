@@ -229,7 +229,7 @@ describe('mcpService initializeClientsFromSettings OAuth authorization reuse', (
     const servers = await initializeClientsFromSettings(false);
 
     expect(mockClientConnect).not.toHaveBeenCalled();
-    expect(servers).toHaveLength(1);
+    expect(servers.filter((server) => server.name !== 'ylune')).toHaveLength(1);
     expect(servers[0]).toMatchObject({
       name: 'notion',
       status: 'oauth_required',

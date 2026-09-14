@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '@/hooks/useUserData';
 import { useServerData } from '@/hooks/useServerData';
+import { isGrantableServer } from '@/utils/serverPermissions';
 import { useCostData } from '@/hooks/useCostData';
 import { CredentialContract, IGroupServerConfig, ResourceGroup, User, UserServerCredential } from '@/types';
 import SecretReveal from './ui/SecretReveal';
@@ -49,12 +50,10 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
   );
   const [tokenCustomAt, setTokenCustomAt] = useState(toLocalDateTimeValue(user.tokenExpiresAt));
   const [pastAlertOpen, setPastAlertOpen] = useState(false);
-  const [availableServers, setAvailableServers] = useState(
-    allServers.filter((server) => server.enabled !== false),
-  );
+  const [availableServers, setAvailableServers] = useState(allServers.filter(isGrantableServer));
 
   useEffect(() => {
-    setAvailableServers(allServers.filter((server) => server.enabled !== false));
+    setAvailableServers(allServers.filter(isGrantableServer));
   }, [allServers]);
 
   useEffect(() => {

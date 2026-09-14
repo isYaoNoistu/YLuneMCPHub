@@ -1,5 +1,8 @@
 type ServerLike = {
   owner?: string;
+  name?: string;
+  enabled?: boolean;
+  builtin?: boolean;
 };
 
 type UserLike = {
@@ -17,4 +20,17 @@ export const canManageServer = (server: ServerLike, user: UserLike): boolean => 
   }
 
   return Boolean(server.owner && server.owner === user.username);
+};
+
+export const isGrantableServer = (server: ServerLike): boolean => {
+  if (server.enabled === false) {
+    return false;
+  }
+  if (server.builtin) {
+    return false;
+  }
+  if (typeof server.name === 'string' && server.name.trim().toLowerCase() === 'ylune') {
+    return false;
+  }
+  return true;
 };

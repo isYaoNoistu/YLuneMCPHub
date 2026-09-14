@@ -13,6 +13,13 @@
  * working after upgrade.
  */
 
+import {
+  YLUNE_PLATFORM_RESERVED_MESSAGE,
+  isYlunePlatformServerName,
+} from '../constants/ylunePlatform.js';
+
+export { isYlunePlatformServerName } from '../constants/ylunePlatform.js';
+
 export const SERVER_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 export const SERVER_NAME_MAX_LENGTH = 128;
@@ -51,6 +58,10 @@ export const validateServerName = (name: unknown): ServerNameValidationResult =>
   // filesystem paths (e.g. the MCPB upload directory).
   if (normalized.includes('..')) {
     return { valid: false, message: 'Server name cannot contain consecutive dots' };
+  }
+
+  if (isYlunePlatformServerName(normalized)) {
+    return { valid: false, message: YLUNE_PLATFORM_RESERVED_MESSAGE };
   }
 
   return { valid: true, normalized };

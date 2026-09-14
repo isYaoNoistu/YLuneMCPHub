@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Group, GroupFormData, Server, IGroupServerConfig } from '@/types';
 import { useGroupData } from '@/hooks/useGroupData';
 import { useServerData } from '@/hooks/useServerData';
+import { isGrantableServer } from '@/utils/serverPermissions';
 import { useCostData } from '@/hooks/useCostData';
 import { ServerToolConfig } from './ServerToolConfig';
 import GroupMembersField from './GroupMembersField';
@@ -31,7 +32,7 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
 
   useEffect(() => {
     // Filter available servers (enabled only)
-    setAvailableServers(allServers.filter((server) => server.enabled !== false));
+    setAvailableServers(allServers.filter(isGrantableServer));
   }, [allServers]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

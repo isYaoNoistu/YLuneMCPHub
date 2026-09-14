@@ -22,6 +22,7 @@ import {
   shouldAutoAnalyzeOpenApiSource,
 } from '../utils/openApiSourceAnalysis';
 import {
+  isReservedServerName,
   isValidServerName,
   SERVER_NAME_MAX_LENGTH,
   SERVER_NAME_PATTERN,
@@ -541,6 +542,10 @@ const ServerForm = ({
     // create and on rename, but let a no-op edit of a legacy (invalid) name
     // through so existing working installations can still be maintained.
     const isNameChanging = !initialData?.name || formData.name !== initialData.name;
+    if (isNameChanging && isReservedServerName(formData.name)) {
+      setError(t('server.nameReserved'));
+      return;
+    }
     if (isNameChanging && !isValidServerName(formData.name)) {
       setError(t('server.nameInvalid'));
       return;

@@ -312,6 +312,8 @@ export interface Server {
   name: string;
   owner?: string;
   visibility?: 'private' | 'group' | 'public';
+  /** Virtual in-process server; not user-managed. */
+  builtin?: boolean;
   status: ServerStatus;
   error?: string;
   tools?: Tool[];

@@ -44,6 +44,18 @@ import {
 import { expandEnvVars, replaceEnvVars, getNameSeparator } from '../config/index.js';
 import config from '../config/index.js';
 import { validateServerName } from '../utils/serverNameValidation.js';
+import {
+  YLUNE_PLATFORM_RESERVED_MESSAGE,
+  YLUNE_PLATFORM_SERVER_NAME,
+  buildYlunePlatformServerInfo,
+  callerCanUseYlunePlatform,
+  canAccessYlunePlatform,
+  canSeeYlunePlatformCard,
+  executeYlunePlatformTool,
+  isYlunePlatformServerName,
+  matchYlunePlatformTool,
+  presentYlunePlatformServer,
+} from './ylunePlatformMcp.js';
 import { getGroup } from './sseService.js';
 import { getServerConfigInGroup, normalizeGroupServers } from './groupService.js';
 import {
@@ -743,23 +755,27 @@ let serverInfos: ServerInfo[] = [];
 const getVisibleServerInfos = (): ServerInfo[] => {
   const context = UserContextService.getInstance();
   const access = context.getEffectiveAccess();
+  let infos: ServerInfo[];
   if (access?.unrestricted) {
-    return getDataService().filterData(serverInfos);
-  }
-  if (access) {
-    return serverInfos.filter(
+    infos = getDataService().filterData(serverInfos);
+  } else if (access) {
+    infos = serverInfos.filter(
       (serverInfo) => serverInfo.enabled !== false && access.serversByName.has(serverInfo.name),
     );
+  } else {
+    // Regular users must go through ensureEffectiveAccess() first. Fail closed so
+    // a public server cannot be invoked via getVisibleServerInfos().find().
+    const user = context.getCurrentUser();
+    if (user && !user.isAdmin) {
+      return [];
+    }
+    infos = getDataService().filterData(serverInfos);
   }
 
-  // Regular users must go through ensureEffectiveAccess() first. Fail closed so
-  // a public server cannot be invoked via getVisibleServerInfos().find().
-  const user = context.getCurrentUser();
-  if (user && !user.isAdmin) {
-    return [];
+  if (!canAccessYlunePlatform(context.getCurrentUser())) {
+    return infos.filter((serverInfo) => !isYlunePlatformServerName(serverInfo.name));
   }
-
-  return getDataService().filterData(serverInfos);
+  return infos;
 };
 
 const getVisibleServerByName = (name: string): ServerInfo | undefined => {
@@ -1877,6 +1893,13 @@ export const initializeClientsFromSettings = async (
     for (const conf of allServers) {
       const { name } = conf;
 
+      if (isYlunePlatformServerName(name)) {
+        logger.warn(
+          `Skipping persisted server '${name}': name is reserved for the built-in platform MCP`,
+        );
+        continue;
+      }
+
       // Names loaded from disk are not rejected (that would break existing
       // configs on upgrade), but a strict client may drop the whole tools/list
       // if the server name produces a non-conforming downstream tool name.
@@ -2263,7 +2286,10 @@ export const initializeClientsFromSettings = async (
     throw error;
   }
 
-  serverInfos = nextServerInfos;
+  serverInfos = [
+    ...nextServerInfos.filter((info) => !isYlunePlatformServerName(info.name)),
+    buildYlunePlatformServerInfo(),
+  ];
 
   // Populate the tool cache for on-demand stdio servers so their tools are
   // visible to agents, then put them back to sleep. Running here (rather than
@@ -2325,6 +2351,9 @@ export const getServersInfo = async (
 
   // Add servers from DAO that don't have runtime info yet
   for (const server of allServers) {
+    if (isYlunePlatformServerName(server.name)) {
+      continue;
+    }
     if (!existingNames.has(server.name)) {
       const isEnabled = server.enabled === undefined ? true : server.enabled;
       filteredServerInfos.push({
@@ -2357,6 +2386,7 @@ export const getServersInfo = async (
 
   const infos = filterServerInfos
     .filter((info) => requestedServerNames.has(info.name)) // Only include requested servers
+    .filter((info) => !isYlunePlatformServerName(info.name))
     .map(
       ({
         name,
@@ -2445,6 +2475,10 @@ export const getServersInfo = async (
       },
     );
   // Sorting is now handled at DAO layer for consistent pagination results
+  const viewer = user ?? UserContextService.getInstance().getCurrentUser();
+  if (canSeeYlunePlatformCard(viewer) && (!isPaginated || page === 1)) {
+    infos.unshift(presentYlunePlatformServer() as (typeof infos)[number]);
+  }
   return infos;
 };
 
@@ -2463,6 +2497,9 @@ export const getServerByOAuthState = (state: string): ServerInfo | undefined => 
  * This will close the existing connection and reinitialize the server
  */
 export const reconnectServer = async (serverName: string): Promise<void> => {
+  if (isYlunePlatformServerName(serverName)) {
+    throw new Error('The built-in ylune platform MCP cannot be reloaded');
+  }
   logger.log(`Reconnecting server: ${serverName}`);
 
   const serverInfo = getServerByName(serverName);
@@ -2508,6 +2545,9 @@ export const reconnectServer = async (serverName: string): Promise<void> => {
 // For npx: deletes ~/.npm/_npx before reconnect (--ignore-existing removed in npm 7+).
 // For uvx: schedules --refresh flag injection on next spawn via pendingReinstalls Set.
 export const reinstallServer = async (serverName: string): Promise<void> => {
+  if (isYlunePlatformServerName(serverName)) {
+    throw new Error('The built-in ylune platform MCP cannot be reinstalled');
+  }
   logger.log(`Reinstalling server: ${serverName}`);
 
   const serverInfo = getServerByName(serverName);
@@ -2618,6 +2658,9 @@ export const addServer = async (
   name: string,
   config: ServerConfig,
 ): Promise<{ success: boolean; message?: string }> => {
+  if (isYlunePlatformServerName(name)) {
+    return { success: false, message: YLUNE_PLATFORM_RESERVED_MESSAGE };
+  }
   const server: ServerConfigWithName = { name, ...config };
   const result = await getServerDao().create(server);
   if (result) {
@@ -2631,6 +2674,9 @@ export const addServer = async (
 export const removeServer = async (
   name: string,
 ): Promise<{ success: boolean; message?: string }> => {
+  if (isYlunePlatformServerName(name)) {
+    return { success: false, message: 'The built-in ylune platform MCP cannot be deleted' };
+  }
   const result = await getServerDao().delete(name);
   if (!result) {
     return { success: false, message: 'Failed to remove server' };
@@ -2658,6 +2704,9 @@ export const addOrUpdateServer = async (
   config: ServerConfig,
   allowOverride: boolean = false,
 ): Promise<{ success: boolean; message?: string }> => {
+  if (isYlunePlatformServerName(name)) {
+    return { success: false, message: YLUNE_PLATFORM_RESERVED_MESSAGE };
+  }
   try {
     const exists = await getServerDao().exists(name);
     if (exists && !allowOverride) {
@@ -3090,6 +3139,9 @@ export const toggleServerStatus = async (
   name: string,
   enabled: boolean,
 ): Promise<{ success: boolean; message?: string }> => {
+  if (isYlunePlatformServerName(name)) {
+    return { success: false, message: 'The built-in ylune platform MCP cannot be modified' };
+  }
   try {
     await getServerDao().setEnabled(name, enabled);
     // If disabling, disconnect the server and remove from active servers
@@ -3404,9 +3456,13 @@ export const handleListToolsRequest = async (_: any, extra: any) => {
   );
 
   const allTools = [];
+  const allowYlunePlatform = await callerCanUseYlunePlatform();
   for (const serverInfo of filteredServerInfos) {
+    if (isYlunePlatformServerName(serverInfo.name) && !allowYlunePlatform) {
+      continue;
+    }
     let runtimeTools = serverInfo.tools || [];
-    if (runtimeTools.length === 0) {
+    if (runtimeTools.length === 0 && !isYlunePlatformServerName(serverInfo.name)) {
       try {
         runtimeTools = (await listToolsViaAssignedCredential(serverInfo)) || [];
       } catch (error) {
@@ -3552,6 +3608,52 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
 
   try {
     appsRouteContext = await getMcpAppsRouteContext(sessionId, group);
+
+    const requestedToolName =
+      request.params.name === 'call_tool'
+        ? request.params.arguments?.toolName
+        : request.params.name;
+    const yluneTool = matchYlunePlatformTool(requestedToolName);
+    if (yluneTool) {
+      if (!(await callerCanUseYlunePlatform())) {
+        throw new ToolUnavailableError(
+          `Tool not available: ${requestedToolName}`,
+          'tool-not-found',
+        );
+      }
+      const toolArgs =
+        request.params.name === 'call_tool'
+          ? request.params.arguments?.arguments
+          : request.params.arguments;
+      const payload = await executeYlunePlatformTool(
+        yluneTool,
+        toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
+        { servers: serverInfos },
+      );
+      const result = {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(payload),
+          },
+        ],
+      };
+      const duration = Date.now() - startTime;
+      await logToolCall({
+        server: YLUNE_PLATFORM_SERVER_NAME,
+        tool: yluneTool,
+        duration,
+        status: 'success',
+        input: toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
+        output: { ok: true },
+        group,
+        username,
+        keyId,
+        keyName,
+        sourceIp,
+      });
+      return result;
+    }
 
     // Special handling for smart routing tools
     if (request.params.name === 'search_tools') {

@@ -689,6 +689,8 @@ export interface ServerInfo {
   openApiClient?: any; // OpenAPI client instance for openapi type servers
   options?: RequestOptions; // Options for requests
   createTime: number; // Timestamp of when the server was created
+  /** Virtual in-process server; not stored in the DAO and not user-managed. */
+  builtin?: boolean;
   enabled?: boolean; // Flag to indicate if the server is enabled
   keepAliveIntervalId?: NodeJS.Timeout; // Timer ID for keep-alive ping interval
   config?: ServerConfig; // Reference to the original server configuration for OpenAPI passthrough headers

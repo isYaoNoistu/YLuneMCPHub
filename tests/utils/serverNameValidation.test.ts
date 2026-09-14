@@ -68,6 +68,11 @@ describe('validateServerName', () => {
   it('accepts a name at exactly the max length', () => {
     expect(validateServerName('a'.repeat(SERVER_NAME_MAX_LENGTH)).valid).toBe(true);
   });
+
+  it('rejects the reserved built-in platform name', () => {
+    expect(validateServerName('ylune').valid).toBe(false);
+    expect(validateServerName('YLUNE').valid).toBe(false);
+  });
 });
 
 describe('SERVER_NAME_PATTERN', () => {

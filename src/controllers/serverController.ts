@@ -59,6 +59,7 @@ import type { UpstreamOAuthDisconnectScope } from '../services/upstreamOAuthDisc
 import { normalizeServerConfigForPersistence } from '../utils/serverConfigPersistence.js';
 import { isPrivilegedServerConfig } from '../utils/serverConfigValidation.js';
 import { validateServerName } from '../utils/serverNameValidation.js';
+import { isYlunePlatformServerName } from '../constants/ylunePlatform.js';
 import { setCachedSystemConfig } from '../utils/systemConfigCache.js';
 import { DEFAULT_INSTALL_BASE_URL, withResolvedInstallBaseUrl } from '../utils/installBaseUrl.js';
 import { previewOpenApiToolStats } from '../services/openApiToolStatsService.js';
@@ -97,6 +98,14 @@ const loadAuthorizedServer = async (
   res: Response,
   serverName: string,
 ): Promise<ServerRecord | null> => {
+  if (isYlunePlatformServerName(serverName)) {
+    res.status(403).json({
+      success: false,
+      message: 'The built-in ylune platform MCP cannot be modified',
+    });
+    return null;
+  }
+
   const serverDao = getServerDao();
   const server = await serverDao.findById(serverName);
 
@@ -1250,6 +1259,14 @@ export const updateServer = async (req: Request, res: Response): Promise<void> =
 export const getServerConfig = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name } = req.params;
+
+    if (isYlunePlatformServerName(name)) {
+      res.status(404).json({
+        success: false,
+        message: 'Server not found',
+      });
+      return;
+    }
 
     const serverDao = getServerDao();
     const serverRecord = await serverDao.findById(name);

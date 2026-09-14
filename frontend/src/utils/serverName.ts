@@ -11,13 +11,17 @@ export const SERVER_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 export const SERVER_NAME_MAX_LENGTH = 128;
 
+export const isReservedServerName = (name: string): boolean =>
+  name.trim().toLowerCase() === 'ylune';
+
 export const isValidServerName = (name: string): boolean => {
   const trimmed = name.trim();
   return (
     trimmed.length > 0 &&
     trimmed.length <= SERVER_NAME_MAX_LENGTH &&
     SERVER_NAME_PATTERN.test(trimmed) &&
-    !trimmed.includes('..')
+    !trimmed.includes('..') &&
+    !isReservedServerName(trimmed)
   );
 };
 

@@ -123,7 +123,8 @@ const CapabilityIcon = ({ icon: Icon }: { icon: LucideIcon }) => (
   </span>
 );
 
-const transportLabel = (t: any, type?: string) => {
+const transportLabel = (t: any, type?: string, builtin?: boolean) => {
+  if (builtin) return t('server.typeBuiltin') || 'builtin';
   if (!type) return null;
   if (type === 'stdio') return t('server.typeStdio') || 'stdio';
   if (type === 'sse') return t('server.typeSse') || 'sse';
@@ -209,7 +210,7 @@ const ServerCard = ({
   const enabledResources = server.resources?.filter((r) => r.enabled !== false).length || 0;
   const isMcpApp = serverExposesMcpApp(server);
   const enabled = server.enabled !== false;
-  const canManage = canManageServer(server, auth.user);
+  const canManage = canManageServer(server, auth.user) && !server.builtin;
   // Reinstall is only available for stdio servers using npx or uvx
   const supportsReinstall =
     server.config?.command === 'npx' || server.config?.command === 'uvx';
@@ -491,7 +492,10 @@ const ServerCard = ({
     return parts.join(' ');
   })();
 
-  const serverEndpoint = `${baseUrl}/mcp/${server.name}`;
+  const serverEndpoint = server.builtin ? `${baseUrl}/mcp` : `${baseUrl}/mcp/${server.name}`;
+  const serverRemark = server.builtin
+    ? t('server.yluneBuiltinRemark')
+    : server.config?.description;
   const translateVisibility = (key: string, options?: { defaultValue?: string }) => t(key, options);
   const visibility = getServerVisibilityDisplay(
     translateVisibility,
@@ -640,13 +644,13 @@ const ServerCard = ({
                   </div>
                 )}
               </div>
-              {server.config?.description && (
+              {serverRemark && (
                 <div
                   className="text-[11.5px] truncate"
                   style={{ color: 'var(--hub-ink-3)', marginTop: 1 }}
-                  title={server.config.description}
+                  title={serverRemark}
                 >
-                  {server.config.description}
+                  {serverRemark}
                 </div>
               )}
             </div>
@@ -665,12 +669,12 @@ const ServerCard = ({
 
           {/* Transport */}
           <div className="hub-server-card-transport-cell min-w-0">
-            {server.config?.type ? (
+            {server.builtin || server.config?.type ? (
               <span
                 className="hub-tag hub-server-card-transport-tag"
-                title={transportLabel(t, server.config.type) ?? undefined}
+                title={transportLabel(t, server.config?.type, server.builtin) ?? undefined}
               >
-                {transportLabel(t, server.config.type)}
+                {transportLabel(t, server.config?.type, server.builtin)}
               </span>
             ) : (
               <span style={{ color: 'var(--hub-ink-3)', fontSize: 12 }}>—</span>
@@ -748,23 +752,27 @@ const ServerCard = ({
 
           {/* Toggle switch */}
           <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            <LoadingControl
-              isLoading={isToggling}
-              className="h-[18px] w-[30px]"
-              overlayStyle={{
-                borderRadius: 999,
-                background: 'var(--hub-bg-2)',
-              }}
-              spinnerSize={10}
-            >
-              <Switch
-                checked={enabled}
-                onCheckedChange={handleToggle}
-                disabled={isToggling || !canManage}
-                size="compact"
-                aria-label={`${t(enabled ? 'server.disable' : 'server.enable')} ${server.name}`}
-              />
-            </LoadingControl>
+            {server.builtin ? (
+              <span style={{ color: 'var(--hub-ink-3)', fontSize: 11 }}>—</span>
+            ) : (
+              <LoadingControl
+                isLoading={isToggling}
+                className="h-[18px] w-[30px]"
+                overlayStyle={{
+                  borderRadius: 999,
+                  background: 'var(--hub-bg-2)',
+                }}
+                spinnerSize={10}
+              >
+                <Switch
+                  checked={enabled}
+                  onCheckedChange={handleToggle}
+                  disabled={isToggling || !canManage}
+                  size="compact"
+                  aria-label={`${t(enabled ? 'server.disable' : 'server.enable')} ${server.name}`}
+                />
+              </LoadingControl>
+            )}
           </div>
 
           {/* Menu */}
@@ -935,9 +943,13 @@ const ServerCard = ({
               {/* Endpoint inline, pushed to the right */}
               <div className="ml-auto max-w-full flex-shrink-0">
                 <div className="hub-endpoint" style={{ height: 26 }}>
-                  <div className="hub-endpoint-label">/mcp/</div>
-                  <div className="hub-endpoint-url" title={serverEndpoint} style={{ maxWidth: 200 }}>
-                    {server.name}
+                  <div className="hub-endpoint-label">{server.builtin ? '/mcp' : '/mcp/'}</div>
+                  <div
+                    className="hub-endpoint-url"
+                    title={server.builtin ? t('server.yluneEndpointHint') : serverEndpoint}
+                    style={{ maxWidth: 200 }}
+                  >
+                    {server.builtin ? t('server.yluneEndpointHint') : server.name}
                   </div>
                   <button
                     type="button"
