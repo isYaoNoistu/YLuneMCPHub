@@ -94,7 +94,7 @@
     "@swc/jest": "^0.2.39",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@tailwindcss/postcss": "^4.1.12",
-    "@tailwindcss/vite": "^4.1.12",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/adm-zip": "^0.5.7",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
