@@ -1,5 +1,7 @@
 .git
 .github
+.cursor
+.worktrees
 
 node_modules
 frontend/node_modules
@@ -7,6 +9,12 @@ frontend/node_modules
 dist
 frontend/dist
 coverage
+docs
+deploy
+hub
+login
+tests
+Dockerfile.*.bak
 
 .DS_Store
 .env

@@ -3,7 +3,7 @@
 # 调用方：人工，按本目录 README.md 操作
 # 大概流程：
 # 1) 复制 .env.example 为 .env，改口令与端口（不要提交 .env）
-# 2) 构建上下文是仓库根目录（本文件 context: ..，用根目录 Dockerfile；apt/npm/pypi 默认国内镜像）
+# 2) 构建上下文是仓库根目录；默认 target=runtime，需要扩展工具时在 .env 设 YLUNE_IMAGE_TARGET=full
 # 3) docker compose up -d --build
 # 4) 浏览器打开 YLUNE_PORT，管理员登录后立刻改密码
 # 5) 需要 HTTP 反代时再加 --profile proxy；需要 HTTPS 时填域名和证书后加 --profile https
@@ -38,6 +38,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      target: ${YLUNE_IMAGE_TARGET:-runtime}
       args:
         DEBIAN_MIRROR: ${DEBIAN_MIRROR:-https://mirrors.aliyun.com/debian}
         DEBIAN_SECURITY_MIRROR: ${DEBIAN_SECURITY_MIRROR:-https://mirrors.aliyun.com/debian-security}

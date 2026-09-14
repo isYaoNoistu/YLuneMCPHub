@@ -6,9 +6,7 @@ import { isGrantableServer } from '@/utils/serverPermissions';
 import { useCostData } from '@/hooks/useCostData';
 import { CredentialContract, IGroupServerConfig, User, UserFormData, UserServerCredential } from '@/types';
 import SecretReveal from './ui/SecretReveal';
-import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
-import GrantPreview from './GrantPreview';
 import { missingRequiredCredentials } from './UserCredentialPicker';
 import { getCredentialContracts } from '@/services/credentialService';
 import TokenLifetimeFields, {
@@ -18,6 +16,7 @@ import TokenLifetimeFields, {
   toExpiryPayload,
 } from './TokenLifetimeFields';
 import PastExpiryAlert from './ui/PastExpiryAlert';
+import UserGrantFields from './user-form/UserGrantFields';
 
 interface AddUserFormProps {
   onAdd: () => void;
@@ -189,21 +188,16 @@ const AddUserForm = ({ onAdd, onCancel }: AddUserFormProps) => {
               disabled={isSubmitting}
             />
 
-            <div>
-              <label className="ylune-label">{t('users.grants')}</label>
-              <p className="ylune-help">{t('users.grantsHint')}</p>
-              <ServerToolConfig
-                servers={availableServers}
-                value={grants}
-                onChange={setGrants}
-                serverCosts={serverCosts}
-                contracts={contracts}
-                serverCredentials={serverCredentials}
-                onServerCredentialsChange={setServerCredentials}
-                credentialsDisabled={isSubmitting}
-              />
-              <GrantPreview grants={grants} servers={availableServers} />
-            </div>
+            <UserGrantFields
+              servers={availableServers}
+              grants={grants}
+              onGrantsChange={setGrants}
+              serverCosts={serverCosts}
+              contracts={contracts}
+              serverCredentials={serverCredentials}
+              onServerCredentialsChange={setServerCredentials}
+              disabled={isSubmitting}
+            />
           </div>
 
           <div className="ylune-dialog-foot">

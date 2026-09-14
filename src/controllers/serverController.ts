@@ -33,7 +33,6 @@ import {
   syncAllServerToolsEmbeddings,
 } from '../services/vectorSearchService.js';
 import { createSafeJSON } from '../utils/serialization.js';
-import { cloneDefaultOAuthServerConfig } from '../constants/oauthServerDefaults.js';
 import {
   getBearerKeyDao,
   getGroupDao,
@@ -67,8 +66,20 @@ import { logger } from '../utils/logger.js';
 import { buildEnvPreflight } from '../utils/envPreflight.js';
 import { recordAdminAuditFromRequest } from '../services/adminAuditService.js';
 import { requireAdmin } from '../utils/requireAdmin.js';
+import { createCapabilityHandlers } from './capabilityHandlers.js';
+import {
+  hasSystemConfigUpdate,
+  initializeSystemConfig,
+  patchActivityLogConfig,
+  patchAuthConfig,
+  patchInstallConfig,
+  patchMcpRouterConfig,
+  patchOAuthServerConfig,
+  patchRoutingConfig,
+  patchSmartRoutingConfig,
+  patchToolResultCompressionConfig,
+} from './systemConfigPatches.js';
 
-type DescribableConfig = Record<string, { enabled: boolean; description?: string }>;
 type ServerRecord = ServerConfig & { name: string };
 
 type RequestUser = {
@@ -161,28 +172,6 @@ const assignServerOwner = (req: Request, config: ServerConfig, existingOwner?: s
   }
 
   config.owner = currentUser.username;
-};
-
-const clearDescriptionOverride = (
-  items: DescribableConfig,
-  itemName: string,
-): DescribableConfig => {
-  const nextItems = { ...items };
-  const itemConfig = nextItems[itemName];
-
-  if (!itemConfig) {
-    return nextItems;
-  }
-
-  const { description: _description, ...remainingConfig } = itemConfig;
-
-  if (remainingConfig.enabled === false) {
-    nextItems[itemName] = { enabled: false };
-  } else {
-    delete nextItems[itemName];
-  }
-
-  return nextItems;
 };
 
 const stripUndefinedDeep = (value: unknown): unknown => {
@@ -1535,190 +1524,56 @@ export const clearCache = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// Toggle tool status for a specific server
-export const toggleTool = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Decode URL-encoded parameters to handle slashes in server/tool names
-    const serverName = decodeURIComponent(req.params.serverName);
-    const toolName = decodeURIComponent(req.params.toolName);
-    const { enabled } = req.body;
-
-    if (!serverName || !toolName || ['__proto__', 'constructor', 'prototype'].includes(toolName)) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and tool name are required',
-      });
-      return;
-    }
-
-    if (typeof enabled !== 'boolean') {
-      res.status(400).json({
-        success: false,
-        message: 'Enabled status must be a boolean',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    // Initialize tools config if it doesn't exist
-    const tools = server.tools || {};
-
-    // Set the tool's enabled state (preserve existing description if any)
-    tools[toolName] = { ...tools[toolName], enabled };
-
-    // Update via DAO (supports both file and database modes)
-    const result = await serverDao.updateTools(serverName, tools);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    // Notify that tools have changed
+const toolCapabilityHandlers = createCapabilityHandlers<ServerRecord>({
+  displayName: 'Tool',
+  itemParam: 'toolName',
+  missingNamesMessage: 'Server name and tool name are required',
+  loadServer: loadAuthorizedServer,
+  getItems: (server) => server.tools || {},
+  persistItems: (serverName, tools) => getServerDao().updateTools(serverName, tools),
+  afterPersist: (operation, serverName, toolName) => {
     notifyToolChanged();
-
-    res.json({
-      success: true,
-      message: `Tool ${toolName} ${enabled ? 'enabled' : 'disabled'} successfully`,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-// Update tool description for a specific server
-export const updateToolDescription = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Decode URL-encoded parameters to handle slashes in server/tool names
-    const serverName = decodeURIComponent(req.params.serverName);
-    const toolName = decodeURIComponent(req.params.toolName);
-    const { description } = req.body;
-
-    if (!serverName || !toolName || ['__proto__', 'constructor', 'prototype'].includes(toolName)) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and tool name are required',
-      });
-      return;
+    if (operation !== 'toggle') {
+      syncToolEmbedding(serverName, toolName);
     }
+  },
+  getDefaultDescription: (serverName, toolName) =>
+    getServerByName(serverName)?.tools.find((tool) => tool.name === toolName)?.description || '',
+});
 
-    if (typeof description !== 'string') {
-      res.status(400).json({
-        success: false,
-        message: 'Description must be a string',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    // Initialize tools config if it doesn't exist
-    const tools = server.tools || {};
-
-    // Set the tool's description
-    if (!tools[toolName]) {
-      tools[toolName] = { enabled: true };
-    }
-    tools[toolName].description = description;
-
-    // Update via DAO (supports both file and database modes)
-    const result = await serverDao.updateTools(serverName, tools);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    // Notify that tools have changed
+const promptCapabilityHandlers = createCapabilityHandlers<ServerRecord>({
+  displayName: 'Prompt',
+  itemParam: 'promptName',
+  missingNamesMessage: 'Server name and prompt name are required',
+  loadServer: loadAuthorizedServer,
+  getItems: (server) => server.prompts || {},
+  persistItems: (serverName, prompts) => getServerDao().updatePrompts(serverName, prompts),
+  afterPersist: () => {
     notifyToolChanged();
+  },
+  getDefaultDescription: (serverName, promptName) =>
+    getServerByName(serverName)?.prompts.find((prompt) => prompt.name === promptName)?.description ||
+    '',
+});
 
-    syncToolEmbedding(serverName, toolName);
-
-    res.json({
-      success: true,
-      message: `Tool ${toolName} description updated successfully`,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-// Reset tool description override for a specific server back to the upstream default
-export const resetToolDescription = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const serverName = decodeURIComponent(req.params.serverName);
-    const toolName = decodeURIComponent(req.params.toolName);
-
-    if (!serverName || !toolName || ['__proto__', 'constructor', 'prototype'].includes(toolName)) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and tool name are required',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    const tools = clearDescriptionOverride(server.tools || {}, toolName);
-
-    const result = await serverDao.updateTools(serverName, tools);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
+const resourceCapabilityHandlers = createCapabilityHandlers<ServerRecord>({
+  displayName: 'Resource',
+  itemParam: 'resourceUri',
+  missingNamesMessage: 'Server name and resource URI are required',
+  loadServer: loadAuthorizedServer,
+  getItems: (server) => server.resources || {},
+  persistItems: (serverName, resources) => getServerDao().updateResources(serverName, resources),
+  afterPersist: () => {
     notifyToolChanged();
-    syncToolEmbedding(serverName, toolName);
+  },
+  getDefaultDescription: (serverName, resourceUri) =>
+    getServerByName(serverName)?.resources.find((resource) => resource.uri === resourceUri)
+      ?.description || '',
+});
 
-    const defaultDescription =
-      getServerByName(serverName)?.tools.find((tool) => tool.name === toolName)?.description || '';
-
-    res.json({
-      success: true,
-      message: `Tool ${toolName} description reset successfully`,
-      data: {
-        description: defaultDescription,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
+export const toggleTool = toolCapabilityHandlers.toggle;
+export const updateToolDescription = toolCapabilityHandlers.updateDescription;
+export const resetToolDescription = toolCapabilityHandlers.resetDescription;
 
 export const updateSystemConfig = async (req: Request, res: Response): Promise<void> => {
   const user = getRequestUser(req);
@@ -1744,109 +1599,12 @@ export const updateSystemConfig = async (req: Request, res: Response): Promise<v
       activityLog,
     } = req.body;
     const { smartRouting } = migrateLegacySmartRoutingConfig(requestSmartRouting);
+    const request = {
+      ...req.body,
+      smartRouting,
+    };
 
-    const hasRoutingUpdate =
-      routing &&
-      (typeof routing.enableGlobalRoute === 'boolean' ||
-        typeof routing.enableGroupNameRoute === 'boolean' ||
-        typeof routing.enableBearerAuth === 'boolean' ||
-        typeof routing.bearerAuthKey === 'string' ||
-        typeof routing.bearerAuthHeaderName === 'string' ||
-        typeof routing.jsonBodyLimit === 'string' ||
-        typeof routing.skipAuth === 'boolean');
-
-    const hasInstallUpdate =
-      install &&
-      (typeof install.pythonIndexUrl === 'string' ||
-        typeof install.npmRegistry === 'string' ||
-        typeof install.baseUrl === 'string');
-
-    const hasSmartRoutingUpdate =
-      smartRouting &&
-      (typeof smartRouting.enabled === 'boolean' ||
-        typeof smartRouting.dbUrl === 'string' ||
-        typeof smartRouting.basePacingDelayMs === 'number' ||
-        smartRouting.basePacingDelayMs === null ||
-        typeof smartRouting.embeddingProvider === 'string' ||
-        typeof smartRouting.embeddingEncodingFormat === 'string' ||
-        typeof smartRouting.embeddingDimensions === 'number' ||
-        smartRouting.embeddingDimensions === null ||
-        typeof smartRouting.embeddingDimensionsApiPassthrough === 'boolean' ||
-        typeof smartRouting.llmProviderBaseUrl === 'string' ||
-        typeof smartRouting.llmProviderApiKey === 'string' ||
-        typeof smartRouting.embeddingModel === 'string' ||
-        typeof smartRouting.azureOpenaiEndpoint === 'string' ||
-        typeof smartRouting.azureOpenaiApiKey === 'string' ||
-        typeof smartRouting.azureOpenaiApiVersion === 'string' ||
-        typeof smartRouting.azureOpenaiEmbeddingDeployment === 'string' ||
-        typeof smartRouting.progressiveDisclosure === 'boolean' ||
-        typeof smartRouting.embeddingMaxTokens === 'number' ||
-        smartRouting.embeddingMaxTokens === null);
-
-    const hasToolResultCompressionUpdate =
-      toolResultCompression &&
-      (typeof toolResultCompression.enabled === 'boolean' ||
-        typeof toolResultCompression.minTokens === 'number' ||
-        typeof toolResultCompression.maxOutputTokens === 'number' ||
-        typeof toolResultCompression.strategy === 'string');
-
-    const hasMcpRouterUpdate =
-      mcpRouter &&
-      (typeof mcpRouter.apiKey === 'string' ||
-        typeof mcpRouter.referer === 'string' ||
-        typeof mcpRouter.title === 'string' ||
-        typeof mcpRouter.baseUrl === 'string');
-
-    const hasNameSeparatorUpdate = typeof nameSeparator === 'string';
-
-    const hasSessionRebuildUpdate = typeof enableSessionRebuild === 'boolean';
-
-    const hasActivityLogUpdate = activityLog && typeof activityLog.storeToolPayload === 'boolean';
-
-    const hasOAuthServerUpdate =
-      oauthServer &&
-      (typeof oauthServer.enabled === 'boolean' ||
-        typeof oauthServer.accessTokenLifetime === 'number' ||
-        typeof oauthServer.refreshTokenLifetime === 'number' ||
-        typeof oauthServer.authorizationCodeLifetime === 'number' ||
-        typeof oauthServer.requireClientSecret === 'boolean' ||
-        typeof oauthServer.requireState === 'boolean' ||
-        Array.isArray(oauthServer.allowedScopes) ||
-        (oauthServer.dynamicRegistration &&
-          (typeof oauthServer.dynamicRegistration.enabled === 'boolean' ||
-            typeof oauthServer.dynamicRegistration.requiresAuthentication === 'boolean' ||
-            Array.isArray(oauthServer.dynamicRegistration.allowedGrantTypes))));
-
-    const hasBetterAuthUpdate =
-      auth?.betterAuth &&
-      (typeof auth.betterAuth.enabled === 'boolean' ||
-        typeof auth.betterAuth.baseUrl === 'string' ||
-        typeof auth.betterAuth.basePath === 'string' ||
-        Array.isArray(auth.betterAuth.trustedOrigins) ||
-        (auth.betterAuth.providers &&
-          (typeof auth.betterAuth.providers.google?.enabled === 'boolean' ||
-            typeof auth.betterAuth.providers.github?.enabled === 'boolean' ||
-            (auth.betterAuth.providers.oidc &&
-              (typeof auth.betterAuth.providers.oidc.enabled === 'boolean' ||
-                typeof auth.betterAuth.providers.oidc.providerId === 'string' ||
-                typeof auth.betterAuth.providers.oidc.discoveryUrl === 'string' ||
-                Array.isArray(auth.betterAuth.providers.oidc.scopes) ||
-                typeof auth.betterAuth.providers.oidc.pkce === 'boolean' ||
-                typeof auth.betterAuth.providers.oidc.prompt === 'string' ||
-                auth.betterAuth.providers.oidc.prompt === null)))));
-
-    if (
-      !hasRoutingUpdate &&
-      !hasInstallUpdate &&
-      !hasSmartRoutingUpdate &&
-      !hasToolResultCompressionUpdate &&
-      !hasMcpRouterUpdate &&
-      !hasNameSeparatorUpdate &&
-      !hasSessionRebuildUpdate &&
-      !hasOAuthServerUpdate &&
-      !hasBetterAuthUpdate &&
-      !hasActivityLogUpdate
-    ) {
+    if (!hasSystemConfigUpdate(request)) {
       res.status(400).json({
         success: false,
         message: 'Invalid system configuration provided',
@@ -1856,544 +1614,34 @@ export const updateSystemConfig = async (req: Request, res: Response): Promise<v
 
     // Get system config from DAO (supports both file and database modes)
     const systemConfigDao = getSystemConfigDao();
-    let systemConfig = await systemConfigDao.get();
+    const systemConfig = initializeSystemConfig(await systemConfigDao.get());
 
-    if (!systemConfig) {
-      systemConfig = {
-        routing: {
-          enableGlobalRoute: true,
-          enableGroupNameRoute: true,
-          enableBearerAuth: true,
-          bearerAuthKey: '',
-          bearerAuthHeaderName: 'Authorization',
-          jsonBodyLimit: '1mb',
-          skipAuth: false,
-        },
-        install: {
-          pythonIndexUrl: '',
-          npmRegistry: '',
-          baseUrl: 'http://localhost:3000',
-        },
-        smartRouting: {
-          enabled: false,
-          dbUrl: '',
-          basePacingDelayMs: undefined,
-          embeddingProvider: 'openai',
-          embeddingDimensions: undefined,
-          llmProviderBaseUrl: '',
-          llmProviderApiKey: '',
-          embeddingModel: '',
-          azureOpenaiEndpoint: '',
-          azureOpenaiApiKey: '',
-          azureOpenaiApiVersion: '',
-          azureOpenaiEmbeddingDeployment: '',
-        },
-        toolResultCompression: {
-          enabled: false,
-          minTokens: 2000,
-          maxOutputTokens: 1200,
-          strategy: 'auto',
-        },
-        mcpRouter: {
-          apiKey: '',
-          referer: 'https://www.mcphub.app',
-          title: 'MCPHub',
-          baseUrl: 'https://api.mcprouter.to/v1',
-        },
-        oauthServer: cloneDefaultOAuthServerConfig(),
-        auth: {
-          betterAuth: {},
-        },
-      };
+    systemConfig.routing = patchRoutingConfig(systemConfig.routing, routing);
+    systemConfig.install = patchInstallConfig(systemConfig.install, install);
+
+    const smartRoutingPatch = patchSmartRoutingConfig(
+      systemConfig.smartRouting,
+      smartRouting,
+      process.env.DB_URL || '',
+    );
+    if (smartRoutingPatch.error) {
+      res.status(400).json({
+        message: smartRoutingPatch.error,
+      });
+      return;
     }
+    systemConfig.smartRouting = smartRoutingPatch.config;
+    const needsSync = smartRoutingPatch.needsSync;
 
-    if (!systemConfig.routing) {
-      systemConfig.routing = {
-        enableGlobalRoute: true,
-        enableGroupNameRoute: true,
-        enableBearerAuth: true,
-        bearerAuthKey: '',
-        bearerAuthHeaderName: 'Authorization',
-        jsonBodyLimit: '1mb',
-        skipAuth: false,
-      };
-    }
+    systemConfig.mcpRouter = patchMcpRouterConfig(systemConfig.mcpRouter, mcpRouter);
+    systemConfig.toolResultCompression = patchToolResultCompressionConfig(
+      systemConfig.toolResultCompression,
+      toolResultCompression,
+    );
 
-    if (!systemConfig.install) {
-      systemConfig.install = {
-        pythonIndexUrl: '',
-        npmRegistry: '',
-        baseUrl: 'http://localhost:3000',
-      };
-    }
+    systemConfig.oauthServer = patchOAuthServerConfig(systemConfig.oauthServer, oauthServer);
 
-    if (!systemConfig.smartRouting) {
-      systemConfig.smartRouting = {
-        enabled: false,
-        dbUrl: '',
-        basePacingDelayMs: undefined,
-        embeddingProvider: 'openai',
-        embeddingDimensions: undefined,
-        llmProviderBaseUrl: '',
-        llmProviderApiKey: '',
-        embeddingModel: '',
-        azureOpenaiEndpoint: '',
-        azureOpenaiApiKey: '',
-        azureOpenaiApiVersion: '',
-        azureOpenaiEmbeddingDeployment: '',
-      };
-    }
-
-    if (!systemConfig.toolResultCompression) {
-      systemConfig.toolResultCompression = {
-        enabled: false,
-        minTokens: 2000,
-        maxOutputTokens: 1200,
-        strategy: 'auto',
-      };
-    }
-
-    if (!systemConfig.mcpRouter) {
-      systemConfig.mcpRouter = {
-        apiKey: '',
-        referer: 'https://www.mcphub.app',
-        title: 'MCPHub',
-        baseUrl: 'https://api.mcprouter.to/v1',
-      };
-    }
-
-    if (!systemConfig.oauthServer) {
-      systemConfig.oauthServer = cloneDefaultOAuthServerConfig();
-    }
-
-    if (!systemConfig.oauthServer.dynamicRegistration) {
-      const defaultConfig = cloneDefaultOAuthServerConfig();
-      const defaultDynamic = defaultConfig.dynamicRegistration ?? {
-        enabled: false,
-        allowedGrantTypes: [],
-        requiresAuthentication: false,
-      };
-      systemConfig.oauthServer.dynamicRegistration = {
-        enabled: defaultDynamic.enabled ?? false,
-        allowedGrantTypes: [
-          ...(Array.isArray(defaultDynamic.allowedGrantTypes)
-            ? defaultDynamic.allowedGrantTypes
-            : []),
-        ],
-        requiresAuthentication: defaultDynamic.requiresAuthentication ?? false,
-      };
-    }
-
-    if (!systemConfig.auth) {
-      systemConfig.auth = {};
-    }
-
-    if (!systemConfig.auth.betterAuth) {
-      systemConfig.auth.betterAuth = {};
-    }
-
-    if (routing) {
-      if (typeof routing.enableGlobalRoute === 'boolean') {
-        systemConfig.routing.enableGlobalRoute = routing.enableGlobalRoute;
-      }
-
-      if (typeof routing.enableGroupNameRoute === 'boolean') {
-        systemConfig.routing.enableGroupNameRoute = routing.enableGroupNameRoute;
-      }
-
-      if (typeof routing.enableBearerAuth === 'boolean') {
-        systemConfig.routing.enableBearerAuth = routing.enableBearerAuth;
-      }
-
-      if (typeof routing.bearerAuthKey === 'string') {
-        systemConfig.routing.bearerAuthKey = routing.bearerAuthKey;
-      }
-
-      if (typeof routing.bearerAuthHeaderName === 'string') {
-        systemConfig.routing.bearerAuthHeaderName = routing.bearerAuthHeaderName.trim();
-      }
-
-      if (typeof routing.jsonBodyLimit === 'string') {
-        systemConfig.routing.jsonBodyLimit = routing.jsonBodyLimit.trim();
-      }
-
-      if (typeof routing.skipAuth === 'boolean') {
-        systemConfig.routing.skipAuth = routing.skipAuth;
-      }
-    }
-
-    if (install) {
-      if (typeof install.pythonIndexUrl === 'string') {
-        systemConfig.install.pythonIndexUrl = install.pythonIndexUrl;
-      }
-      if (typeof install.npmRegistry === 'string') {
-        systemConfig.install.npmRegistry = install.npmRegistry;
-      }
-      if (typeof install.baseUrl === 'string') {
-        systemConfig.install.baseUrl = install.baseUrl;
-      }
-    }
-
-    // Track smartRouting state and configuration changes
-    const wasSmartRoutingEnabled = systemConfig.smartRouting.enabled || false;
-    const previousSmartRoutingConfig = { ...systemConfig.smartRouting };
-    let needsSync = false;
-
-    if (smartRouting) {
-      if (typeof smartRouting.embeddingProvider === 'string') {
-        const normalized = smartRouting.embeddingProvider.trim().toLowerCase();
-        systemConfig.smartRouting.embeddingProvider =
-          normalized === 'azure' || normalized === 'azure_openai' ? 'azure_openai' : 'openai';
-      }
-
-      if (typeof smartRouting.embeddingEncodingFormat === 'string') {
-        const normalized = smartRouting.embeddingEncodingFormat.trim().toLowerCase();
-        systemConfig.smartRouting.embeddingEncodingFormat =
-          normalized === 'base64' || normalized === 'float' ? normalized : 'auto';
-      }
-
-      if (
-        typeof smartRouting.embeddingDimensions === 'number' &&
-        Number.isSafeInteger(smartRouting.embeddingDimensions) &&
-        smartRouting.embeddingDimensions > 0
-      ) {
-        systemConfig.smartRouting.embeddingDimensions = smartRouting.embeddingDimensions;
-      } else if (smartRouting.embeddingDimensions === null) {
-        systemConfig.smartRouting.embeddingDimensions = undefined;
-      }
-
-      if (typeof smartRouting.embeddingDimensionsApiPassthrough === 'boolean') {
-        systemConfig.smartRouting.embeddingDimensionsApiPassthrough =
-          smartRouting.embeddingDimensionsApiPassthrough;
-      }
-
-      if (typeof smartRouting.enabled === 'boolean') {
-        // If enabling Smart Routing, validate required fields
-        if (smartRouting.enabled) {
-          const currentDbUrl =
-            process.env.DB_URL || smartRouting.dbUrl || systemConfig.smartRouting.dbUrl;
-
-          if (!currentDbUrl) {
-            res.status(400).json({
-              message:
-                'Smart routing cannot be enabled without Database URL. Please provide DB URL.',
-            });
-            return;
-          }
-
-          const effectiveProvider =
-            (typeof smartRouting.embeddingProvider === 'string'
-              ? smartRouting.embeddingProvider
-              : systemConfig.smartRouting.embeddingProvider) || 'openai';
-
-          if (effectiveProvider === 'azure_openai') {
-            const currentAzureEndpoint =
-              smartRouting.azureOpenaiEndpoint || systemConfig.smartRouting.azureOpenaiEndpoint;
-            const currentAzureKey =
-              smartRouting.azureOpenaiApiKey || systemConfig.smartRouting.azureOpenaiApiKey;
-            const currentAzureDeployment =
-              smartRouting.azureOpenaiEmbeddingDeployment ||
-              systemConfig.smartRouting.azureOpenaiEmbeddingDeployment;
-            const currentAzureApiVersion =
-              smartRouting.azureOpenaiApiVersion || systemConfig.smartRouting.azureOpenaiApiVersion;
-
-            if (
-              !currentAzureEndpoint ||
-              !currentAzureKey ||
-              !currentAzureApiVersion ||
-              !currentAzureDeployment
-            ) {
-              res.status(400).json({
-                message:
-                  'Smart routing cannot be enabled without Azure OpenAI configuration. Please provide endpoint, API key, embedding deployment, and API version.',
-              });
-              return;
-            }
-          } else {
-            // Get current LLM provider config values, preferring new values from request
-            const currentLlmProviderApiKey =
-              typeof smartRouting.llmProviderApiKey === 'string'
-                ? smartRouting.llmProviderApiKey.trim()
-                : (systemConfig.smartRouting.llmProviderApiKey || '').trim();
-            const currentLlmProviderBaseUrl =
-              typeof smartRouting.llmProviderBaseUrl === 'string'
-                ? smartRouting.llmProviderBaseUrl.trim()
-                : (systemConfig.smartRouting.llmProviderBaseUrl || '').trim();
-            const currentEmbeddingModel =
-              typeof smartRouting.embeddingModel === 'string'
-                ? smartRouting.embeddingModel.trim()
-                : (systemConfig.smartRouting.embeddingModel || '').trim();
-
-            if (!currentLlmProviderApiKey || !currentLlmProviderBaseUrl || !currentEmbeddingModel) {
-              res.status(400).json({
-                message:
-                  'Smart routing cannot be enabled without LLM provider configuration. Please provide API key, API base URL, and embedding model.',
-              });
-              return;
-            }
-          }
-        }
-        systemConfig.smartRouting.enabled = smartRouting.enabled;
-      }
-      if (typeof smartRouting.dbUrl === 'string') {
-        systemConfig.smartRouting.dbUrl = smartRouting.dbUrl?.trim();
-      }
-      if (
-        typeof smartRouting.basePacingDelayMs === 'number' &&
-        !isNaN(smartRouting.basePacingDelayMs) &&
-        smartRouting.basePacingDelayMs >= 0
-      ) {
-        systemConfig.smartRouting.basePacingDelayMs = Math.floor(smartRouting.basePacingDelayMs);
-      } else if (smartRouting.basePacingDelayMs === null) {
-        systemConfig.smartRouting.basePacingDelayMs = undefined;
-      }
-      if (typeof smartRouting.llmProviderBaseUrl === 'string') {
-        systemConfig.smartRouting.llmProviderBaseUrl = smartRouting.llmProviderBaseUrl?.trim();
-      }
-      if (typeof smartRouting.llmProviderApiKey === 'string') {
-        systemConfig.smartRouting.llmProviderApiKey = smartRouting.llmProviderApiKey?.trim();
-      }
-      if (typeof smartRouting.embeddingModel === 'string') {
-        systemConfig.smartRouting.embeddingModel =
-          smartRouting.embeddingModel?.trim();
-      }
-
-      if (typeof smartRouting.azureOpenaiEndpoint === 'string') {
-        systemConfig.smartRouting.azureOpenaiEndpoint = smartRouting.azureOpenaiEndpoint?.trim();
-      }
-      if (typeof smartRouting.azureOpenaiApiKey === 'string') {
-        systemConfig.smartRouting.azureOpenaiApiKey = smartRouting.azureOpenaiApiKey?.trim();
-      }
-      if (typeof smartRouting.azureOpenaiApiVersion === 'string') {
-        systemConfig.smartRouting.azureOpenaiApiVersion =
-          smartRouting.azureOpenaiApiVersion?.trim();
-      }
-      if (typeof smartRouting.azureOpenaiEmbeddingDeployment === 'string') {
-        systemConfig.smartRouting.azureOpenaiEmbeddingDeployment =
-          smartRouting.azureOpenaiEmbeddingDeployment?.trim();
-      }
-
-      if (typeof smartRouting.progressiveDisclosure === 'boolean') {
-        systemConfig.smartRouting.progressiveDisclosure = smartRouting.progressiveDisclosure;
-      }
-
-      if (
-        typeof smartRouting.embeddingMaxTokens === 'number' &&
-        !isNaN(smartRouting.embeddingMaxTokens)
-      ) {
-        systemConfig.smartRouting.embeddingMaxTokens = smartRouting.embeddingMaxTokens;
-      } else if (smartRouting.embeddingMaxTokens === null) {
-        // null explicitly clears the override, restoring the per-model default
-        systemConfig.smartRouting.embeddingMaxTokens = undefined;
-      }
-
-      // Check if we need to sync embeddings
-      const isNowEnabled = systemConfig.smartRouting.enabled || false;
-      const hasConfigChanged =
-        previousSmartRoutingConfig.dbUrl !== systemConfig.smartRouting.dbUrl ||
-        previousSmartRoutingConfig.embeddingProvider !==
-          systemConfig.smartRouting.embeddingProvider ||
-        previousSmartRoutingConfig.embeddingEncodingFormat !==
-          systemConfig.smartRouting.embeddingEncodingFormat ||
-        previousSmartRoutingConfig.embeddingDimensions !==
-          systemConfig.smartRouting.embeddingDimensions ||
-        previousSmartRoutingConfig.embeddingDimensionsApiPassthrough !==
-          systemConfig.smartRouting.embeddingDimensionsApiPassthrough ||
-        previousSmartRoutingConfig.llmProviderBaseUrl !==
-          systemConfig.smartRouting.llmProviderBaseUrl ||
-        previousSmartRoutingConfig.llmProviderApiKey !== systemConfig.smartRouting.llmProviderApiKey ||
-        previousSmartRoutingConfig.embeddingModel !==
-          systemConfig.smartRouting.embeddingModel ||
-        previousSmartRoutingConfig.azureOpenaiEndpoint !==
-          systemConfig.smartRouting.azureOpenaiEndpoint ||
-        previousSmartRoutingConfig.azureOpenaiApiKey !==
-          systemConfig.smartRouting.azureOpenaiApiKey ||
-        previousSmartRoutingConfig.azureOpenaiApiVersion !==
-          systemConfig.smartRouting.azureOpenaiApiVersion ||
-        previousSmartRoutingConfig.azureOpenaiEmbeddingDeployment !==
-          systemConfig.smartRouting.azureOpenaiEmbeddingDeployment ||
-        previousSmartRoutingConfig.embeddingMaxTokens !==
-          systemConfig.smartRouting.embeddingMaxTokens;
-
-      // Sync if: first time enabling OR smart routing is enabled and any config changed
-      needsSync = (!wasSmartRoutingEnabled && isNowEnabled) || (isNowEnabled && hasConfigChanged);
-    }
-
-    if (mcpRouter) {
-      if (typeof mcpRouter.apiKey === 'string') {
-        systemConfig.mcpRouter.apiKey = mcpRouter.apiKey;
-      }
-      if (typeof mcpRouter.referer === 'string') {
-        systemConfig.mcpRouter.referer = mcpRouter.referer;
-      }
-      if (typeof mcpRouter.title === 'string') {
-        systemConfig.mcpRouter.title = mcpRouter.title;
-      }
-      if (typeof mcpRouter.baseUrl === 'string') {
-        systemConfig.mcpRouter.baseUrl = mcpRouter.baseUrl;
-      }
-    }
-
-    if (toolResultCompression) {
-      const target = systemConfig.toolResultCompression;
-      if (typeof toolResultCompression.enabled === 'boolean') {
-        target.enabled = toolResultCompression.enabled;
-      }
-      if (
-        typeof toolResultCompression.minTokens === 'number' &&
-        Number.isFinite(toolResultCompression.minTokens) &&
-        toolResultCompression.minTokens > 0
-      ) {
-        target.minTokens = Math.floor(toolResultCompression.minTokens);
-      }
-      if (
-        typeof toolResultCompression.maxOutputTokens === 'number' &&
-        Number.isFinite(toolResultCompression.maxOutputTokens) &&
-        toolResultCompression.maxOutputTokens > 0
-      ) {
-        target.maxOutputTokens = Math.floor(toolResultCompression.maxOutputTokens);
-      }
-      if (typeof toolResultCompression.strategy === 'string') {
-        const normalized = toolResultCompression.strategy.trim().toLowerCase();
-        target.strategy = ['auto', 'json', 'log', 'search', 'diff', 'text'].includes(normalized)
-          ? (normalized as any)
-          : 'auto';
-      }
-    }
-
-    if (oauthServer) {
-      const target = systemConfig.oauthServer;
-      if (typeof oauthServer.enabled === 'boolean') {
-        target.enabled = oauthServer.enabled;
-      }
-      if (typeof oauthServer.accessTokenLifetime === 'number') {
-        target.accessTokenLifetime = oauthServer.accessTokenLifetime;
-      }
-      if (typeof oauthServer.refreshTokenLifetime === 'number') {
-        target.refreshTokenLifetime = oauthServer.refreshTokenLifetime;
-      }
-      if (typeof oauthServer.authorizationCodeLifetime === 'number') {
-        target.authorizationCodeLifetime = oauthServer.authorizationCodeLifetime;
-      }
-      if (typeof oauthServer.requireClientSecret === 'boolean') {
-        target.requireClientSecret = oauthServer.requireClientSecret;
-      }
-      if (typeof oauthServer.requireState === 'boolean') {
-        target.requireState = oauthServer.requireState;
-      }
-      if (Array.isArray(oauthServer.allowedScopes)) {
-        target.allowedScopes = oauthServer.allowedScopes
-          .filter((scope: any): scope is string => typeof scope === 'string')
-          .map((scope: string) => scope.trim())
-          .filter((scope: string) => scope.length > 0);
-      }
-
-      if (oauthServer.dynamicRegistration) {
-        const dynamicTarget = target.dynamicRegistration || {
-          enabled: false,
-          allowedGrantTypes: ['authorization_code', 'refresh_token'],
-          requiresAuthentication: false,
-        };
-
-        if (typeof oauthServer.dynamicRegistration.enabled === 'boolean') {
-          dynamicTarget.enabled = oauthServer.dynamicRegistration.enabled;
-        }
-
-        if (Array.isArray(oauthServer.dynamicRegistration.allowedGrantTypes)) {
-          dynamicTarget.allowedGrantTypes = oauthServer.dynamicRegistration.allowedGrantTypes
-            .filter((grant: any): grant is string => typeof grant === 'string')
-            .map((grant: string) => grant.trim())
-            .filter((grant: string) => grant.length > 0);
-        }
-
-        if (typeof oauthServer.dynamicRegistration.requiresAuthentication === 'boolean') {
-          dynamicTarget.requiresAuthentication =
-            oauthServer.dynamicRegistration.requiresAuthentication;
-        }
-
-        target.dynamicRegistration = dynamicTarget;
-      }
-    }
-
-    if (auth?.betterAuth) {
-      const target = systemConfig.auth.betterAuth;
-      const providersTarget = target.providers || {};
-
-      if (typeof auth.betterAuth.enabled === 'boolean') {
-        target.enabled = auth.betterAuth.enabled;
-      }
-
-      if (typeof auth.betterAuth.baseUrl === 'string') {
-        target.baseUrl = auth.betterAuth.baseUrl.trim();
-      }
-
-      if (typeof auth.betterAuth.basePath === 'string') {
-        target.basePath = auth.betterAuth.basePath.trim();
-      }
-
-      if (Array.isArray(auth.betterAuth.trustedOrigins)) {
-        target.trustedOrigins = auth.betterAuth.trustedOrigins
-          .filter((origin: any): origin is string => typeof origin === 'string')
-          .map((origin: string) => origin.trim())
-          .filter((origin: string) => origin.length > 0);
-      }
-
-      if (auth.betterAuth.providers) {
-        if (typeof auth.betterAuth.providers.google?.enabled === 'boolean') {
-          providersTarget.google = {
-            ...(providersTarget.google || {}),
-            enabled: auth.betterAuth.providers.google.enabled,
-          };
-        }
-
-        if (typeof auth.betterAuth.providers.github?.enabled === 'boolean') {
-          providersTarget.github = {
-            ...(providersTarget.github || {}),
-            enabled: auth.betterAuth.providers.github.enabled,
-          };
-        }
-
-        if (auth.betterAuth.providers.oidc) {
-          const oidcTarget = {
-            ...(providersTarget.oidc || {}),
-          };
-
-          if (typeof auth.betterAuth.providers.oidc.enabled === 'boolean') {
-            oidcTarget.enabled = auth.betterAuth.providers.oidc.enabled;
-          }
-
-          if (typeof auth.betterAuth.providers.oidc.providerId === 'string') {
-            oidcTarget.providerId = auth.betterAuth.providers.oidc.providerId.trim();
-          }
-
-          if (typeof auth.betterAuth.providers.oidc.discoveryUrl === 'string') {
-            oidcTarget.discoveryUrl = auth.betterAuth.providers.oidc.discoveryUrl.trim();
-          }
-
-          if (Array.isArray(auth.betterAuth.providers.oidc.scopes)) {
-            oidcTarget.scopes = auth.betterAuth.providers.oidc.scopes
-              .filter((scope: any): scope is string => typeof scope === 'string')
-              .map((scope: string) => scope.trim())
-              .filter((scope: string) => scope.length > 0);
-          }
-
-          if (typeof auth.betterAuth.providers.oidc.pkce === 'boolean') {
-            oidcTarget.pkce = auth.betterAuth.providers.oidc.pkce;
-          }
-
-          if (typeof auth.betterAuth.providers.oidc.prompt === 'string') {
-            const promptValue = auth.betterAuth.providers.oidc.prompt.trim();
-            oidcTarget.prompt = promptValue || undefined;
-          } else if (auth.betterAuth.providers.oidc.prompt === null) {
-            oidcTarget.prompt = undefined;
-          }
-
-          providersTarget.oidc = oidcTarget;
-        }
-
-        target.providers = providersTarget;
-      }
-    }
+    systemConfig.auth = patchAuthConfig(systemConfig.auth, auth);
 
     if (typeof nameSeparator === 'string') {
       systemConfig.nameSeparator = nameSeparator;
@@ -2404,10 +1652,7 @@ export const updateSystemConfig = async (req: Request, res: Response): Promise<v
     }
 
     if (activityLog && typeof activityLog.storeToolPayload === 'boolean') {
-      systemConfig.activityLog = {
-        ...systemConfig.activityLog,
-        storeToolPayload: activityLog.storeToolPayload,
-      };
+      systemConfig.activityLog = patchActivityLogConfig(systemConfig.activityLog, activityLog);
     }
 
     // Save using DAO (supports both file and database modes)
@@ -2443,388 +1688,10 @@ export const updateSystemConfig = async (req: Request, res: Response): Promise<v
   }
 };
 
-// Toggle prompt status for a specific server
-export const togglePrompt = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Decode URL-encoded parameters to handle slashes in server/prompt names
-    const serverName = decodeURIComponent(req.params.serverName);
-    const promptName = decodeURIComponent(req.params.promptName);
-    const { enabled } = req.body;
+export const togglePrompt = promptCapabilityHandlers.toggle;
+export const updatePromptDescription = promptCapabilityHandlers.updateDescription;
+export const resetPromptDescription = promptCapabilityHandlers.resetDescription;
 
-    if (
-      !serverName ||
-      !promptName ||
-      ['__proto__', 'constructor', 'prototype'].includes(promptName)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and prompt name are required',
-      });
-      return;
-    }
-
-    if (typeof enabled !== 'boolean') {
-      res.status(400).json({
-        success: false,
-        message: 'Enabled status must be a boolean',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    // Initialize prompts config if it doesn't exist
-    const prompts = server.prompts || {};
-
-    // Set the prompt's enabled state (preserve existing description if any)
-    prompts[promptName] = { ...prompts[promptName], enabled };
-
-    // Update via DAO (supports both file and database modes)
-    const result = await serverDao.updatePrompts(serverName, prompts);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    // Notify that tools have changed (as prompts are part of the tool listing)
-    notifyToolChanged();
-
-    res.json({
-      success: true,
-      message: `Prompt ${promptName} ${enabled ? 'enabled' : 'disabled'} successfully`,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-// Update prompt description for a specific server
-export const updatePromptDescription = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Decode URL-encoded parameters to handle slashes in server/prompt names
-    const serverName = decodeURIComponent(req.params.serverName);
-    const promptName = decodeURIComponent(req.params.promptName);
-    const { description } = req.body;
-
-    if (
-      !serverName ||
-      !promptName ||
-      ['__proto__', 'constructor', 'prototype'].includes(promptName)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and prompt name are required',
-      });
-      return;
-    }
-
-    if (typeof description !== 'string') {
-      res.status(400).json({
-        success: false,
-        message: 'Description must be a string',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    // Initialize prompts config if it doesn't exist
-    const prompts = server.prompts || {};
-
-    // Set the prompt's description
-    if (!prompts[promptName]) {
-      prompts[promptName] = { enabled: true };
-    }
-    prompts[promptName].description = description;
-
-    // Update via DAO (supports both file and database modes)
-    const result = await serverDao.updatePrompts(serverName, prompts);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    // Notify that tools have changed (as prompts are part of the tool listing)
-    notifyToolChanged();
-
-    res.json({
-      success: true,
-      message: `Prompt ${promptName} description updated successfully`,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-export const resetPromptDescription = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const serverName = decodeURIComponent(req.params.serverName);
-    const promptName = decodeURIComponent(req.params.promptName);
-
-    if (
-      !serverName ||
-      !promptName ||
-      ['__proto__', 'constructor', 'prototype'].includes(promptName)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and prompt name are required',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    const prompts = clearDescriptionOverride(server.prompts || {}, promptName);
-    const result = await serverDao.updatePrompts(serverName, prompts);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    notifyToolChanged();
-
-    const defaultDescription =
-      getServerByName(serverName)?.prompts.find((prompt) => prompt.name === promptName)
-        ?.description || '';
-
-    res.json({
-      success: true,
-      message: `Prompt ${promptName} description reset successfully`,
-      data: {
-        description: defaultDescription,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-// Toggle resource status for a specific server
-export const toggleResource = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Decode URL-encoded parameters to handle slashes in server/resource names
-    const serverName = decodeURIComponent(req.params.serverName);
-    const resourceUri = decodeURIComponent(req.params.resourceUri);
-    const { enabled } = req.body;
-
-    if (
-      !serverName ||
-      !resourceUri ||
-      ['__proto__', 'constructor', 'prototype'].includes(resourceUri)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and resource URI are required',
-      });
-      return;
-    }
-
-    if (typeof enabled !== 'boolean') {
-      res.status(400).json({
-        success: false,
-        message: 'Enabled status must be a boolean',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    // Initialize resources config if it doesn't exist
-    const resources = server.resources || {};
-
-    // Set the resource's enabled state (preserve existing description if any)
-    resources[resourceUri] = { ...resources[resourceUri], enabled };
-
-    // Update via DAO (supports both file and database modes)
-    const result = await serverDao.updateResources(serverName, resources);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    // Notify that tools/resources metadata has changed
-    notifyToolChanged();
-
-    res.json({
-      success: true,
-      message: `Resource ${resourceUri} ${enabled ? 'enabled' : 'disabled'} successfully`,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-// Update resource description for a specific server
-export const updateResourceDescription = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Decode URL-encoded parameters to handle slashes in server/resource names
-    const serverName = decodeURIComponent(req.params.serverName);
-    const resourceUri = decodeURIComponent(req.params.resourceUri);
-    const { description } = req.body;
-
-    if (
-      !serverName ||
-      !resourceUri ||
-      ['__proto__', 'constructor', 'prototype'].includes(resourceUri)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and resource URI are required',
-      });
-      return;
-    }
-
-    if (typeof description !== 'string') {
-      res.status(400).json({
-        success: false,
-        message: 'Description must be a string',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    // Initialize resources config if it doesn't exist
-    const resources = server.resources || {};
-
-    // Set the resource's description
-    if (!resources[resourceUri]) {
-      resources[resourceUri] = { enabled: true };
-    }
-    resources[resourceUri].description = description;
-
-    // Update via DAO (supports both file and database modes)
-    const result = await serverDao.updateResources(serverName, resources);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    // Notify that tools/resources metadata has changed
-    notifyToolChanged();
-
-    res.json({
-      success: true,
-      message: `Resource ${resourceUri} description updated successfully`,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
-export const resetResourceDescription = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const serverName = decodeURIComponent(req.params.serverName);
-    const resourceUri = decodeURIComponent(req.params.resourceUri);
-
-    if (
-      !serverName ||
-      !resourceUri ||
-      ['__proto__', 'constructor', 'prototype'].includes(resourceUri)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Server name and resource URI are required',
-      });
-      return;
-    }
-
-    const server = await loadAuthorizedServer(req, res, serverName);
-    if (!server) {
-      return;
-    }
-
-    const serverDao = getServerDao();
-
-    const resources = clearDescriptionOverride(server.resources || {}, resourceUri);
-    const result = await serverDao.updateResources(serverName, resources);
-
-    if (!result) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to save settings',
-      });
-      return;
-    }
-
-    notifyToolChanged();
-
-    const defaultDescription =
-      getServerByName(serverName)?.resources.find((resource) => resource.uri === resourceUri)
-        ?.description || '';
-
-    res.json({
-      success: true,
-      message: `Resource ${resourceUri} description reset successfully`,
-      data: {
-        description: defaultDescription,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
+export const toggleResource = resourceCapabilityHandlers.toggle;
+export const updateResourceDescription = resourceCapabilityHandlers.updateDescription;
+export const resetResourceDescription = resourceCapabilityHandlers.resetDescription;

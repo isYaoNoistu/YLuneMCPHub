@@ -13,7 +13,7 @@ Do not put real tokens, production passwords, internal hostnames, or customer na
 | Service | Container | Role |
 | --- | --- | --- |
 | `postgres` | `ylune-postgres` | Config store. Default image `postgres:16`. pgvector is only needed for `$smart`. Port 5432 is **not** published by default. |
-| `ylune` | `ylune` | The gateway. Built from the repo-root `Dockerfile` as `ylune:local`. |
+| `ylune` | `ylune` | The gateway. Built from the repo-root multi-stage `Dockerfile` as `ylune:local`; the slim `runtime` target is the default. |
 | `nginx` | `ylune-nginx` | Optional HTTP reverse proxy. Started only with `--profile proxy`. |
 | `nginx-https` | `ylune-nginx-https` | Optional HTTPS. Fill domain + host certs in `.env`, then `--profile https`. |
 
@@ -43,6 +43,7 @@ cp .env.example .env   # Windows: Copy-Item .env.example .env
 | `DEBIAN_MIRROR` / `DEBIAN_SECURITY_MIRROR` | no | Build-time apt. Default Aliyun. |
 | `NODE_DIST_MIRROR` | no | Node 22 tarball mirror (not NodeSource). |
 | `PYPI_INDEX` | no | `uv tool install` index. |
+| `YLUNE_IMAGE_TARGET` | no | Compose build target. Default `runtime`; use `full` only for an in-container browser, Rust/Cargo, or Docker daemon. |
 | `NGINX_HTTP_PORT` | no | Used with `--profile proxy` or `--profile https`. With HTTPS, port 80 only redirects to 443. |
 | `YLUNE_DOMAIN` | HTTPS | Public hostname. Console, copied `mcp.json`, and agents then use `https://that-host`. |
 | `TLS_CERT_FILE` | HTTPS | Host path to the certificate (full chain). Mounted read-only into Nginx. Do not commit it. |
@@ -66,6 +67,10 @@ docker compose up -d --build
 # or from repo root:
 # docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
+
+The default `runtime` image keeps Node/npm/npx, Python/uv/uvx, `procps`, `curl`, production dependencies, and compiled assets. Compilers, source files, and development dependencies stay in disposable build stages. The workspace disables pnpm's automatic optional-peer installation, so the unused SQLite driver stays out of the lockfile and production dependencies. Dynamic `npx`, `uvx`, and binaries mounted under `/opt/mcp` continue to work.
+
+Set `YLUNE_IMAGE_TARGET=full` in `.env` and rebuild only when an upstream MCP needs Playwright browsers, Cargo, or an in-container Docker daemon.
 
 Wait until both services are `healthy` (`docker compose ps`). Open `http://<host>:<YLUNE_PORT>`, sign in as `admin` with `ADMIN_PASSWORD`, **change the password immediately**. MCP URL is `http://<host>:<YLUNE_PORT>/mcp`.
 
@@ -164,6 +169,7 @@ Let's Encrypt `live/*.pem` files are often symlinks; put `readlink -f` paths in 
 | Env password ignored after first boot | Admin already exists; change it in the console. |
 | `spawn … ENOENT` on STDIO | `command` must exist **inside** the container (`/opt/mcp/...`). Run DevOpsMCP `attach.sh` first. |
 | Image did not pick up code | You must `--build`. This pack does not pull `samanhappy/mcphub`. |
+| Chromium / Cargo / `dockerd` is missing | Expected in the default `runtime` image. Set `YLUNE_IMAGE_TARGET=full` only if an upstream MCP requires those tools. |
 | Settings gone | You used `down -v`. |
 | Subpath 404 | `BASE_PATH` and Nginx `location` disagree. |
 | `nginx-https` exits immediately | `YLUNE_DOMAIN` is empty, or the host cert/key files are missing. Defaults are `/data/certs/ylune/fullchain.pem` and `privkey.pem`. |

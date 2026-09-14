@@ -6,9 +6,7 @@ import { isGrantableServer } from '@/utils/serverPermissions';
 import { useCostData } from '@/hooks/useCostData';
 import { CredentialContract, IGroupServerConfig, ResourceGroup, User, UserServerCredential } from '@/types';
 import SecretReveal from './ui/SecretReveal';
-import { ServerToolConfig } from './ServerToolConfig';
 import McpJsonPanel from './McpJsonPanel';
-import GrantPreview from './GrantPreview';
 import { getResourceGroups, setUserResourceGroups } from '@/services/resourceBindingService';
 import { getCredentialContracts } from '@/services/credentialService';
 import { missingRequiredCredentials } from './UserCredentialPicker';
@@ -22,6 +20,7 @@ import TokenLifetimeFields, {
   toLocalDateTimeValue,
 } from './TokenLifetimeFields';
 import PastExpiryAlert from './ui/PastExpiryAlert';
+import UserGrantFields from './user-form/UserGrantFields';
 
 interface EditUserFormProps {
   user: User;
@@ -203,21 +202,16 @@ const EditUserForm = ({ user, onEdit, onCancel }: EditUserFormProps) => {
                 />
 
                 {!user.isAdmin && (
-                  <div>
-                    <label className="ylune-label">{t('users.grants')}</label>
-                    <p className="ylune-help">{t('users.grantsHint')}</p>
-                    <ServerToolConfig
-                      servers={availableServers}
-                      value={grants}
-                      onChange={setGrants}
-                      serverCosts={serverCosts}
-                      contracts={contracts}
-                      serverCredentials={serverCredentials}
-                      onServerCredentialsChange={setServerCredentials}
-                      credentialsDisabled={isSubmitting}
-                    />
-                    <GrantPreview grants={grants} servers={availableServers} />
-                  </div>
+                  <UserGrantFields
+                    servers={availableServers}
+                    grants={grants}
+                    onGrantsChange={setGrants}
+                    serverCosts={serverCosts}
+                    contracts={contracts}
+                    serverCredentials={serverCredentials}
+                    onServerCredentialsChange={setServerCredentials}
+                    disabled={isSubmitting}
+                  />
                 )}
                 {user.isAdmin && (
                   <div>

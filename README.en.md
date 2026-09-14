@@ -170,7 +170,7 @@ pnpm frontend:dev
 Open http://127.0.0.1:5173 . API and MCP listen on http://127.0.0.1:3000 .  
 Dev login is `admin` / `admin123` — **change it after first login**. Without `DB_URL`, config is `data/mcp_settings.dev.json`. Use Postgres for real work.
 
-To bring up Postgres + YLune with Docker, follow [deploy/README.en.md](deploy/README.en.md). There is no compose file at the repo root. When both repos are under `/data` and you need DevOpsMCP inside the container, follow [docs/linux-deploy.md](docs/linux-deploy.md) (Chinese).
+To bring up Postgres + YLune with Docker, follow [deploy/README.en.md](deploy/README.en.md). The default multi-stage `runtime` image still supports dynamic `npx` / `uvx` and `/opt/mcp`; select `full` only for an in-container browser, Rust, or Docker daemon. There is no compose file at the repo root. When both repos are under `/data` and you need DevOpsMCP inside the container, follow [docs/linux-deploy.md](docs/linux-deploy.md) (Chinese).
 
 Field-by-field console guide (Chinese): [docs/user-guide.md](docs/user-guide.md).
 

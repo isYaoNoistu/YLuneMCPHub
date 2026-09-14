@@ -22,9 +22,12 @@ cp .env.example .env
 # 改 ADMIN_PASSWORD、DB_PASSWORD
 # 本机已有 postgres:16 时，.env 里 POSTGRES_IMAGE=postgres:16（示例里已是这个）
 # MCP_MOUNT_DIR 默认 /data/ylune-mcp，一般不用动
+# YLUNE_IMAGE_TARGET 默认 runtime；DevOpsMCP 的 /opt/mcp 二进制不需要 full
 docker compose up -d --build
 # 构建默认走阿里云 Debian + npmmirror Node/npm；卡在 deb.debian.org 的旧构建请停掉重来
 ```
+
+默认 `runtime` 是精简镜像，仍有 Node/npm/npx、Python/uvx、`procps`、`curl` 和 `/opt/mcp`。只有上游 MCP 必须在容器内跑浏览器、Cargo 或 Docker daemon 时，才在 `.env` 设 `YLUNE_IMAGE_TARGET=full` 后重建。
 
 浏览器：`http://<机器>:3000`，`admin` + `.env` 里的口令。登录后立刻改密码。
 
@@ -90,5 +93,6 @@ docker compose up -d --build
 | `--profile https` Nginx 起不来 | `.env` 没写域名，或宿主机证书路径不存在 / 仍是 Let's Encrypt 软链 |
 | 普通用户 `/mcp` 没有工具 | 还没在用户页勾服务器和工具；或 `git pull` 后没 `--build` |
 | 凭据中心创建失败 | `.env` 没有 `YLUNE_MASTER_KEY`。列表仍可读，不会把明文写进库 |
+| 容器里没有 Chromium / Cargo / dockerd | 默认 `runtime` 预期如此；确实需要时设 `YLUNE_IMAGE_TARGET=full` 后重建 |
 
 Compose 约定见 [../deploy/README.md](../deploy/README.md)。配置落库见 [config-and-data.md](config-and-data.md)。

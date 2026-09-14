@@ -124,9 +124,15 @@ import {
   resetPromptDescription,
   resetResourceDescription,
   resetToolDescription,
+  togglePrompt,
+  toggleResource,
   toggleServer,
+  toggleTool,
+  updatePromptDescription,
+  updateResourceDescription,
   updateServer,
   updateSystemConfig,
+  updateToolDescription,
 } from '../../src/controllers/serverController.js';
 
 describe('serverController - server share candidates', () => {
@@ -1575,6 +1581,163 @@ describe('serverController - resetResourceDescription', () => {
       },
     });
   });
+});
+
+describe('serverController - capability mutation handlers', () => {
+  const capabilities = [
+    {
+      label: 'tool',
+      displayName: 'Tool',
+      itemParam: 'toolName',
+      itemName: 'search/tools',
+      collectionKey: 'tools',
+      toggleHandler: toggleTool,
+      updateDescriptionHandler: updateToolDescription,
+      updateDao: mockServerDao.updateTools,
+      syncsEmbedding: true,
+    },
+    {
+      label: 'prompt',
+      displayName: 'Prompt',
+      itemParam: 'promptName',
+      itemName: 'summarize/prompt',
+      collectionKey: 'prompts',
+      toggleHandler: togglePrompt,
+      updateDescriptionHandler: updatePromptDescription,
+      updateDao: mockServerDao.updatePrompts,
+      syncsEmbedding: false,
+    },
+    {
+      label: 'resource',
+      displayName: 'Resource',
+      itemParam: 'resourceUri',
+      itemName: 'resource://docs/index',
+      collectionKey: 'resources',
+      toggleHandler: toggleResource,
+      updateDescriptionHandler: updateResourceDescription,
+      updateDao: mockServerDao.updateResources,
+      syncsEmbedding: false,
+    },
+  ] as const;
+
+  const makeReqRes = (
+    itemParam: string,
+    itemName: string,
+    body: Record<string, unknown>,
+    user = { username: 'admin', isAdmin: true },
+  ) => {
+    const json = jest.fn();
+    const status = jest.fn().mockReturnThis();
+    const req = {
+      params: {
+        serverName: encodeURIComponent('test/server'),
+        [itemParam]: encodeURIComponent(itemName),
+      },
+      body,
+      user,
+    } as unknown as Request;
+    const res = { json, status } as unknown as Response;
+    return { req, res, json, status };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each(capabilities)(
+    '$label toggle preserves description, persists, notifies, and keeps the response contract',
+    async (capability) => {
+      capability.updateDao.mockResolvedValue(true);
+      mockServerDao.findById.mockResolvedValue({
+        name: 'test/server',
+        owner: 'admin',
+        [capability.collectionKey]: {
+          [capability.itemName]: {
+            enabled: true,
+            description: 'Upstream override',
+          },
+        },
+      });
+      const { req, res, json } = makeReqRes(capability.itemParam, capability.itemName, {
+        enabled: false,
+      });
+
+      await capability.toggleHandler(req, res);
+
+      expect(mockServerDao.findById).toHaveBeenCalledWith('test/server');
+      expect(capability.updateDao).toHaveBeenCalledWith('test/server', {
+        [capability.itemName]: {
+          enabled: false,
+          description: 'Upstream override',
+        },
+      });
+      expect(mockNotifyToolChanged).toHaveBeenCalledTimes(1);
+      expect(mockSyncToolEmbedding).not.toHaveBeenCalled();
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        message: `${capability.displayName} ${capability.itemName} disabled successfully`,
+      });
+    },
+  );
+
+  it.each(capabilities)(
+    '$label description update initializes the override, persists, and keeps side effects',
+    async (capability) => {
+      capability.updateDao.mockResolvedValue(true);
+      mockServerDao.findById.mockResolvedValue({
+        name: 'test/server',
+        owner: 'admin',
+      });
+      const { req, res, json } = makeReqRes(capability.itemParam, capability.itemName, {
+        description: 'Custom description',
+      });
+
+      await capability.updateDescriptionHandler(req, res);
+
+      expect(capability.updateDao).toHaveBeenCalledWith('test/server', {
+        [capability.itemName]: {
+          enabled: true,
+          description: 'Custom description',
+        },
+      });
+      expect(mockNotifyToolChanged).toHaveBeenCalledTimes(1);
+      if (capability.syncsEmbedding) {
+        expect(mockSyncToolEmbedding).toHaveBeenCalledWith('test/server', capability.itemName);
+      } else {
+        expect(mockSyncToolEmbedding).not.toHaveBeenCalled();
+      }
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        message: `${capability.displayName} ${capability.itemName} description updated successfully`,
+      });
+    },
+  );
+
+  it.each(capabilities)(
+    '$label toggle keeps owner/admin authorization and validation behavior',
+    async (capability) => {
+      mockServerDao.findById.mockResolvedValue({
+        name: 'test/server',
+        owner: 'bob',
+      });
+      const { req, res, status, json } = makeReqRes(
+        capability.itemParam,
+        capability.itemName,
+        { enabled: true },
+        { username: 'alice', isAdmin: false },
+      );
+
+      await capability.toggleHandler(req, res);
+
+      expect(status).toHaveBeenCalledWith(403);
+      expect(json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Forbidden',
+      });
+      expect(capability.updateDao).not.toHaveBeenCalled();
+      expect(mockNotifyToolChanged).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('serverController - authorization hardening', () => {

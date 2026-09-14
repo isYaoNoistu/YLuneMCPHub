@@ -1,4 +1,5 @@
-import { apiDelete, apiPost, apiPut } from '../utils/fetchInterceptor';
+import { apiPost } from '../utils/fetchInterceptor';
+import { createCapabilityMutationClient } from './capabilityMutationClient';
 
 export interface PromptCallRequest {
   promptName: string;
@@ -18,6 +19,13 @@ export interface GetPromptResult {
   data?: any;
   error?: string;
 }
+
+const promptMutations = createCapabilityMutationClient({
+  segment: 'prompts',
+  label: 'prompt',
+  idKey: 'promptName',
+  authenticateToggle: false,
+});
 
 /**
  * Call a MCP prompt via the call_prompt API
@@ -93,28 +101,8 @@ export const togglePrompt = async (
   serverName: string,
   promptName: string,
   enabled: boolean,
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    // URL-encode server and prompt names to handle slashes (e.g., "com.atlassian/atlassian-mcp-server")
-    const response = await apiPost<any>(
-      `/servers/${encodeURIComponent(serverName)}/prompts/${encodeURIComponent(promptName)}/toggle`,
-      {
-        enabled,
-      },
-    );
-
-    return {
-      success: response.success,
-      error: response.success ? undefined : response.message,
-    };
-  } catch (error) {
-    console.error('Error toggling prompt', { serverName, promptName, enabled, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
+): Promise<{ success: boolean; error?: string }> =>
+  promptMutations.toggle(serverName, promptName, enabled);
 
 /**
  * Update a prompt's description for a specific server
@@ -123,56 +111,11 @@ export const updatePromptDescription = async (
   serverName: string,
   promptName: string,
   description: string,
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    // URL-encode server and prompt names to handle slashes (e.g., "com.atlassian/atlassian-mcp-server")
-    const response = await apiPut<any>(
-      `/servers/${encodeURIComponent(serverName)}/prompts/${encodeURIComponent(promptName)}/description`,
-      { description },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
-        },
-      },
-    );
-
-    return {
-      success: response.success,
-      error: response.success ? undefined : response.message,
-    };
-  } catch (error) {
-    console.error('Error updating prompt description', { serverName, promptName, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
+): Promise<{ success: boolean; error?: string }> =>
+  promptMutations.updateDescription(serverName, promptName, description);
 
 export const resetPromptDescription = async (
   serverName: string,
   promptName: string,
-): Promise<{ success: boolean; error?: string; description?: string }> => {
-  try {
-    const response = await apiDelete<any>(
-      `/servers/${encodeURIComponent(serverName)}/prompts/${encodeURIComponent(promptName)}/description`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
-        },
-      },
-    );
-
-    return {
-      success: response.success,
-      error: response.success ? undefined : response.message,
-      description: response.data?.description,
-    };
-  } catch (error) {
-    console.error('Error resetting prompt description', { serverName, promptName, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
+): Promise<{ success: boolean; error?: string; description?: string }> =>
+  promptMutations.resetDescription(serverName, promptName);

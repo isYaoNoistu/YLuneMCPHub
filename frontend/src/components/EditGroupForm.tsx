@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Group, GroupFormData, Server, IGroupServerConfig } from '@/types';
+import { Group, GroupFormData, Server } from '@/types';
 import { useGroupData } from '@/hooks/useGroupData';
 import { useServerData } from '@/hooks/useServerData';
 import { isGrantableServer } from '@/utils/serverPermissions';
 import { useCostData } from '@/hooks/useCostData';
-import { ServerToolConfig } from './ServerToolConfig';
-import GroupMembersField from './GroupMembersField';
+import GroupFormDialog from './group-form/GroupFormDialog';
 
 interface EditGroupFormProps {
   group: Group;
@@ -34,14 +33,6 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
     // Filter available servers (enabled only)
     setAvailableServers(allServers.filter(isGrantableServer));
   }, [allServers]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,68 +67,19 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
   };
 
   return (
-    <div className="ylune-dialog-backdrop">
-      <div className="ylune-dialog is-lg">
-        <div className="ylune-dialog-head">
-          <h2 className="ylune-dialog-title">{t('groups.edit')}</h2>
-        </div>
-        <form className="ylune-dialog-form" onSubmit={handleSubmit}>
-          <div className="ylune-dialog-body">
-            {error && <div className="ylune-error">{error}</div>}
-              <div>
-                <label className="ylune-label" htmlFor="name">
-                  {t('groups.name')} <span className="ylune-req">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="hub-input"
-                  placeholder={t('groups.namePlaceholder')}
-                  required
-                />
-              </div>
-
-              <GroupMembersField
-                value={formData.members || []}
-                onChange={(members) => setFormData((prev) => ({ ...prev, members }))}
-              />
-
-              <div>
-                <label className="ylune-label">
-                  {t('groups.configureCapabilities')}
-                </label>
-                <ServerToolConfig
-                  servers={availableServers}
-                  value={formData.servers as IGroupServerConfig[]}
-                  onChange={(servers) => setFormData((prev) => ({ ...prev, servers }))}
-                  serverCosts={serverCosts}
-                />
-              </div>
-          </div>
-
-          <div className="ylune-dialog-foot">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="hub-btn"
-              disabled={isSubmitting}
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              className="hub-btn primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? t('common.submitting') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <GroupFormDialog
+      title={t('groups.edit')}
+      submitLabel={t('common.save')}
+      submittingLabel={t('common.submitting')}
+      formData={formData}
+      setFormData={setFormData}
+      availableServers={availableServers}
+      serverCosts={serverCosts}
+      error={error}
+      isSubmitting={isSubmitting}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    />
   );
 };
 

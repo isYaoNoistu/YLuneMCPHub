@@ -203,9 +203,6 @@ export const listCredentialEditPairs = async (
   };
 };
 
-/** @deprecated Use openCredentialFields. Kept so existing imports keep compiling. */
-export const openCredentialSecret = openCredentialFields;
-
 export const testCredential = async (
   id: string,
 ): Promise<{ ok: boolean; message: string; fieldCount: number }> => {

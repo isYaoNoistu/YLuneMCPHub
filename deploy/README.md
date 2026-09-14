@@ -13,7 +13,7 @@
 | 服务 | 容器名 | 作用 |
 | --- | --- | --- |
 | `postgres` | `ylune-postgres` | **唯一配置库**（服务器、用户、分组、Key、系统设置）。默认镜像 `postgres:16`。智能路由才需要 pgvector。默认**不**把 5432 暴露到宿主机。 |
-| `ylune` | `ylune` | 月弦本体。用仓库根目录 `Dockerfile` 现场构建，镜像名 `ylune:local`。 |
+| `ylune` | `ylune` | 月弦本体。用根目录多阶段 `Dockerfile` 构建，镜像名 `ylune:local`；默认是精简 `runtime`。 |
 | `nginx` | `ylune-nginx` | 可选 HTTP 反代。只有加 `--profile proxy` 才会起。 |
 | `nginx-https` | `ylune-nginx-https` | 可选 HTTPS。`.env` 写了域名和证书后加 `--profile https`。 |
 
@@ -73,6 +73,7 @@ Windows 上 Docker Desktop 默认是 **Linux 容器**。容器里跑不了 `.exe
 | `DEBIAN_SECURITY_MIRROR` | `https://mirrors.aliyun.com/debian-security` | 否 | 构建时 Debian security。海外可改 `https://deb.debian.org/debian-security` |
 | `NODE_DIST_MIRROR` | `https://npmmirror.com/mirrors/node` | 否 | 构建时下载 Node 22 官方二进制，不再走 nodesource |
 | `PYPI_INDEX` | `https://mirrors.aliyun.com/pypi/simple` | 否 | 构建时 `uv tool install` 用的 PyPI |
+| `YLUNE_IMAGE_TARGET` | `runtime` | 否 | Compose 构建目标。默认精简生产镜像；只有需要容器内浏览器、Rust/Cargo 或 Docker daemon 时才填 `full`。 |
 | `NGINX_HTTP_PORT` | `80` | 否 | `--profile proxy` 或 `--profile https` 时用。HTTPS 时 80 只做跳转到 443。 |
 | `YLUNE_DOMAIN` | `ylune.example.com` | HTTPS 时是 | 对外域名。写了之后控制台、复制的 `mcp.json`、智能体都走 `https://该域名`（见 `INSTALL_BASE_URL`）。 |
 | `TLS_CERT_FILE` | `/data/certs/ylune/fullchain.pem` | HTTPS 时是 | 宿主机证书（含中间链）。只挂进 Nginx，不进 git。 |
@@ -126,7 +127,9 @@ docker compose up -d --build
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
 
-第一次构建会拉 Debian / Node / pnpm 依赖。默认走阿里云和 npmmirror（见 `.env.example`）。`git pull` 后必须 `--build` 才会用新 Dockerfile。若上一层卡在 `deb.debian.org`，先停掉再重新 `up -d --build`。
+第一次构建会拉 Debian / Node / pnpm 依赖。默认走阿里云和 npmmirror（见 `.env.example`）。`runtime` 只保留 Node/npm/npx、Python/uv/uvx、`procps`、`curl`、生产依赖和编译产物；编译器、源码、开发依赖不会进入最终镜像。工作区关闭 pnpm 自动补装可选 peer，未使用的 SQLite 驱动不会混入锁文件或生产依赖。`git pull` 后必须 `--build` 才会用新 Dockerfile。
+
+确实要在月弦容器里运行 Playwright、Cargo 或 Docker daemon 时，把 `.env` 改为 `YLUNE_IMAGE_TARGET=full` 后重建。普通 MCP 网关和挂载到 `/opt/mcp` 的 DevOpsMCP 二进制不需要 `full`。
 
 ```bash
 docker compose ps
@@ -295,6 +298,9 @@ docker compose --profile https exec nginx-https nginx -s reload
 
 **改了代码容器没变**  
 必须 `--build`。默认用的是刚构建的 `ylune:local`，不是 Docker Hub 上的旧镜像。
+
+**精简镜像里没有 Chromium / Cargo / dockerd**
+这是默认 `runtime` 的预期行为。只有上游 MCP 确实依赖这些容器内工具时才设 `YLUNE_IMAGE_TARGET=full` 并重建；动态 `npx`、`uvx` 和 `/opt/mcp` 在精简镜像里仍可用。
 
 **`docker compose down -v` 之后账号没了**  
 `-v` 会删 `ylune-pg`（全部配置和数据）。只停进程用 `down`，不要带 `-v`。

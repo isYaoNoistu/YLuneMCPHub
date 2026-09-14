@@ -13,6 +13,7 @@ export class TestServerHelper {
   private appServer: AppServer | null = null;
   private httpServer: Server | null = null;
   private originalConfigPath: string | null = null;
+  private originalUseDb: string | undefined;
   private testConfigPath: string | null = null;
 
   /**
@@ -89,6 +90,8 @@ export class TestServerHelper {
   private async setupTemporaryConfig(settings: McpSettings): Promise<void> {
     // Store original path if it exists
     this.originalConfigPath = process.env.MCPHUB_SETTING_PATH || null;
+    this.originalUseDb = process.env.USE_DB;
+    process.env.USE_DB = 'false';
 
     const configDir = path.join(process.cwd(), 'temp-test-config');
 
@@ -132,6 +135,11 @@ export class TestServerHelper {
       process.env.MCPHUB_SETTING_PATH = this.originalConfigPath;
     } else {
       delete process.env.MCPHUB_SETTING_PATH;
+    }
+    if (this.originalUseDb === undefined) {
+      delete process.env.USE_DB;
+    } else {
+      process.env.USE_DB = this.originalUseDb;
     }
 
     this.testConfigPath = null;

@@ -1,6 +1,19 @@
 import fs from 'fs';
 import path from 'path';
 
+const readLocale = (locale: string): Record<string, unknown> => {
+  const localePath = path.join(process.cwd(), 'locales', `${locale}.json`);
+  return JSON.parse(fs.readFileSync(localePath, 'utf8')) as Record<string, unknown>;
+};
+
+const flattenKeys = (value: Record<string, unknown>, prefix = ''): string[] =>
+  Object.entries(value).flatMap(([key, child]) => {
+    const pathName = prefix ? `${prefix}.${key}` : key;
+    return child && typeof child === 'object' && !Array.isArray(child)
+      ? flattenKeys(child as Record<string, unknown>, pathName)
+      : [pathName];
+  });
+
 describe('server visibility locale strings', () => {
   it('provides sharing labels in every supported locale', () => {
     for (const locale of ['en', 'fr', 'tr', 'zh']) {
@@ -37,5 +50,9 @@ describe('server visibility locale strings', () => {
     expect(zh.server.visibilityDescription).toBe(
       '控制哪些非管理员用户可以发现并调用此服务器。管理员始终拥有访问权限。',
     );
+  });
+
+  it('keeps Chinese and English translation keys in sync', () => {
+    expect(flattenKeys(readLocale('zh')).sort()).toEqual(flattenKeys(readLocale('en')).sort());
   });
 });

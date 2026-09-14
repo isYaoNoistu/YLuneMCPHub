@@ -511,10 +511,11 @@ describe('Real Client Transport Integration Tests', () => {
     let _authAppServer: AppServer;
     let _authHttpServer: Server;
     let authBaseURL: string;
+    let authTestServerHelper: TestServerHelper;
 
     beforeAll(async () => {
       const authSettings = mockSettings.createMockSettingsWithAuth();
-      const authTestServerHelper = new TestServerHelper();
+      authTestServerHelper = new TestServerHelper();
       const authResult = await authTestServerHelper.createTestServer(authSettings);
 
       _authAppServer = authResult.appServer;
@@ -523,8 +524,8 @@ describe('Real Client Transport Integration Tests', () => {
     }, 60000);
 
     afterAll(async () => {
-      if (_authHttpServer) {
-        _authHttpServer.close();
+      if (authTestServerHelper) {
+        await authTestServerHelper.closeTestServer();
       }
     });
 

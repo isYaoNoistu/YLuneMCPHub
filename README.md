@@ -175,7 +175,7 @@ pnpm frontend:dev
 浏览器打开 http://127.0.0.1:5173 。后端 API 与 MCP 在 http://127.0.0.1:3000 。  
 开发默认账号 `admin` / `admin123`，**登录后立刻改密码**。没有 `DB_URL` 时配置才写在 `data/mcp_settings.dev.json`。真用请接 Postgres。
 
-要用 Docker 整套拉起（Postgres + 月弦），见 [deploy/README.md](deploy/README.md)。仓库根目录不再放 compose。两仓都在 `/data`、还要挂 DevOpsMCP 时，见 [docs/linux-deploy.md](docs/linux-deploy.md)。
+要用 Docker 整套拉起（Postgres + 月弦），见 [deploy/README.md](deploy/README.md)。默认构建多阶段精简 `runtime` 镜像，仍支持动态 `npx` / `uvx` 和 `/opt/mcp`；只有需要容器内浏览器、Rust 或 Docker daemon 时才选 `full`。仓库根目录不再放 compose。两仓都在 `/data`、还要挂 DevOpsMCP 时，见 [docs/linux-deploy.md](docs/linux-deploy.md)。
 
 第一次把 Jenkins 给普通用户用：
 

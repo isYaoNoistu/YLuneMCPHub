@@ -4,13 +4,21 @@ import { useNavigate } from 'react-router-dom';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import { Switch } from '@/components/ui/ToggleGroup';
 import { MultiSelect } from '@/components/ui/MultiSelect';
+import BearerKeyRow from '@/components/settings/BearerKeyRow';
+import McpRouterSection, {
+  type McpRouterDraft,
+} from '@/components/settings/McpRouterSection';
+import ToolResultCompressionSection, {
+  type ToolResultCompressionDraft,
+} from '@/components/settings/ToolResultCompressionSection';
+import { getSmartRoutingConfigDiff } from '@/components/settings/settingsDiff';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { useToast } from '@/contexts/ToastContext';
 import { PermissionChecker } from '@/components/PermissionChecker';
 import { PERMISSIONS } from '@/constants/permissions';
-import { Copy, Check, Download, Edit, Trash2, Code as CodeIcon, Zap, Database, Wrench, Sparkles, RefreshCw, Route as RouteIcon } from 'lucide-react';
+import { Copy, Check, Download, Code as CodeIcon, Zap, Database, Wrench, Sparkles, RefreshCw, Route as RouteIcon } from 'lucide-react';
 import { EndpointCopy } from '@/components/ui/EndpointCopy';
-import type { BearerKey, User } from '@/types';
+import type { User } from '@/types';
 import { useServerContext } from '@/contexts/ServerContext';
 import { useGroupData } from '@/hooks/useGroupData';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -22,322 +30,6 @@ import {
   type BearerKeyScopeFilterValue,
 } from '@/utils/bearerKeyScopeFilter';
 import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
-
-interface BearerKeyRowProps {
-  keyData: BearerKey;
-  loading: boolean;
-  availableServers: { value: string; label: string }[];
-  availableGroups: { value: string; label: string }[];
-  isAdmin: boolean;
-  onSave: (
-    id: string,
-    payload: {
-      name: string;
-      enabled: boolean;
-      accessType: 'all' | 'groups' | 'servers' | 'custom';
-      allowedGroups: string;
-      allowedServers: string;
-    },
-  ) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-}
-
-const BearerKeyRow: React.FC<BearerKeyRowProps> = ({
-  keyData,
-  loading,
-  availableServers,
-  availableGroups,
-  isAdmin,
-  onSave,
-  onDelete,
-}) => {
-  const { t } = useTranslation();
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(keyData.name);
-  const [enabled, setEnabled] = useState<boolean>(keyData.enabled);
-  const [accessType, setAccessType] = useState<'all' | 'groups' | 'servers' | 'custom'>(
-    keyData.accessType || 'all',
-  );
-  const [selectedGroups, setSelectedGroups] = useState<string[]>(keyData.allowedGroups || []);
-  const [selectedServers, setSelectedServers] = useState<string[]>(keyData.allowedServers || []);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (!isEditing) {
-      setName(keyData.name);
-      setEnabled(keyData.enabled);
-      setAccessType(keyData.accessType || 'all');
-      setSelectedGroups(keyData.allowedGroups || []);
-      setSelectedServers(keyData.allowedServers || []);
-    }
-  }, [keyData, isEditing]);
-
-  const { showToast } = useToast();
-  const isSystemKey = (keyData.kind ?? 'system') === 'system';
-
-  const handleSave = async () => {
-    if (isSystemKey && accessType === 'groups' && selectedGroups.length === 0) {
-      showToast(t('settings.selectAtLeastOneGroup') || 'Please select at least one group', 'error');
-      return;
-    }
-    if (isSystemKey && accessType === 'servers' && selectedServers.length === 0) {
-      showToast(
-        t('settings.selectAtLeastOneServer') || 'Please select at least one server',
-        'error',
-      );
-      return;
-    }
-    if (isSystemKey && accessType === 'custom' && selectedGroups.length === 0 && selectedServers.length === 0) {
-      showToast(
-        t('settings.selectAtLeastOneGroupOrServer') || 'Please select at least one group or server',
-        'error',
-      );
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await onSave(keyData.id, {
-        name,
-        enabled,
-        accessType,
-        allowedGroups: selectedGroups.join(', '),
-        allowedServers: selectedServers.join(', '),
-      });
-      setIsEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm(t('settings.deleteBearerKeyConfirm') || 'Delete this key?')) {
-      return;
-    }
-    setDeleting(true);
-    try {
-      await onDelete(keyData.id);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const isGroupsMode = accessType === 'groups';
-  const isCustomMode = accessType === 'custom';
-
-  // Helper function to format access type display text
-  const formatAccessTypeDisplay = (key: BearerKey): string => {
-    if ((key.kind ?? 'system') === 'user') {
-      return `${t('settings.bearerKeyAccessUserVisibility') || 'User visibility'}${key.owner ? ` · ${key.owner}` : ''}`;
-    }
-    if (key.accessType === 'all') {
-      return t('settings.bearerKeyAccessAll') || 'All Resources';
-    }
-    if (key.accessType === 'groups') {
-      return `${t('settings.bearerKeyAccessGroups') || 'Groups'}: ${key.allowedGroups}`;
-    }
-    if (key.accessType === 'servers') {
-      return `${t('settings.bearerKeyAccessServers') || 'Servers'}: ${key.allowedServers}`;
-    }
-    if (key.accessType === 'custom') {
-      const parts: string[] = [];
-      if (key.allowedGroups && key.allowedGroups.length > 0) {
-        parts.push(`${t('settings.bearerKeyAccessGroups') || 'Groups'}: ${key.allowedGroups}`);
-      }
-      if (key.allowedServers && key.allowedServers.length > 0) {
-        parts.push(`${t('settings.bearerKeyAccessServers') || 'Servers'}: ${key.allowedServers}`);
-      }
-      return `${t('settings.bearerKeyAccessCustom') || 'Custom'}: ${parts.join('; ')}`;
-    }
-    return '';
-  };
-
-  if (isEditing) {
-    return (
-      <tr>
-        <td colSpan={5} className="p-0">
-          <div className="settings-edit-panel">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-              <div className="md:col-span-3">
-                <label className="block text-sm settings-label mb-1">
-                  {t('settings.bearerKeyName') || 'Name'}
-                </label>
-                <input
-                  type="text"
-                  className="hub-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="md:col-span-9">
-                <label className="block text-sm settings-label mb-1">
-                  {t('settings.bearerKeyToken') || 'Token'}
-                </label>
-                <div className="ylune-help" style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }}>{keyData.token}</div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="w-40">
-                <label className="block text-sm settings-label mb-1">
-                  {t('settings.bearerKeyEnabled') || 'Status'}
-                </label>
-                <div className="settings-row" style={{ padding: 0, border: 0, gap: 10 }}>
-                  <span
-                    className={`hub-status ${enabled ? 'ok' : 'muted'}`}
-                  >
-                    {enabled ? 'Active' : 'Inactive'}
-                  </span>
-                  <Switch
-                    disabled={loading}
-                    checked={enabled}
-                    onCheckedChange={(checked) => setEnabled(checked)}
-                  />
-                </div>
-              </div>
-
-              {isAdmin && isSystemKey && <div className="w-48">
-                <label className="block text-sm settings-label mb-1">
-                  {t('settings.bearerKeyAccessType') || 'Access scope'}
-                </label>
-                <select
-                  className="hub-input"
-                  value={accessType}
-                  onChange={(e) =>
-                    setAccessType(e.target.value as 'all' | 'groups' | 'servers' | 'custom')
-                  }
-                  disabled={loading}
-                >
-                  <option value="all">{t('settings.bearerKeyAccessAll') || 'All Resources'}</option>
-                  <option value="groups">
-                    {t('settings.bearerKeyAccessGroups') || 'Specific Groups'}
-                  </option>
-                  <option value="servers">
-                    {t('settings.bearerKeyAccessServers') || 'Specific Servers'}
-                  </option>
-                  <option value="custom">
-                    {t('settings.bearerKeyAccessCustom') || 'Custom (Groups & Servers)'}
-                  </option>
-                </select>
-              </div>}
-
-              {/* Show single selector for groups or servers mode */}
-              {isAdmin && isSystemKey && !isCustomMode && (
-                <div className="flex-1 min-w-[200px]">
-                  <label
-                    className={`ylune-label${accessType === 'all' ? ' is-muted' : ''}`}
-                  >
-                    {isGroupsMode
-                      ? t('settings.bearerKeyAllowedGroups') || 'Allowed groups'
-                      : t('settings.bearerKeyAllowedServers') || 'Allowed servers'}
-                  </label>
-                  <MultiSelect
-                    options={isGroupsMode ? availableGroups : availableServers}
-                    selected={isGroupsMode ? selectedGroups : selectedServers}
-                    onChange={isGroupsMode ? setSelectedGroups : setSelectedServers}
-                    placeholder={
-                      isGroupsMode
-                        ? t('settings.selectGroups') || 'Select groups...'
-                        : t('settings.selectServers') || 'Select servers...'
-                    }
-                    disabled={loading || accessType === 'all'}
-                  />
-                </div>
-              )}
-
-              {/* Show both selectors for custom mode */}
-              {isAdmin && isSystemKey && isCustomMode && (
-                <>
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm settings-label mb-1">
-                      {t('settings.bearerKeyAllowedGroups') || 'Allowed groups'}
-                    </label>
-                    <MultiSelect
-                      options={availableGroups}
-                      selected={selectedGroups}
-                      onChange={setSelectedGroups}
-                      placeholder={t('settings.selectGroups') || 'Select groups...'}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm settings-label mb-1">
-                      {t('settings.bearerKeyAllowedServers') || 'Allowed servers'}
-                    </label>
-                    <MultiSelect
-                      options={availableServers}
-                      selected={selectedServers}
-                      onChange={setSelectedServers}
-                      placeholder={t('settings.selectServers') || 'Select servers...'}
-                      disabled={loading}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="settings-actions">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="hub-btn"
-                >
-                  {t('common.cancel') || 'Cancel'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={loading || saving}
-                  className="hub-btn primary"
-                >
-                  {saving ? t('common.saving') || 'Saving...' : t('common.save') || 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </td>
-      </tr>
-    );
-  }
-
-  return (
-    <tr>
-      <td>{keyData.name}</td>
-      <td className="font-mono">
-        {keyData.token.length > 12
-          ? `${keyData.token.substring(0, 8)}...${keyData.token.substring(keyData.token.length - 4)}`
-          : keyData.token}
-      </td>
-      <td>
-        <span className={`hub-status ${keyData.enabled ? 'ok' : 'muted'}`}>
-          <span className="hub-dot" />
-          {keyData.enabled ? t('common.active') || 'Active' : t('common.inactive') || 'Inactive'}
-        </span>
-      </td>
-      <td>{formatAccessTypeDisplay(keyData)}</td>
-      <td>
-        <button
-          type="button"
-          onClick={() => setIsEditing(true)}
-          className="hub-icon-btn sm"
-          title={t('common.edit') || 'Edit'}
-        >
-          <Edit className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="hub-icon-btn sm"
-          title={t('common.delete') || 'Delete'}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </td>
-    </tr>
-  );
-};
 
 /**
  * Returns the default token limit for a given embedding model name.
@@ -405,52 +97,6 @@ function getEmbeddingProviderPresetId(
   }
 
   return 'custom';
-}
-
-/**
- * Parses embeddingMaxTokens from form input string.
- * Returns the parsed value if it differs from current value, otherwise undefined (no update needed).
- * - Empty string or whitespace → null (clear override)
- * - Valid number string → parsed number
- * - Invalid input or unchanged value → undefined
- */
-function parseEmbeddingMaxTokensForUpdate(
-  rawValue: string,
-  currentValue: number | null | undefined,
-): number | null | undefined {
-  const trimmed = rawValue.trim();
-  const parsed = trimmed ? parseInt(trimmed, 10) : NaN;
-  const result = trimmed && !isNaN(parsed) ? parsed : null;
-  const current = currentValue ?? null;
-  return result !== current ? result : undefined;
-}
-
-function parseEmbeddingDimensionsForUpdate(
-  rawValue: string,
-  currentValue: number | null | undefined,
-): number | null | undefined {
-  const trimmed = rawValue.trim();
-  if (!trimmed) {
-    return currentValue == null ? undefined : null;
-  }
-
-  const parsed = Number(trimmed);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed !== currentValue ? parsed : undefined;
-}
-
-function parseBasePacingDelayForUpdate(
-  rawValue: string,
-  currentValue: number | null | undefined,
-): number | null | undefined {
-  const trimmed = rawValue.trim();
-  const parsed = trimmed ? parseInt(trimmed, 10) : NaN;
-  const result = trimmed && !isNaN(parsed) && parsed >= 0 ? parsed : null;
-  const current = currentValue ?? null;
-  return result !== current ? result : undefined;
 }
 
 const DEFAULT_OIDC_SCOPES = ['openid', 'profile', 'email'];
@@ -552,22 +198,14 @@ const SettingsPage: React.FC = () => {
     embeddingMaxTokens: '',
   });
 
-  const [tempToolResultCompressionConfig, setTempToolResultCompressionConfig] = useState<{
-    minTokens: string;
-    maxOutputTokens: string;
-    strategy: 'auto' | 'json' | 'log' | 'search' | 'diff' | 'text';
-  }>({
+  const [tempToolResultCompressionConfig, setTempToolResultCompressionConfig] =
+    useState<ToolResultCompressionDraft>({
     minTokens: '2000',
     maxOutputTokens: '1200',
     strategy: 'auto',
   });
 
-  const [tempMCPRouterConfig, setTempMCPRouterConfig] = useState<{
-    apiKey: string;
-    referer: string;
-    title: string;
-    baseUrl: string;
-  }>({
+  const [tempMCPRouterConfig, setTempMCPRouterConfig] = useState<McpRouterDraft>({
     apiKey: '',
     referer: 'https://www.mcphub.app',
     title: 'MCPHub',
@@ -1188,81 +826,10 @@ const SettingsPage: React.FC = () => {
       }
 
       // Prepare updates object with unsaved changes and enabled status
-      const updates: any = { enabled: value };
-
-      // Check for unsaved changes and include them in the batch update
-      if (tempSmartRoutingConfig.dbUrl !== smartRoutingConfig.dbUrl) {
-        updates.dbUrl = tempSmartRoutingConfig.dbUrl;
-      }
-      const parsedBasePacingDelay = parseBasePacingDelayForUpdate(
-        tempSmartRoutingConfig.basePacingDelayMs,
-        smartRoutingConfig.basePacingDelayMs,
-      );
-      if (parsedBasePacingDelay !== undefined) {
-        updates.basePacingDelayMs = parsedBasePacingDelay;
-      }
-      if (tempSmartRoutingConfig.embeddingProvider !== smartRoutingConfig.embeddingProvider) {
-        updates.embeddingProvider = tempSmartRoutingConfig.embeddingProvider;
-      }
-      if (
-        tempSmartRoutingConfig.embeddingEncodingFormat !==
-        smartRoutingConfig.embeddingEncodingFormat
-      ) {
-        updates.embeddingEncodingFormat = tempSmartRoutingConfig.embeddingEncodingFormat;
-      }
-      if (tempSmartRoutingConfig.llmProviderBaseUrl !== smartRoutingConfig.llmProviderBaseUrl) {
-        updates.llmProviderBaseUrl = tempSmartRoutingConfig.llmProviderBaseUrl;
-      }
-      if (tempSmartRoutingConfig.llmProviderApiKey !== smartRoutingConfig.llmProviderApiKey) {
-        updates.llmProviderApiKey = tempSmartRoutingConfig.llmProviderApiKey;
-      }
-      if (
-        tempSmartRoutingConfig.embeddingModel !==
-        smartRoutingConfig.embeddingModel
-      ) {
-        updates.embeddingModel = tempSmartRoutingConfig.embeddingModel;
-      }
-
-      if (tempSmartRoutingConfig.azureOpenaiEndpoint !== smartRoutingConfig.azureOpenaiEndpoint) {
-        updates.azureOpenaiEndpoint = tempSmartRoutingConfig.azureOpenaiEndpoint;
-      }
-      if (tempSmartRoutingConfig.azureOpenaiApiKey !== smartRoutingConfig.azureOpenaiApiKey) {
-        updates.azureOpenaiApiKey = tempSmartRoutingConfig.azureOpenaiApiKey;
-      }
-      if (
-        tempSmartRoutingConfig.azureOpenaiApiVersion !== smartRoutingConfig.azureOpenaiApiVersion
-      ) {
-        updates.azureOpenaiApiVersion = tempSmartRoutingConfig.azureOpenaiApiVersion;
-      }
-      if (
-        tempSmartRoutingConfig.azureOpenaiEmbeddingDeployment !==
-        smartRoutingConfig.azureOpenaiEmbeddingDeployment
-      ) {
-        updates.azureOpenaiEmbeddingDeployment =
-          tempSmartRoutingConfig.azureOpenaiEmbeddingDeployment;
-      }
-      if (
-        tempSmartRoutingConfig.azureOpenaiEmbeddingModel !==
-        smartRoutingConfig.azureOpenaiEmbeddingModel
-      ) {
-        updates.azureOpenaiEmbeddingModel = tempSmartRoutingConfig.azureOpenaiEmbeddingModel;
-      }
-
-      // embeddingMaxTokens: empty string → null (clear override), numeric string → number
-      const parsedTokens = parseEmbeddingMaxTokensForUpdate(
-        tempSmartRoutingConfig.embeddingMaxTokens,
-        smartRoutingConfig.embeddingMaxTokens,
-      );
-      if (parsedTokens !== undefined) {
-        updates.embeddingMaxTokens = parsedTokens;
-      }
-      const parsedDimensions = parseEmbeddingDimensionsForUpdate(
-        tempSmartRoutingConfig.embeddingDimensions,
-        smartRoutingConfig.embeddingDimensions,
-      );
-      if (parsedDimensions !== undefined) {
-        updates.embeddingDimensions = parsedDimensions;
-      }
+      const updates = {
+        enabled: value,
+        ...getSmartRoutingConfigDiff(tempSmartRoutingConfig, smartRoutingConfig),
+      };
 
       // Save all changes in a single batch update
       await updateSmartRoutingConfigBatch(updates);
@@ -1273,76 +840,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleSaveSmartRoutingConfig = async () => {
-    const updates: any = {};
-
-    if (tempSmartRoutingConfig.dbUrl !== smartRoutingConfig.dbUrl) {
-      updates.dbUrl = tempSmartRoutingConfig.dbUrl;
-    }
-    const parsedBasePacingDelay = parseBasePacingDelayForUpdate(
-      tempSmartRoutingConfig.basePacingDelayMs,
-      smartRoutingConfig.basePacingDelayMs,
-    );
-    if (parsedBasePacingDelay !== undefined) {
-      updates.basePacingDelayMs = parsedBasePacingDelay;
-    }
-    if (tempSmartRoutingConfig.embeddingProvider !== smartRoutingConfig.embeddingProvider) {
-      updates.embeddingProvider = tempSmartRoutingConfig.embeddingProvider;
-    }
-    if (
-      tempSmartRoutingConfig.embeddingEncodingFormat !== smartRoutingConfig.embeddingEncodingFormat
-    ) {
-      updates.embeddingEncodingFormat = tempSmartRoutingConfig.embeddingEncodingFormat;
-    }
-    if (tempSmartRoutingConfig.llmProviderBaseUrl !== smartRoutingConfig.llmProviderBaseUrl) {
-      updates.llmProviderBaseUrl = tempSmartRoutingConfig.llmProviderBaseUrl;
-    }
-    if (tempSmartRoutingConfig.llmProviderApiKey !== smartRoutingConfig.llmProviderApiKey) {
-      updates.llmProviderApiKey = tempSmartRoutingConfig.llmProviderApiKey;
-    }
-    if (
-      tempSmartRoutingConfig.embeddingModel !== smartRoutingConfig.embeddingModel
-    ) {
-      updates.embeddingModel = tempSmartRoutingConfig.embeddingModel;
-    }
-
-    if (tempSmartRoutingConfig.azureOpenaiEndpoint !== smartRoutingConfig.azureOpenaiEndpoint) {
-      updates.azureOpenaiEndpoint = tempSmartRoutingConfig.azureOpenaiEndpoint;
-    }
-    if (tempSmartRoutingConfig.azureOpenaiApiKey !== smartRoutingConfig.azureOpenaiApiKey) {
-      updates.azureOpenaiApiKey = tempSmartRoutingConfig.azureOpenaiApiKey;
-    }
-    if (tempSmartRoutingConfig.azureOpenaiApiVersion !== smartRoutingConfig.azureOpenaiApiVersion) {
-      updates.azureOpenaiApiVersion = tempSmartRoutingConfig.azureOpenaiApiVersion;
-    }
-    if (
-      tempSmartRoutingConfig.azureOpenaiEmbeddingDeployment !==
-      smartRoutingConfig.azureOpenaiEmbeddingDeployment
-    ) {
-      updates.azureOpenaiEmbeddingDeployment =
-        tempSmartRoutingConfig.azureOpenaiEmbeddingDeployment;
-    }
-    if (
-      tempSmartRoutingConfig.azureOpenaiEmbeddingModel !==
-      smartRoutingConfig.azureOpenaiEmbeddingModel
-    ) {
-      updates.azureOpenaiEmbeddingModel = tempSmartRoutingConfig.azureOpenaiEmbeddingModel;
-    }
-
-    // embeddingMaxTokens: empty string → null (clear override), numeric string → number
-    const parsedEmbeddingMaxTokens = parseEmbeddingMaxTokensForUpdate(
-      tempSmartRoutingConfig.embeddingMaxTokens,
-      smartRoutingConfig.embeddingMaxTokens,
-    );
-    if (parsedEmbeddingMaxTokens !== undefined) {
-      updates.embeddingMaxTokens = parsedEmbeddingMaxTokens;
-    }
-    const parsedEmbeddingDimensions = parseEmbeddingDimensionsForUpdate(
-      tempSmartRoutingConfig.embeddingDimensions,
-      smartRoutingConfig.embeddingDimensions,
-    );
-    if (parsedEmbeddingDimensions !== undefined) {
-      updates.embeddingDimensions = parsedEmbeddingDimensions;
-    }
+    const updates = getSmartRoutingConfigDiff(tempSmartRoutingConfig, smartRoutingConfig);
 
     if (Object.keys(updates).length > 0) {
       await updateSmartRoutingConfigBatch(updates);
@@ -2639,116 +2137,14 @@ const SettingsPage: React.FC = () => {
             </span>
           }
         >
-              <div className="settings-row">
-                <div>
-                  <h3 className="settings-label">
-                    {t('settings.toolResultCompressionEnable') || 'Enable compression'}
-                  </h3>
-                  <p className="settings-help">
-                    {t('settings.toolResultCompressionDescription') ||
-                      'Reduce large text tool outputs before they reach MCP clients. Changes apply to the next tool call.'}
-                  </p>
-                </div>
-                <Switch
-                  disabled={loading}
-                  checked={toolResultCompressionConfig.enabled}
-                  onCheckedChange={(checked) =>
-                    handleToolResultCompressionEnabledChange(checked)
-                  }
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="settings-block">
-                  <div className="mb-2">
-                    <h3 className="settings-label">
-                      {t('settings.toolResultCompressionStrategy') || 'Strategy'}
-                    </h3>
-                    <p className="settings-help">
-                      {t('settings.toolResultCompressionStrategyDescription') ||
-                        'Auto detects JSON, logs, search output, diffs, and plain text.'}
-                    </p>
-                  </div>
-                  <select
-                    value={tempToolResultCompressionConfig.strategy}
-                    onChange={(e) =>
-                      handleToolResultCompressionConfigChange(
-                        'strategy',
-                        e.target.value as any,
-                      )
-                    }
-                    className="hub-input"
-                    disabled={loading}
-                  >
-                    <option value="auto">Auto</option>
-                    <option value="json">JSON</option>
-                    <option value="log">Log</option>
-                    <option value="search">Search</option>
-                    <option value="diff">Diff</option>
-                    <option value="text">Text</option>
-                  </select>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="settings-block">
-                    <div className="mb-2">
-                      <h3 className="settings-label">
-                        {t('settings.toolResultCompressionMinTokens') || 'Minimum tokens'}
-                      </h3>
-                      <p className="settings-help">
-                        {t('settings.toolResultCompressionMinTokensDescription') ||
-                          'Only compress text blocks at or above this size.'}
-                      </p>
-                    </div>
-                    <input
-                      type="number"
-                      min="1"
-                      value={tempToolResultCompressionConfig.minTokens}
-                      onChange={(e) =>
-                        handleToolResultCompressionConfigChange('minTokens', e.target.value)
-                      }
-                      className="hub-input"
-                      disabled={loading}
-                    />
-                  </div>
-
-                  <div className="settings-block">
-                    <div className="mb-2">
-                      <h3 className="settings-label">
-                        {t('settings.toolResultCompressionMaxOutputTokens') ||
-                          'Output token budget'}
-                      </h3>
-                      <p className="settings-help">
-                        {t('settings.toolResultCompressionMaxOutputTokensDescription') ||
-                          'Target maximum tokens for each compressed text block.'}
-                      </p>
-                    </div>
-                    <input
-                      type="number"
-                      min="1"
-                      value={tempToolResultCompressionConfig.maxOutputTokens}
-                      onChange={(e) =>
-                        handleToolResultCompressionConfigChange(
-                          'maxOutputTokens',
-                          e.target.value,
-                        )
-                      }
-                      className="hub-input"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="settings-actions">
-                <button
-                  onClick={handleSaveToolResultCompressionConfig}
-                  disabled={loading}
-                  className="hub-btn primary"
-                >
-                  {t('common.save')}
-                </button>
-              </div>
+          <ToolResultCompressionSection
+            enabled={toolResultCompressionConfig.enabled}
+            loading={loading}
+            draft={tempToolResultCompressionConfig}
+            onEnabledChange={handleToolResultCompressionEnabledChange}
+            onChange={handleToolResultCompressionConfigChange}
+            onSave={handleSaveToolResultCompressionConfig}
+          />
         </SettingsSection>
       </PermissionChecker>
 
@@ -3005,57 +2401,12 @@ const SettingsPage: React.FC = () => {
           visible={sectionsVisible.mcpRouterConfig}
           title={t('settings.mcpRouterConfig')}
         >
-              <div className="settings-block">
-                <div className="mb-2">
-                  <h3 className="settings-label">{t('settings.mcpRouterApiKey')}</h3>
-                  <p className="settings-help">
-                    {t('settings.mcpRouterApiKeyDescription')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="password"
-                    value={tempMCPRouterConfig.apiKey}
-                    onChange={(e) => handleMCPRouterConfigChange('apiKey', e.target.value)}
-                    placeholder={t('settings.mcpRouterApiKeyPlaceholder')}
-                    className="hub-input"
-                    disabled={loading}
-                  />
-                  <button
-                    onClick={() => saveMCPRouterConfig('apiKey')}
-                    disabled={loading}
-                    className="hub-btn primary"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-block">
-                <div className="mb-2">
-                  <h3 className="settings-label">{t('settings.mcpRouterBaseUrl')}</h3>
-                  <p className="settings-help">
-                    {t('settings.mcpRouterBaseUrlDescription')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={tempMCPRouterConfig.baseUrl}
-                    onChange={(e) => handleMCPRouterConfigChange('baseUrl', e.target.value)}
-                    placeholder={t('settings.mcpRouterBaseUrlPlaceholder')}
-                    className="hub-input"
-                    disabled={loading}
-                  />
-                  <button
-                    onClick={() => saveMCPRouterConfig('baseUrl')}
-                    disabled={loading}
-                    className="hub-btn primary"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </div>
+          <McpRouterSection
+            loading={loading}
+            draft={tempMCPRouterConfig}
+            onChange={handleMCPRouterConfigChange}
+            onSave={saveMCPRouterConfig}
+          />
         </SettingsSection>
       </PermissionChecker>
 

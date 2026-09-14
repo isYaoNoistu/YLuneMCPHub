@@ -1355,6 +1355,7 @@
       "failedToRemoveServer": "找不到服务器或删除失败",
       "internalServerError": "服务器内部错误",
       "failedToGetServers": "获取服务器信息失败",
+      "failedToReloadServer": "重载服务器失败",
       "failedToGetServerSettings": "获取服务器设置失败",
       "failedToGetServerConfig": "获取服务器配置失败",
       "failedToSaveSettings": "保存设置失败",

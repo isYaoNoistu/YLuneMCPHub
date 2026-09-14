@@ -10,6 +10,7 @@ import { checkActivityAvailable, getActivityUsage } from '@/services/activitySer
 import { ActivityUsage, IGroupServerConfig, IUser, Server, User } from '@/types';
 import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
 import { isDemoUser } from '@/utils/navigationPermissions';
+import { isExpiredUser } from '@/utils/expiryCenter';
 import DiagnosticsBanner from '@/components/DiagnosticsBanner';
 import ConfigBackupButton from '@/components/ConfigBackupButton';
 import ExpiryCenter from '@/components/ExpiryCenter';
@@ -21,17 +22,8 @@ const formatWhen = (iso?: string | null): string => {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
 };
 
-const isTokenExpired = (
-  user: Pick<User, 'mcpEnabled' | 'tokenExpiresAt' | 'expired'>,
-): boolean => {
-  if (user.mcpEnabled === false || !user.tokenExpiresAt) return false;
-  if (user.expired) return true;
-  const expires = new Date(user.tokenExpiresAt).getTime();
-  return !Number.isNaN(expires) && expires <= Date.now();
-};
-
 const tokenRemainingLabel = (
-  user: Pick<User, 'mcpEnabled' | 'tokenExpiresAt' | 'expired'>,
+  user: User,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string => {
   if (user.mcpEnabled === false) {
@@ -40,7 +32,7 @@ const tokenRemainingLabel = (
   if (!user.tokenExpiresAt) {
     return t('users.tokenNeverExpires');
   }
-  if (isTokenExpired(user)) {
+  if (isExpiredUser(user)) {
     return t('users.tokenExpired');
   }
   const ms = new Date(user.tokenExpiresAt).getTime() - Date.now();
@@ -356,7 +348,7 @@ const DashboardPage: React.FC = () => {
               </div>
               <div className="dash-snapshot-item">
                 <span>{t('pages.dashboard.tokenRemaining')}</span>
-                <b className={sessionUser && isTokenExpired(sessionUser) ? 'is-err' : undefined}>
+                <b className={sessionUser && isExpiredUser(sessionUser) ? 'is-err' : undefined}>
                   {sessionUser ? tokenRemainingLabel(sessionUser, t) : '—'}
                 </b>
               </div>
@@ -425,7 +417,7 @@ const DashboardPage: React.FC = () => {
                 </div>
               ) : (
                 users.map((user) => {
-                  const expired = isTokenExpired(user);
+                  const expired = isExpiredUser(user);
                   return (
                     <div key={user.username} className={`dash-roster-row is-user${expired ? ' is-expired' : ''}`}>
                       <div className="dash-user-top">

@@ -13,11 +13,12 @@ let cachedAvailability: boolean | null = null;
 const WELL_KNOWN_BIN_DIRS = ['/bin', '/usr/bin', '/sbin', '/usr/sbin'];
 
 function findExecutableOnDisk(name: string): boolean {
-  const candidates = WELL_KNOWN_BIN_DIRS.map((dir) => path.join(dir, name));
+  const joinPath = process.platform === 'win32' ? path.win32.join : path.posix.join;
+  const candidates = WELL_KNOWN_BIN_DIRS.map((dir) => joinPath(dir, name));
   const pathDirs = (process.env.PATH ?? '')
     .split(path.delimiter)
     .filter((dir) => dir.length > 0);
-  candidates.push(...pathDirs.map((dir) => path.join(dir, name)));
+  candidates.push(...pathDirs.map((dir) => joinPath(dir, name)));
 
   for (const candidate of candidates) {
     try {

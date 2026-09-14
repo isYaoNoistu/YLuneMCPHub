@@ -1,4 +1,5 @@
-import { apiDelete, apiPost, apiPut } from '../utils/fetchInterceptor';
+import { apiPost } from '../utils/fetchInterceptor';
+import { createCapabilityMutationClient } from './capabilityMutationClient';
 
 export interface ToolCallRequest {
   toolName: string;
@@ -15,6 +16,12 @@ export interface ToolCallResult {
   error?: string;
   message?: string;
 }
+
+const toolMutations = createCapabilityMutationClient({
+  segment: 'tools',
+  label: 'tool',
+  idKey: 'toolName',
+});
 
 /**
  * Call a MCP tool via the call_tool API
@@ -64,31 +71,8 @@ export const toggleTool = async (
   serverName: string,
   toolName: string,
   enabled: boolean,
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    // URL-encode server and tool names to handle slashes (e.g., "com.atlassian/atlassian-mcp-server")
-    const response = await apiPost<any>(
-      `/servers/${encodeURIComponent(serverName)}/tools/${encodeURIComponent(toolName)}/toggle`,
-      { enabled },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
-        },
-      },
-    );
-
-    return {
-      success: response.success,
-      error: response.success ? undefined : response.message,
-    };
-  } catch (error) {
-    console.error('Error toggling tool', { serverName, toolName, enabled, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
+): Promise<{ success: boolean; error?: string }> =>
+  toolMutations.toggle(serverName, toolName, enabled);
 
 /**
  * Update a tool's description for a specific server
@@ -97,31 +81,8 @@ export const updateToolDescription = async (
   serverName: string,
   toolName: string,
   description: string,
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    // URL-encode server and tool names to handle slashes (e.g., "com.atlassian/atlassian-mcp-server")
-    const response = await apiPut<any>(
-      `/servers/${encodeURIComponent(serverName)}/tools/${encodeURIComponent(toolName)}/description`,
-      { description },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
-        },
-      },
-    );
-
-    return {
-      success: response.success,
-      error: response.success ? undefined : response.message,
-    };
-  } catch (error) {
-    console.error('Error updating tool description', { serverName, toolName, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
+): Promise<{ success: boolean; error?: string }> =>
+  toolMutations.updateDescription(serverName, toolName, description);
 
 /**
  * Reset a tool's description override for a specific server
@@ -129,27 +90,5 @@ export const updateToolDescription = async (
 export const resetToolDescription = async (
   serverName: string,
   toolName: string,
-): Promise<{ success: boolean; error?: string; description?: string }> => {
-  try {
-    const response = await apiDelete<any>(
-      `/servers/${encodeURIComponent(serverName)}/tools/${encodeURIComponent(toolName)}/description`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
-        },
-      },
-    );
-
-    return {
-      success: response.success,
-      error: response.success ? undefined : response.message,
-      description: response.data?.description,
-    };
-  } catch (error) {
-    console.error('Error resetting tool description', { serverName, toolName, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
+): Promise<{ success: boolean; error?: string; description?: string }> =>
+  toolMutations.resetDescription(serverName, toolName);

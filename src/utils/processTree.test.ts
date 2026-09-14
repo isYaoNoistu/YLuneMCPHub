@@ -42,7 +42,7 @@ describe('isProcessTreeKillAvailable', () => {
     jest
       .spyOn(fs, 'accessSync')
       .mockImplementation(((candidate: fs.PathLike) => {
-        if (String(candidate) === path.join('/custom/bin', 'ps')) return undefined;
+        if (String(candidate) === path.posix.join('/custom/bin', 'ps')) return undefined;
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
       }) as typeof fs.accessSync);
     expect(isProcessTreeKillAvailable()).toBe(true);

@@ -1,34 +1,36 @@
-import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronRight,
   AlertCircle,
   Copy,
   Check,
-  RefreshCw,
   Wrench,
   MessageSquare,
   FileText,
-  MoreHorizontal,
   X,
-  Edit3,
-  Trash2,
-  DownloadCloud,
-  LogOut,
-  type LucideIcon,
 } from 'lucide-react';
 import { Server, ServerCost } from '@/types';
 import { formatTokens } from '@/utils/contextCost';
 import { ServerStatusDot } from '@/components/ui/StatusDot';
+import LoadingControl from '@/components/ui/LoadingControl';
 import ToolCard from '@/components/ui/ToolCard';
 import PromptCard from '@/components/ui/PromptCard';
 import ResourceCard from '@/components/ui/ResourceCard';
 import DeleteDialog from '@/components/ui/DeleteDialog';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import ActionsMenu from '@/components/server-card/ActionsMenu';
+import CapabilityTabs, {
+  CapabilityIcon,
+  type CapabilitySummary,
+  type ExpandedTabKey,
+} from '@/components/server-card/CapabilityTabs';
+import McpAppsBadge from '@/components/server-card/McpAppsBadge';
 import { Switch } from '@/components/ui/ToggleGroup';
 import { useToast } from '@/contexts/ToastContext';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { useAuth } from '@/contexts/AuthContext';
+import { serverExposesMcpApp } from '@/utils/mcpApps';
 import { canManageServer } from '@/utils/serverPermissions';
 import {
   getServerVisibilityDisplay,
@@ -66,63 +68,6 @@ interface ServerCardProps {
   onOAuthDisconnect?: (server: Server) => Promise<boolean>;
 }
 
-type CapabilityTabKey = 'tools' | 'prompts' | 'resources';
-
-type CapabilitySummary = {
-  key: CapabilityTabKey;
-  icon: LucideIcon;
-  label: string;
-  total: number;
-  enabled: number;
-};
-
-interface LoadingControlProps {
-  isLoading: boolean;
-  children: ReactNode;
-  className?: string;
-  overlayStyle?: CSSProperties;
-  spinnerSize?: number;
-}
-
-const LoadingControl = ({
-  isLoading,
-  children,
-  className,
-  overlayStyle,
-  spinnerSize = 12,
-}: LoadingControlProps) => (
-  <div className={className ? `relative flex items-center ${className}` : 'relative flex items-center'} aria-busy={isLoading}>
-    <div
-      className="flex w-full items-center justify-center"
-      style={{
-        visibility: isLoading ? 'hidden' : 'visible',
-        pointerEvents: isLoading ? 'none' : 'auto',
-      }}
-    >
-      {children}
-    </div>
-    {isLoading && (
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-        style={{
-          background: 'var(--hub-surface)',
-          border: '1px solid var(--hub-line-2)',
-          borderRadius: 8,
-          ...overlayStyle,
-        }}
-      >
-        <RefreshCw size={spinnerSize} className="animate-spin" style={{ color: 'var(--hub-ink-3)' }} />
-      </div>
-    )}
-  </div>
-);
-
-const CapabilityIcon = ({ icon: Icon }: { icon: LucideIcon }) => (
-  <span className="hub-server-capability-icon" aria-hidden="true">
-    <Icon size={11.5} strokeWidth={1.9} className="block" />
-  </span>
-);
-
 const transportLabel = (t: any, type?: string, builtin?: boolean) => {
   if (builtin) return t('server.typeBuiltin') || 'builtin';
   if (!type) return null;
@@ -131,25 +76,6 @@ const transportLabel = (t: any, type?: string, builtin?: boolean) => {
   if (type === 'streamable-http') return t('server.typeStreamableHttp') || 'http';
   if (type === 'openapi') return t('server.typeOpenapi') || 'openapi';
   return type;
-};
-
-const MCP_APPS_MIME_TYPE = 'text/html;profile=mcp-app';
-
-const hasMcpAppsMetadata = (metadata?: Record<string, unknown>) => {
-  if (!metadata) return false;
-  return Boolean(metadata.ui || metadata['ui/resourceUri']);
-};
-
-const serverExposesMcpApp = (server: Server) => {
-  return Boolean(
-    server.tools?.some((tool) => hasMcpAppsMetadata(tool._meta)) ||
-      server.resources?.some(
-        (resource) =>
-          resource.uri?.startsWith('ui://') ||
-          resource.mimeType === MCP_APPS_MIME_TYPE ||
-          hasMcpAppsMetadata(resource._meta),
-      ),
-  );
 };
 
 const ServerCard = ({
@@ -172,9 +98,7 @@ const ServerCard = ({
   const baseUrl = getHubBaseUrl(installConfig?.baseUrl);
 
   const [expanded, setExpanded] = useState(false);
-  const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'cost' | null>(
-    null,
-  );
+  const [expandedTab, setExpandedTab] = useState<ExpandedTabKey | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReinstallDialog, setShowReinstallDialog] = useState(false);
   const [showOAuthDisconnectDialog, setShowOAuthDisconnectDialog] = useState(false);
@@ -215,6 +139,56 @@ const ServerCard = ({
   const supportsReinstall =
     server.config?.command === 'npx' || server.config?.command === 'uvx';
   const supportsOAuthDisconnect = Boolean(server.oauth?.connected && onOAuthDisconnect);
+
+  const handleToggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu((value) => !value);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    onEdit(server);
+  };
+
+  const handleClone = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    setCloneName(
+      uniqueCopyName(
+        server.name,
+        (allServers || []).map((item) => item.name),
+      ),
+    );
+    setShowClone(true);
+  };
+
+  const handlePreflight = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    const result = await getServerEnvPreflight(server.name);
+    setPreflight(result?.data?.variables || []);
+  };
+
+  const handleRequestReinstall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    if (!canManage || isReinstalling || !enabled) return;
+    setShowReinstallDialog(true);
+  };
+
+  const handleRequestOAuthDisconnect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    if (!canManage || isDisconnectingOAuth) return;
+    setShowOAuthDisconnectDialog(true);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    setShowDeleteDialog(true);
+  };
 
   const handleToggle = async (nextEnabled: boolean) => {
     if (!canManage || isToggling || !onToggle) return;
@@ -570,11 +544,7 @@ const ServerCard = ({
                 >
                   {server.name}
                 </span>
-                {isMcpApp && (
-                  <span className="hub-tag accent flex-shrink-0" title={t('server.mcpApp')}>
-                    App
-                  </span>
-                )}
+                {isMcpApp && <McpAppsBadge title={t('server.mcpApp')} />}
                 {server.error && (
                   <div className="relative" ref={errorPopoverRef}>
                     <button
@@ -778,123 +748,36 @@ const ServerCard = ({
           {/* Menu */}
           <div className="relative" ref={menuRef}>
             {canManage && (
-              <button
-                className="hub-icon-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowMenu((v) => !v);
+              <ActionsMenu
+                showMenu={showMenu}
+                labels={{
+                  edit: t('server.edit'),
+                  copy: t('server.copy'),
+                  clone: t('server.clone'),
+                  envPreflight: t('server.envPreflight'),
+                  reload: t('server.reload'),
+                  reinstall: t('server.reinstall'),
+                  disconnectOAuth: t('server.disconnectOAuth'),
+                  delete: t('server.delete'),
                 }}
-                aria-label="More"
-              >
-                <MoreHorizontal size={14} />
-              </button>
-            )}
-            {canManage && showMenu && (
-              <div
-                className="absolute right-0 top-full mt-1 z-20 hub-card"
-                style={{ minWidth: 160, padding: 4 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    onEdit(server);
-                  }}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-ink)' }}
-                >
-                  <Edit3 size={13} /> {t('server.edit')}
-                </button>
-                <button
-                  onClick={handleCopyConfig}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-ink)' }}
-                >
-                  <Copy size={13} /> {t('server.copy')}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    setCloneName(
-                      uniqueCopyName(
-                        server.name,
-                        (allServers || []).map((item) => item.name),
-                      ),
-                    );
-                    setShowClone(true);
-                  }}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-ink)' }}
-                >
-                  <Copy size={13} /> {t('server.clone')}
-                </button>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    const result = await getServerEnvPreflight(server.name);
-                    setPreflight(result?.data?.variables || []);
-                  }}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-ink)' }}
-                >
-                  <Wrench size={13} /> {t('server.envPreflight')}
-                </button>
-                {onReload && (
-                  <button
-                    onClick={handleReload}
-                    disabled={isReloading || isToggling || !enabled}
-                    className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ color: 'var(--hub-ink)' }}
-                  >
-                    <RefreshCw size={13} /> {t('server.reload')}
-                  </button>
-                )}
-                {onReinstall && supportsReinstall && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      if (!canManage || isReinstalling || !enabled) return;
-                      setShowReinstallDialog(true);
-                    }}
-                    disabled={isReinstalling || isToggling || !enabled}
-                    className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ color: 'var(--hub-ink)' }}
-                  >
-                    <DownloadCloud size={13} /> {t('server.reinstall')}
-                  </button>
-                )}
-                {supportsOAuthDisconnect && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowMenu(false);
-                      if (!canManage || isDisconnectingOAuth) return;
-                      setShowOAuthDisconnectDialog(true);
-                    }}
-                    disabled={isDisconnectingOAuth}
-                    className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ color: 'var(--hub-ink)' }}
-                  >
-                    <LogOut size={13} /> {t('server.disconnectOAuth')}
-                  </button>
-                )}
-                <div style={{ height: 1, background: 'var(--hub-line-2)', margin: '4px 0' }} />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    setShowDeleteDialog(true);
-                  }}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-err)' }}
-                >
-                  <Trash2 size={13} /> {t('server.delete')}
-                </button>
-              </div>
+                hasReload={Boolean(onReload)}
+                hasReinstall={Boolean(onReinstall && supportsReinstall)}
+                hasOAuthDisconnect={supportsOAuthDisconnect}
+                enabled={enabled}
+                isToggling={isToggling}
+                isReloading={isReloading}
+                isReinstalling={isReinstalling}
+                isDisconnectingOAuth={isDisconnectingOAuth}
+                onToggleMenu={handleToggleMenu}
+                onEdit={handleEdit}
+                onCopyConfig={handleCopyConfig}
+                onClone={handleClone}
+                onPreflight={handlePreflight}
+                onReload={handleReload}
+                onRequestReinstall={handleRequestReinstall}
+                onRequestOAuthDisconnect={handleRequestOAuthDisconnect}
+                onDelete={handleDelete}
+              />
             )}
           </div>
         </div>
@@ -904,41 +787,14 @@ const ServerCard = ({
           <div className="hub-server-detail">
             {/* Capability tabs + endpoint on same row */}
             <div className="hub-cap-toolbar">
-              {capabilitySummaries.map((tab) => {
-                const active = expandedTab === tab.key;
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setExpandedTab(active ? null : tab.key)}
-                    className={`hub-cap-tab${active ? ' is-active' : ''}`}
-                  >
-                    <CapabilityIcon icon={Icon} />
-                    <span>{tab.label}</span>
-                    <span className="hub-mono hub-num" style={{ color: 'var(--hub-ink-3)', fontSize: 11 }}>
-                      {tab.total === 0 ? '0' : `${tab.enabled}/${tab.total}`}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* Context cost tab */}
-              {cost && cost.connected && (
-                <button
-                  onClick={() => setExpandedTab(expandedTab === 'cost' ? null : 'cost')}
-                  className={`hub-cap-tab${expandedTab === 'cost' ? ' is-active' : ''}`}
-                  title={t('cost.estimate')}
-                >
-                  <span style={{ color: 'var(--hub-ink-3)' }}>Σ</span>
-                  <span>{t('cost.totalFootprint')}</span>
-                  <span
-                    className="hub-mono hub-num"
-                    style={{ color: 'var(--hub-ink-3)', fontSize: 11 }}
-                  >
-                    {formatTokens(cost.exposed)}/{formatTokens(cost.gross)}
-                  </span>
-                </button>
-              )}
+              <CapabilityTabs
+                summaries={capabilitySummaries}
+                activeTab={expandedTab}
+                cost={cost}
+                costEstimateLabel={t('cost.estimate')}
+                costTotalFootprintLabel={t('cost.totalFootprint')}
+                onToggle={(tab) => setExpandedTab(expandedTab === tab ? null : tab)}
+              />
 
               {/* Endpoint inline, pushed to the right */}
               <div className="ml-auto max-w-full flex-shrink-0">
