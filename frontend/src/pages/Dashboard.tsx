@@ -13,6 +13,7 @@ import { isDemoUser } from '@/utils/navigationPermissions';
 import DiagnosticsBanner from '@/components/DiagnosticsBanner';
 import ConfigBackupButton from '@/components/ConfigBackupButton';
 import ExpiryCenter from '@/components/ExpiryCenter';
+import UsageLineChart from '@/components/UsageLineChart';
 
 const formatWhen = (iso?: string | null): string => {
   if (!iso) return '—';
@@ -135,7 +136,6 @@ const DashboardPage: React.FC = () => {
   const showSkeleton = !hasLoaded;
   const maxTool = Math.max(1, ...(usage?.tools.map((item) => item.count) || [0]));
   const maxUser = Math.max(1, ...(usage?.users.map((item) => item.count) || [0]));
-  const maxDay = Math.max(1, ...(usage?.days.map((item) => item.count) || [0]));
   const todayUsage = usage?.days[usage.days.length - 1];
   const weekCalls = usage?.days.reduce((sum, day) => sum + day.count, 0) ?? null;
   const lastFailure = usage?.recentErrors[0];
@@ -299,17 +299,14 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {usage?.days?.length ? (
-              <div className="dash-session-pulse" aria-label={t('pages.dashboard.sessionPulse')}>
-                {usage.days.map((day) => (
-                  <div key={`session-${day.date}`} className="dash-day">
-                    <div
-                      className="dash-day-bar"
-                      style={{ height: `${Math.max(4, (day.count / maxDay) * 36)}px` }}
-                      title={`${day.date} ${day.count}`}
-                    />
-                    <span className="mono">{day.date.slice(5)}</span>
-                  </div>
-                ))}
+              <div className="dash-session-pulse">
+                <UsageLineChart
+                  days={usage.days}
+                  compact
+                  ariaLabel={t('pages.dashboard.sessionPulse')}
+                  callsLabel={t('pages.dashboard.usageCalls')}
+                  errorsLabel={t('pages.dashboard.usageErrors')}
+                />
               </div>
             ) : null}
 
@@ -533,18 +530,13 @@ const DashboardPage: React.FC = () => {
           {usageNote && <p className="dash-muted">{usageNote}</p>}
           {usage && (
             <>
-              <div className="dash-days" aria-label={t('pages.dashboard.last7Days')}>
-                {usage.days.map((day) => (
-                  <div key={day.date} className="dash-day">
-                    <div
-                      className="dash-day-bar"
-                      style={{ height: `${Math.max(4, (day.count / maxDay) * 64)}px` }}
-                      title={`${day.date} ${day.count}`}
-                    />
-                    <span className="mono">{day.date.slice(5)}</span>
-                    <b className="mono">{day.count}</b>
-                  </div>
-                ))}
+              <div className="dash-days">
+                <UsageLineChart
+                  days={usage.days}
+                  ariaLabel={t('pages.dashboard.last7Days')}
+                  callsLabel={t('pages.dashboard.usageCalls')}
+                  errorsLabel={t('pages.dashboard.usageErrors')}
+                />
               </div>
               <div className="dash-charts">
                 <article className="dash-chart">

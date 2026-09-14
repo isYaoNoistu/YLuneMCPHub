@@ -470,6 +470,8 @@
       "usageTitle": "调用",
       "viewActivity": "活动明细",
       "last7Days": "近 7 天调用",
+      "usageCalls": "调用",
+      "usageErrors": "失败",
       "toolCalls": "按工具",
       "userCalls": "按用户",
       "noCalls": "这 7 天还没有调用记录",

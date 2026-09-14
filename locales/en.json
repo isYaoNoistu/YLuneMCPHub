@@ -468,6 +468,8 @@
       "usageTitle": "Usage",
       "viewActivity": "Activity log",
       "last7Days": "Calls in the last 7 days",
+      "usageCalls": "Calls",
+      "usageErrors": "Failures",
       "toolCalls": "By tool",
       "userCalls": "By user",
       "noCalls": "No calls in the last 7 days",

@@ -1733,23 +1733,11 @@ button.cfg-link {
 }
 
 .dash-session-pulse {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
   margin-top: 12px;
-  padding: 10px 8px 6px;
+  padding: 6px 8px 2px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
-}
-
-.dash-session-pulse .dash-day {
-  min-height: 52px;
-  gap: 4px;
-}
-
-.dash-session-pulse .dash-day-bar {
-  width: 10px;
 }
 
 .dash-endpoint {
@@ -2173,14 +2161,127 @@ button.cfg-link {
 }
 
 .dash-days {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
   margin: 12px 0 16px;
-  padding: 14px 12px 10px;
+  padding: 10px 12px 8px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
+}
+
+.dash-line-chart {
+  position: relative;
+}
+
+.dash-line-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dash-line-grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+
+.dash-line-axis {
+  fill: var(--color-muted);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.dash-line-calls {
+  stroke: var(--color-accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dash-line-errors {
+  stroke: var(--color-danger, #f43f5e);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dash-line-guide {
+  stroke: var(--color-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
+}
+
+.dash-line-dot.is-call {
+  fill: var(--color-bg);
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+.dash-line-dot.is-err {
+  fill: var(--color-bg);
+  stroke: var(--color-danger, #f43f5e);
+  stroke-width: 2;
+}
+
+.dash-line-tip {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  display: flex;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.dash-line-tip strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.dash-line-tip .is-err {
+  color: var(--color-danger, #f43f5e);
+}
+
+.dash-line-legend {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 2px 0 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.dash-line-legend i {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.dash-line-legend .is-call {
+  background: var(--color-accent);
+}
+
+.dash-line-legend .is-err {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-danger, #f43f5e) 0 7px,
+    transparent 7px 10px
+  );
+}
+
+.dash-line-chart.is-compact .dash-line-calls {
+  stroke-width: 1.8;
+}
+
+.dash-line-chart.is-compact .dash-line-errors {
+  stroke-width: 1.3;
 }
 
 .dash-day {
