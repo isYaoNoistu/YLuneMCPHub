@@ -6,6 +6,10 @@ const dockerfile = fs.readFileSync(path.join(projectRoot, 'Dockerfile'), 'utf8')
 const dockerignore = fs.readFileSync(path.join(projectRoot, '.dockerignore'), 'utf8');
 const compose = fs.readFileSync(path.join(projectRoot, 'deploy', 'docker-compose.yml'), 'utf8');
 const lockfile = fs.readFileSync(path.join(projectRoot, 'pnpm-lock.yaml'), 'utf8');
+const frontendCss = fs.readFileSync(
+  path.join(projectRoot, 'frontend', 'src', 'index.css'),
+  'utf8',
+);
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'),
 ) as {
@@ -86,13 +90,17 @@ describe('Docker runtime contract', () => {
     for (const pathName of [
       '.cursor',
       'docs',
-      'hub',
       'login',
       'tests',
       'Dockerfile.*.bak',
     ]) {
       expect(ignored).toContain(pathName);
     }
+  });
+
+  it('keeps shared hub styles required by the frontend build context', () => {
+    expect(frontendCss).toMatch(/@import ['"]\.\.\/\.\.\/hub\/styles\//);
+    expect(dockerignore.split(/\r?\n/).map((line) => line.trim())).not.toContain('hub');
   });
 
   it('does not ship TypeScript declaration packages as runtime dependencies', () => {

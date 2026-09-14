@@ -68,7 +68,7 @@ docker compose up -d --build
 # docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
 
-The default `runtime` image keeps Node/npm/npx, Python/uv/uvx, `procps`, `curl`, production dependencies, and compiled assets. Compilers, source files, and development dependencies stay in disposable build stages. The workspace disables pnpm's automatic optional-peer installation, so the unused SQLite driver stays out of the lockfile and production dependencies. Dynamic `npx`, `uvx`, and binaries mounted under `/opt/mcp` continue to work.
+The default `runtime` image keeps Node/npm/npx, Python/uv/uvx, `procps`, `curl`, production dependencies, and compiled assets. Compilers, source files, and development dependencies stay in disposable build stages. `hub/styles/` remains in the build context because the frontend imports those shared styles, but it is not copied into the runtime image. The workspace disables pnpm's automatic optional-peer installation, so the unused SQLite driver stays out of the lockfile and production dependencies. Dynamic `npx`, `uvx`, and binaries mounted under `/opt/mcp` continue to work.
 
 Set `YLUNE_IMAGE_TARGET=full` in `.env` and rebuild only when an upstream MCP needs Playwright browsers, Cargo, or an in-container Docker daemon.
 

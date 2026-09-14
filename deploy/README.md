@@ -127,7 +127,7 @@ docker compose up -d --build
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
 
-第一次构建会拉 Debian / Node / pnpm 依赖。默认走阿里云和 npmmirror（见 `.env.example`）。`runtime` 只保留 Node/npm/npx、Python/uv/uvx、`procps`、`curl`、生产依赖和编译产物；编译器、源码、开发依赖不会进入最终镜像。工作区关闭 pnpm 自动补装可选 peer，未使用的 SQLite 驱动不会混入锁文件或生产依赖。`git pull` 后必须 `--build` 才会用新 Dockerfile。
+第一次构建会拉 Debian / Node / pnpm 依赖。默认走阿里云和 npmmirror（见 `.env.example`）。`runtime` 只保留 Node/npm/npx、Python/uv/uvx、`procps`、`curl`、生产依赖和编译产物；编译器、源码、开发依赖不会进入最终镜像。`hub/styles/` 是前端编译时共享样式，会保留在构建上下文但不会复制进运行镜像。工作区关闭 pnpm 自动补装可选 peer，未使用的 SQLite 驱动不会混入锁文件或生产依赖。`git pull` 后必须 `--build` 才会用新 Dockerfile。
 
 确实要在月弦容器里运行 Playwright、Cargo 或 Docker daemon 时，把 `.env` 改为 `YLUNE_IMAGE_TARGET=full` 后重建。普通 MCP 网关和挂载到 `/opt/mcp` 的 DevOpsMCP 二进制不需要 `full`。
 
