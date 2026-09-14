@@ -277,8 +277,8 @@ http_headers = { Authorization = "Bearer <系统签发的用户 Key>" }
 ![服务器管理](images/servers.png)
 
 - **控制台**：管理员和 Demo 能看见这张卡，展开可看四个只读工具说明。
-- **谁能调**：只有开了 MCP 的**管理员 Access Key**，连的是 `/mcp`，不是 `/mcp/ylune`。
-- **工具**（英文名，给智能体用）：`list_servers`、`list_tools`、`usage_summary`、`recent_failures`。只返回状态、工具名、调用量、失败摘要，不会返回命令、地址、环境变量、Token 或入参/出参。
+- **谁能调**：只有开了 MCP 的**管理员 Access Key**，连的是 `/mcp`。智能体配置里的客户端名（例如 `ylune-admin-demo`）只是本机标签，不影响这四个工具。
+- **工具**（英文名，给智能体用）：`list_servers`、`list_tools`、`usage_summary`、`recent_failures`。在 `/mcp` 上可能显示成 `ylune-usage_summary`，短名 `usage_summary` 也能调。只返回状态、工具名、调用量、失败摘要，不会返回命令、地址、环境变量、Token 或入参/出参。不要指望再挂一个名叫 `ylune` 的上游进程。
 - **谁不能调**：系统 Key、普通用户 Key、Demo、只登录后台没有 Key 的管理员。即使用户授权里被人写上 `ylune`，调用也会被拒绝。
 - **名称**：不能再添加或改名为 `ylune`（大小写不敏感）。
 

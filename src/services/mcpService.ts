@@ -3576,6 +3576,9 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       const isolated = await getOrCreateIsolatedClient(sessionId, serverInfo);
       return { sessionId, client: isolated.client, transport: isolated.transport };
     }
+    if (serverInfo.builtin || isYlunePlatformServerName(serverInfo.name)) {
+      return undefined;
+    }
     if (!serverInfo.client) {
       throw new Error(`Client not found for server: ${serverInfo.name}`);
     }
@@ -3613,23 +3616,17 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
       request.params.name === 'call_tool'
         ? request.params.arguments?.toolName
         : request.params.name;
-    const yluneTool = matchYlunePlatformTool(requestedToolName);
-    if (yluneTool) {
+    const fulfillYlunePlatformCall = async (
+      yluneTool: NonNullable<ReturnType<typeof matchYlunePlatformTool>>,
+      rawArgs: unknown,
+      listedName: string,
+    ) => {
       if (!(await callerCanUseYlunePlatform())) {
-        throw new ToolUnavailableError(
-          `Tool not available: ${requestedToolName}`,
-          'tool-not-found',
-        );
+        throw new ToolUnavailableError(`Tool not available: ${listedName}`, 'tool-not-found');
       }
       const toolArgs =
-        request.params.name === 'call_tool'
-          ? request.params.arguments?.arguments
-          : request.params.arguments;
-      const payload = await executeYlunePlatformTool(
-        yluneTool,
-        toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
-        { servers: serverInfos },
-      );
+        rawArgs && typeof rawArgs === 'object' ? (rawArgs as Record<string, unknown>) : {};
+      const payload = await executeYlunePlatformTool(yluneTool, toolArgs, { servers: serverInfos });
       const result = {
         content: [
           {
@@ -3644,7 +3641,7 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
         tool: yluneTool,
         duration,
         status: 'success',
-        input: toolArgs && typeof toolArgs === 'object' ? toolArgs : {},
+        input: toolArgs,
         output: { ok: true },
         group,
         username,
@@ -3653,6 +3650,14 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
         sourceIp,
       });
       return result;
+    };
+    const yluneTool = matchYlunePlatformTool(requestedToolName);
+    if (yluneTool) {
+      const toolArgs =
+        request.params.name === 'call_tool'
+          ? request.params.arguments?.arguments
+          : request.params.arguments;
+      return fulfillYlunePlatformCall(yluneTool, toolArgs, requestedToolName);
     }
 
     // Special handling for smart routing tools
@@ -3711,6 +3716,17 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
           `Tool not available: ${toolName}`,
           classifyUnavailableReason(toolName),
         );
+      }
+
+      if (
+        targetServerInfo.builtin ||
+        isYlunePlatformServerName(targetServerInfo.name)
+      ) {
+        const routed = matchYlunePlatformTool(targetToolName) || matchYlunePlatformTool(toolName);
+        if (!routed) {
+          throw new ToolUnavailableError(`Tool not available: ${toolName}`, 'tool-not-found');
+        }
+        return fulfillYlunePlatformCall(routed, toolArgs, toolName);
       }
 
       // Record activity timestamp for on-demand servers
@@ -3939,6 +3955,17 @@ export const handleCallToolRequest = async (request: any, extra: any) => {
         `Tool not available: ${request.params.name}`,
         classifyUnavailableReason(request.params.name),
       );
+    }
+    if (serverInfo.builtin || isYlunePlatformServerName(serverInfo.name)) {
+      const routed =
+        matchYlunePlatformTool(routeToolName) || matchYlunePlatformTool(request.params.name);
+      if (!routed) {
+        throw new ToolUnavailableError(
+          `Tool not available: ${request.params.name}`,
+          'tool-not-found',
+        );
+      }
+      return fulfillYlunePlatformCall(routed, request.params.arguments, request.params.name);
     }
     assertToolAvailableForRoute(tool, appsRouteContext);
 

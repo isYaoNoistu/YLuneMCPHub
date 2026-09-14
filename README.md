@@ -89,7 +89,7 @@
 ## 它做什么
 
 - **统一网关** — 一个进程对外提供 `/mcp`、`/mcp/{服务}`、`/mcp/$smart`。上游可以是 stdio、HTTP、SSE、OpenAPI。
-- **内置 `ylune`** — 控制台服务器列表里有一张不能添加/删除/改配置的只读卡片。工具是 `list_servers`、`list_tools`、`usage_summary`、`recent_failures`。只有**管理员 Access Key** 能在 `/mcp` 调用；系统 Key、普通用户、Demo、仅后台管理员都不能调。不要连 `/mcp/ylune`。
+- **内置 `ylune`** — 控制台服务器列表里有一张不能添加/删除/改配置的只读卡片。工具是 `list_servers`、`list_tools`、`usage_summary`、`recent_failures`。只有**管理员 Access Key** 能在 `/mcp` 调用（短名或 `ylune-` 前缀都可以）；系统 Key、普通用户、Demo、仅后台管理员都不能调。这不是一个要再注册的上游进程。
 - **按用户授权** — 管理员在用户页勾该用户能用的 MCP 和 tools。普通用户默认 `/mcp` = 自己的授权清单；空清单 = 零工具。管理员默认全部已启用服务（不含把 `ylune` 授权给别人）。
 - **用户与 Access Key** — 创建 MCP 用户后系统才签发 Access Key。用户列表和编辑页随时可以再复制 Cursor / WorkBuddy 的 JSON，或 Codex 的 TOML（合并进 `~/.codex/config.toml`，不要整文件覆盖），也可以轮换 Key。仅后台管理员没有 Key。
 - **控制台** — 服务器、用户、凭据中心、调试台、操作审计、设置、内置提示词 / 资源、日志与调用记录。私有化部署默认不展示外部市场。

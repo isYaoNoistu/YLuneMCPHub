@@ -89,7 +89,7 @@ One row per tool call: who, which server, which tool, success or failure, durati
 ## What it does
 
 - **Gateway** — `/mcp`, `/mcp/{server}`, `/mcp/$smart`. Upstream: stdio, HTTP, SSE, OpenAPI.
-- **Built-in `ylune`** — A read-only card on the servers page that cannot be added, deleted, or edited. Tools: `list_servers`, `list_tools`, `usage_summary`, `recent_failures`. Only an **admin Access Key** can call them on `/mcp`. System keys, regular users, demo accounts, and console-only admins cannot. Do not use `/mcp/ylune`.
+- **Built-in `ylune`** — A read-only card on the servers page that cannot be added, deleted, or edited. Tools: `list_servers`, `list_tools`, `usage_summary`, `recent_failures`. Only an **admin Access Key** can call them on `/mcp` (short name or `ylune-` prefix). System keys, regular users, demo accounts, and console-only admins cannot. This is not a second upstream process to register.
 - **Per-user grants** — Admins pick MCP servers and tools on the user page. A regular user's `/mcp` is that list; an empty list means no tools. Admins have every enabled server (they cannot grant `ylune` to someone else).
 - **Users and Access Keys** — Creating an MCP user issues an Access Key. Copy Cursor / WorkBuddy JSON or Codex TOML (merge into `~/.codex/config.toml`, do not replace the whole file) any time. Console-only admins have no key.
 - **Console** — Servers, users, Credential Center, lab, admin audit, settings, built-in prompts / resources, logs and activity.

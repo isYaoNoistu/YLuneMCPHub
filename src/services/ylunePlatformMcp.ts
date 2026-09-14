@@ -144,19 +144,22 @@ export const callerCanUseYlunePlatform = async (): Promise<boolean> => {
   return canAccessYlunePlatform(persisted);
 };
 
+const isYlunePlatformToolName = (name: string): name is YlunePlatformToolName =>
+  (YLUNE_PLATFORM_TOOL_NAMES as readonly string[]).includes(name);
+
 export const matchYlunePlatformTool = (requestedName: unknown): YlunePlatformToolName | null => {
   if (typeof requestedName !== 'string' || requestedName.length === 0) {
     return null;
   }
   const separator = getNameSeparator();
   const prefix = `${YLUNE_PLATFORM_SERVER_NAME}${separator}`;
-  if (!requestedName.startsWith(prefix)) {
-    return null;
+  if (requestedName.startsWith(prefix)) {
+    const shortName = requestedName.slice(prefix.length);
+    return isYlunePlatformToolName(shortName) ? shortName : null;
   }
-  const shortName = requestedName.slice(prefix.length);
-  return (YLUNE_PLATFORM_TOOL_NAMES as readonly string[]).includes(shortName)
-    ? (shortName as YlunePlatformToolName)
-    : null;
+  // Agents often call the short name from the tool schema (`usage_summary`),
+  // not the /mcp qualified name (`ylune-usage_summary`).
+  return isYlunePlatformToolName(requestedName) ? requestedName : null;
 };
 
 const publicServerType = (info: ServerInfo): string => {

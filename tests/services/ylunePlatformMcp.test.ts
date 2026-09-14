@@ -149,11 +149,13 @@ describe('callerCanUseYlunePlatform', () => {
 });
 
 describe('matchYlunePlatformTool', () => {
-  it('only matches qualified ylune tool names', () => {
+  it('matches qualified and short platform tool names', () => {
     expect(matchYlunePlatformTool('ylune-list_servers')).toBe('list_servers');
-    expect(matchYlunePlatformTool('ylune-list_tools')).toBe('list_tools');
-    expect(matchYlunePlatformTool('list_servers')).toBeNull();
+    expect(matchYlunePlatformTool('ylune-usage_summary')).toBe('usage_summary');
+    expect(matchYlunePlatformTool('list_servers')).toBe('list_servers');
+    expect(matchYlunePlatformTool('usage_summary')).toBe('usage_summary');
     expect(matchYlunePlatformTool('jenkins-list_servers')).toBeNull();
+    expect(matchYlunePlatformTool('ylune-health_check')).toBeNull();
   });
 });
 
