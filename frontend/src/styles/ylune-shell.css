@@ -1732,14 +1732,6 @@ button.cfg-link {
   white-space: nowrap;
 }
 
-.dash-session-pulse {
-  margin-top: 12px;
-  padding: 6px 8px 2px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg);
-}
-
 .dash-endpoint {
   margin-top: 12px;
   padding: 10px 12px;

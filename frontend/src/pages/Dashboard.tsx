@@ -298,18 +298,6 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {usage?.days?.length ? (
-              <div className="dash-session-pulse">
-                <UsageLineChart
-                  days={usage.days}
-                  compact
-                  ariaLabel={t('pages.dashboard.sessionPulse')}
-                  callsLabel={t('pages.dashboard.usageCalls')}
-                  errorsLabel={t('pages.dashboard.usageErrors')}
-                />
-              </div>
-            ) : null}
-
             <div className="dash-endpoint">
               <span>{t('pages.dashboard.mcpEndpoint')}</span>
               <code>{mcpEndpoint}</code>
