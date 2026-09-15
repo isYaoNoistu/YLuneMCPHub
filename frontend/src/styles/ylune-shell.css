@@ -45,6 +45,127 @@
   color: var(--color-accent);
 }
 
+.hub-actions-trigger[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.hub-actions-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 196px;
+  max-width: calc(100vw - 24px);
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--color-text) 14%, var(--color-border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg));
+  box-shadow:
+    0 18px 46px rgb(0 0 0 / 18%),
+    0 3px 10px rgb(0 0 0 / 8%);
+  transform-origin: top right;
+  animation: hub-actions-menu-in var(--dur-fast) var(--ease-out);
+}
+
+.hub-actions-menu-section + .hub-actions-menu-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+}
+
+.hub-actions-menu-label {
+  display: block;
+  padding: 4px 9px 5px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hub-actions-menu-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hub-actions-menu-item svg {
+  color: var(--color-muted);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.hub-actions-menu-item:hover {
+  background: var(--color-surface-2);
+}
+
+.hub-actions-menu-item:hover svg {
+  color: var(--color-accent);
+}
+
+.hub-actions-menu-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  background: var(--color-accent-soft);
+}
+
+.hub-actions-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hub-actions-menu-section.is-danger {
+  margin-top: 8px;
+  padding: 5px 4px 4px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 24%, var(--color-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-danger) 5%, transparent);
+}
+
+.hub-actions-menu-section.is-danger .hub-actions-menu-label,
+.hub-actions-menu-item.is-danger,
+.hub-actions-menu-item.is-danger svg {
+  color: var(--color-danger);
+}
+
+.hub-actions-menu-item.is-danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+@keyframes hub-actions-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-actions-menu {
+    animation: none;
+  }
+}
+
 html,
 body,
 #root {

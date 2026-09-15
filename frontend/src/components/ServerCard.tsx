@@ -145,6 +145,19 @@ const ServerCard = ({
     setShowMenu((value) => !value);
   };
 
+  const handleMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Escape' || !showMenu) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    setShowMenu(false);
+    menuRef.current?.querySelector<HTMLButtonElement>('.hub-actions-trigger')?.focus();
+  };
+
+  const handleMenuBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setShowMenu(false);
+  };
+
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(false);
@@ -745,11 +758,20 @@ const ServerCard = ({
           </div>
 
           {/* Menu */}
-          <div className="relative" ref={menuRef}>
+          <div
+            className="relative"
+            ref={menuRef}
+            onKeyDown={handleMenuKeyDown}
+            onBlur={handleMenuBlur}
+          >
             {canManage && (
               <ActionsMenu
                 showMenu={showMenu}
                 labels={{
+                  actions: t('common.actions'),
+                  configuration: t('server.actionsConfiguration'),
+                  connection: t('server.actionsConnection'),
+                  danger: t('server.actionsDanger'),
                   edit: t('server.edit'),
                   copy: t('server.copy'),
                   clone: t('server.clone'),

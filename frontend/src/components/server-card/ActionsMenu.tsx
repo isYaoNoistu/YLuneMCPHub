@@ -1,5 +1,6 @@
 import {
   Copy,
+  CopyPlus,
   DownloadCloud,
   Edit3,
   LogOut,
@@ -8,9 +9,14 @@ import {
   Trash2,
   Wrench,
 } from 'lucide-react';
+import { useId } from 'react';
 import type { MouseEventHandler } from 'react';
 
 interface ActionsMenuLabels {
+  actions: string;
+  configuration: string;
+  connection: string;
+  danger: string;
   edit: string;
   copy: string;
   clone: string;
@@ -63,86 +69,89 @@ const ActionsMenu = ({
   onRequestReinstall,
   onRequestOAuthDisconnect,
   onDelete,
-}: ActionsMenuProps) => (
-  <>
-    <button className="hub-icon-btn" onClick={onToggleMenu} aria-label="More">
-      <MoreHorizontal size={14} />
-    </button>
-    {showMenu && (
-      <div
-        className="absolute right-0 top-full mt-1 z-20 hub-card"
-        style={{ minWidth: 160, padding: 4 }}
-        onClick={(e) => e.stopPropagation()}
+}: ActionsMenuProps) => {
+  const panelId = useId();
+
+  return (
+    <>
+      <button
+        className="hub-icon-btn hub-actions-trigger"
+        onClick={onToggleMenu}
+        aria-label={labels.actions}
+        aria-expanded={showMenu}
+        aria-controls={panelId}
       >
-        <button
-          onClick={onEdit}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-          style={{ color: 'var(--hub-ink)' }}
+        <MoreHorizontal size={14} />
+      </button>
+      {showMenu && (
+        <div
+          id={panelId}
+          className="hub-actions-menu"
+          role="group"
+          aria-label={labels.actions}
+          onClick={(e) => e.stopPropagation()}
         >
-          <Edit3 size={13} /> {labels.edit}
-        </button>
-        <button
-          onClick={onCopyConfig}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-          style={{ color: 'var(--hub-ink)' }}
-        >
-          <Copy size={13} /> {labels.copy}
-        </button>
-        <button
-          onClick={onClone}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-          style={{ color: 'var(--hub-ink)' }}
-        >
-          <Copy size={13} /> {labels.clone}
-        </button>
-        <button
-          onClick={onPreflight}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-          style={{ color: 'var(--hub-ink)' }}
-        >
-          <Wrench size={13} /> {labels.envPreflight}
-        </button>
-        {hasReload && (
-          <button
-            onClick={onReload}
-            disabled={isReloading || isToggling || !enabled}
-            className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ color: 'var(--hub-ink)' }}
+          <div className="hub-actions-menu-section" role="group" aria-label={labels.configuration}>
+            <span className="hub-actions-menu-label">{labels.configuration}</span>
+            <button onClick={onEdit} className="hub-actions-menu-item">
+              <Edit3 size={14} /> <span>{labels.edit}</span>
+            </button>
+            <button onClick={onCopyConfig} className="hub-actions-menu-item">
+              <Copy size={14} /> <span>{labels.copy}</span>
+            </button>
+            <button onClick={onClone} className="hub-actions-menu-item">
+              <CopyPlus size={14} /> <span>{labels.clone}</span>
+            </button>
+          </div>
+
+          <div className="hub-actions-menu-section" role="group" aria-label={labels.connection}>
+            <span className="hub-actions-menu-label">{labels.connection}</span>
+            <button onClick={onPreflight} className="hub-actions-menu-item">
+              <Wrench size={14} /> <span>{labels.envPreflight}</span>
+            </button>
+            {hasReload && (
+              <button
+                onClick={onReload}
+                disabled={isReloading || isToggling || !enabled}
+                className="hub-actions-menu-item"
+              >
+                <RefreshCw size={14} /> <span>{labels.reload}</span>
+              </button>
+            )}
+            {hasReinstall && (
+              <button
+                onClick={onRequestReinstall}
+                disabled={isReinstalling || isToggling || !enabled}
+                className="hub-actions-menu-item"
+              >
+                <DownloadCloud size={14} /> <span>{labels.reinstall}</span>
+              </button>
+            )}
+            {hasOAuthDisconnect && (
+              <button
+                onClick={onRequestOAuthDisconnect}
+                disabled={isDisconnectingOAuth}
+                className="hub-actions-menu-item"
+              >
+                <LogOut size={14} /> <span>{labels.disconnectOAuth}</span>
+              </button>
+            )}
+          </div>
+
+          <div
+            className="hub-actions-menu-section is-danger"
+            role="group"
+            aria-label={labels.danger}
           >
-            <RefreshCw size={13} /> {labels.reload}
-          </button>
-        )}
-        {hasReinstall && (
-          <button
-            onClick={onRequestReinstall}
-            disabled={isReinstalling || isToggling || !enabled}
-            className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ color: 'var(--hub-ink)' }}
-          >
-            <DownloadCloud size={13} /> {labels.reinstall}
-          </button>
-        )}
-        {hasOAuthDisconnect && (
-          <button
-            onClick={onRequestOAuthDisconnect}
-            disabled={isDisconnectingOAuth}
-            className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ color: 'var(--hub-ink)' }}
-          >
-            <LogOut size={13} /> {labels.disconnectOAuth}
-          </button>
-        )}
-        <div style={{ height: 1, background: 'var(--hub-line-2)', margin: '4px 0' }} />
-        <button
-          onClick={onDelete}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-          style={{ color: 'var(--hub-err)' }}
-        >
-          <Trash2 size={13} /> {labels.delete}
-        </button>
-      </div>
-    )}
-  </>
-);
+            <span className="hub-actions-menu-label">{labels.danger}</span>
+            <button onClick={onDelete} className="hub-actions-menu-item is-danger">
+              <Trash2 size={14} /> <span>{labels.delete}</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default ActionsMenu;
