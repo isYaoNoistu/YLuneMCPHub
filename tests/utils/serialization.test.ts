@@ -158,6 +158,15 @@ describe('serialization utilities', () => {
     expect(sanitizeStringForLogging(token)).toBe('[REDACTED]');
   });
 
+  it('redacts caller-provided credential literals even without a key= shape', () => {
+    expect(
+      sanitizeStringForLogging('authentication failed: actual-token-a', ['actual-token-a']),
+    ).toBe('authentication failed: [REDACTED]');
+    expect(
+      formatErrorForLogging(new Error('Credential rejected: actual-token-b'), ['actual-token-b']),
+    ).not.toContain('actual-token-b');
+  });
+
   it('redacts OAuth error response fields that may carry tokens', () => {
     const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
     const rawJson = `{"error":"invalid_token","error_description":"expired ${jwt}","error_uri":"https://auth.example.com/debug?token=${jwt}","error_code":"${jwt}","codeVerifier":"pkce-secret"}`;

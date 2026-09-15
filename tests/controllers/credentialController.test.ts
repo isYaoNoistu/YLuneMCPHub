@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 const listCredentials = jest.fn();
 const createCredential = jest.fn();
 const listCredentialEditPairs = jest.fn();
+const updateCredential = jest.fn();
 
 jest.mock('../../src/utils/requireAdmin.js', () => ({
   requireAdmin: jest.fn(async () => true),
@@ -23,7 +24,7 @@ jest.mock('../../src/services/credentialService.js', () => ({
   listCredentials,
   replaceCredentialSecret: jest.fn(),
   testCredential: jest.fn(),
-  updateCredential: jest.fn(),
+  updateCredential,
 }));
 
 jest.mock('../../src/services/adminAuditService.js', () => ({
@@ -43,7 +44,8 @@ jest.mock('../../src/services/mcpService.js', () => ({
   invalidateCredentialClients: jest.fn(),
 }));
 
-import { createNewCredential, getCredentials, getCredentialValues } from '../../src/controllers/credentialController.js';
+import { invalidateCredentialClients } from '../../src/services/mcpService.js';
+import { createNewCredential, getCredentials, getCredentialValues, updateExistingCredential } from '../../src/controllers/credentialController.js';
 import { MasterKeyMissingError } from '../../src/utils/secretBox.js';
 
 const makeRes = () => {
@@ -119,5 +121,21 @@ describe('credentialController', () => {
       }),
     );
     expect(JSON.stringify(res.json.mock.calls[0][0])).not.toContain('s3cret');
+  });
+
+  it('invalidates runtime clients when a credential is disabled', async () => {
+    updateCredential.mockResolvedValue({
+      id: 'c1',
+      name: 'prod-pg',
+      enabled: false,
+      keys: ['PGPASSWORD'],
+      secretConfigured: true,
+    });
+    const res = makeRes();
+    await updateExistingCredential(
+      { params: { id: 'c1' }, body: { enabled: false } } as unknown as Request,
+      res,
+    );
+    expect(invalidateCredentialClients).toHaveBeenCalledWith({ credentialId: 'c1' });
   });
 });

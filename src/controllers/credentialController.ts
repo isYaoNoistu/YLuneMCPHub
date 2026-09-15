@@ -107,6 +107,9 @@ export const updateExistingCredential = async (req: Request, res: Response): Pro
       sendPublic(res, 404, { success: false, message: 'Credential not found' });
       return;
     }
+    if (req.body?.enabled === false) {
+      invalidateCredentialClients({ credentialId: updated.id });
+    }
     sendPublic(res, 200, { success: true, data: updated });
   } catch (error) {
     handleCredentialError(res, error);

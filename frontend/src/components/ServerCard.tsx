@@ -38,8 +38,8 @@ import {
   normalizeServerVisibility,
 } from '@/utils/serverVisibility';
 import { getHubBaseUrl } from '@/utils/userMcpConfig';
-import { cloneServer, getServerEnvPreflight } from '@/services/opsService';
-import { EnvPreflightItem } from '@/types';
+import { cloneServer } from '@/services/opsService';
+import ConnectionPreflightDialog from '@/components/server-card/ConnectionPreflightDialog';
 import { useServerData } from '@/hooks/useServerData';
 
 const uniqueCopyName = (base: string, taken: string[]): string => {
@@ -110,7 +110,7 @@ const ServerCard = ({
   const [showMenu, setShowMenu] = useState(false);
   const [cloneName, setCloneName] = useState('');
   const [showClone, setShowClone] = useState(false);
-  const [preflight, setPreflight] = useState<EnvPreflightItem[] | null>(null);
+  const [showPreflight, setShowPreflight] = useState(false);
   const [showErrorPopover, setShowErrorPopover] = useState(false);
   const [copiedError, setCopiedError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -163,11 +163,10 @@ const ServerCard = ({
     setShowClone(true);
   };
 
-  const handlePreflight = async (e: React.MouseEvent) => {
+  const handlePreflight = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(false);
-    const result = await getServerEnvPreflight(server.name);
-    setPreflight(result?.data?.variables || []);
+    setShowPreflight(true);
   };
 
   const handleRequestReinstall = (e: React.MouseEvent) => {
@@ -754,7 +753,7 @@ const ServerCard = ({
                   edit: t('server.edit'),
                   copy: t('server.copy'),
                   clone: t('server.clone'),
-                  envPreflight: t('server.envPreflight'),
+                  envPreflight: t('server.connectionPreflight'),
                   reload: t('server.reload'),
                   reinstall: t('server.reinstall'),
                   disconnectOAuth: t('server.disconnectOAuth'),
@@ -981,35 +980,13 @@ const ServerCard = ({
         </div>
       )}
 
-      {preflight && (
-        <div className="ylune-dialog-backdrop" onClick={(e) => e.stopPropagation()}>
-          <div className="ylune-dialog">
-            <div className="ylune-dialog-head">
-              <h2 className="ylune-dialog-title">{t('server.envPreflight')} · {server.name}</h2>
-            </div>
-            <div className="ylune-dialog-body">
-              <p className="ylune-help" style={{ marginTop: 0 }}>
-                {t('server.envPreflightHint')}
-              </p>
-              {preflight.length === 0 ? (
-                <p className="ylune-help">{t('server.envPreflightEmpty')}</p>
-              ) : (
-                <ul className="grant-preview-list">
-                  {preflight.map((item) => (
-                    <li key={item.name}>
-                      {item.name}: {item.resolved ? t('server.envResolved') : t('server.envMissing')}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="ylune-dialog-foot">
-              <button type="button" className="hub-btn" onClick={() => setPreflight(null)}>
-                {t('common.close')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showPreflight && (
+        <ConnectionPreflightDialog
+          serverName={server.name}
+          open={showPreflight}
+          onClose={() => setShowPreflight(false)}
+          onServerChanged={onRefresh}
+        />
       )}
     </>
   );

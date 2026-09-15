@@ -72,7 +72,10 @@ const isSensitiveLogKey = (key: string): boolean => {
   );
 };
 
-export const sanitizeStringForLogging = (value: string): string => {
+export const sanitizeStringForLogging = (
+  value: string,
+  extraSecrets: Iterable<string> = [],
+): string => {
   let sanitized = value;
 
   sanitized = sanitized.replace(AUTHORIZATION_CREDENTIAL_RE, `$1${REDACTED_VALUE}`);
@@ -82,6 +85,15 @@ export const sanitizeStringForLogging = (value: string): string => {
   sanitized = sanitized.replace(SENSITIVE_EQUALS_RE, `$1${REDACTED_VALUE}`);
   sanitized = sanitized.replace(SENSITIVE_JSON_DOUBLE_QUOTE_RE, `$1${REDACTED_VALUE}$3`);
   sanitized = sanitized.replace(SENSITIVE_JSON_SINGLE_QUOTE_RE, `$1${REDACTED_VALUE}$3`);
+
+  const literals = [...extraSecrets]
+    .filter((secret) => typeof secret === 'string' && secret.length >= 4)
+    .sort((left, right) => right.length - left.length);
+  for (const secret of literals) {
+    if (secret && sanitized.includes(secret)) {
+      sanitized = sanitized.split(secret).join(REDACTED_VALUE);
+    }
+  }
 
   return sanitized;
 };
@@ -229,7 +241,10 @@ export const summarizeErrorForLogging = (error: unknown): Record<string, unknown
   };
 };
 
-export const formatErrorForLogging = (error: unknown): string => {
+export const formatErrorForLogging = (
+  error: unknown,
+  extraSecrets: Iterable<string> = [],
+): string => {
   const summary = summarizeErrorForLogging(error);
   const parts: string[] = [];
 
@@ -252,7 +267,7 @@ export const formatErrorForLogging = (error: unknown): string => {
     parts.push(`Upstream stderr:\n${summary.upstreamStderr}`);
   }
 
-  return parts.join(' | ') || 'Unknown error';
+  return sanitizeStringForLogging(parts.join(' | ') || 'Unknown error', extraSecrets);
 };
 
 const CIRCULAR_REFERENCE = '[Circular Reference]';

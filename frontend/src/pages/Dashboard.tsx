@@ -165,6 +165,77 @@ const DashboardPage: React.FC = () => {
     return { text: t('status.offline'), tone: 'err' as const };
   };
 
+  const summaryCards = isAdmin
+    ? [
+        {
+          label: t('pages.dashboard.healthSummary'),
+          value: `${stats.online}/${stats.total}`,
+          note: t('pages.dashboard.offlineNow', { count: stats.offline }),
+        },
+        {
+          label: t('server.tools'),
+          value: String(stats.tools),
+          note: t('cost.totalFootprint'),
+        },
+        {
+          label: t('pages.dashboard.todayCalls'),
+          value: todayUsage ? String(todayUsage.count) : '—',
+          note: todayUsage
+            ? `${t('pages.dashboard.todayErrors')} ${todayUsage.errors}`
+            : t('pages.dashboard.noCalls'),
+        },
+        {
+          label: t('pages.dashboard.weekCalls'),
+          value: weekCalls == null ? '—' : String(weekCalls),
+          note: t('pages.dashboard.last7Days'),
+        },
+      ]
+    : isDemo
+      ? [
+          {
+            label: t('pages.dashboard.onlineServers'),
+            value: `${stats.online}/${stats.total}`,
+            note: t('pages.dashboard.offlineServers'),
+          },
+          {
+            label: t('server.tools'),
+            value: String(stats.tools),
+            note: t('pages.dashboard.disabledServers'),
+          },
+          {
+            label: t('pages.dashboard.offlineServers'),
+            value: String(stats.offline),
+            note: t('status.offline'),
+          },
+          {
+            label: t('pages.dashboard.disabledServers'),
+            value: String(stats.disabled),
+            note: t('pages.dashboard.totalServers'),
+          },
+        ]
+      : [
+          {
+            label: t('pages.dashboard.myServers'),
+            value: String(myGrants.length),
+            note: t('pages.dashboard.grantedTools'),
+          },
+          {
+            label: t('pages.dashboard.grantedTools'),
+            value: myGrants.length === 0 ? '—' : String(myToolCount),
+            note: t('pages.dashboard.allToolsOnServer'),
+          },
+          {
+            label: t('pages.dashboard.tokenRemaining'),
+            value: sessionUser ? tokenRemainingLabel(sessionUser, t) : '—',
+            note: t('pages.dashboard.lastCalledAt'),
+          },
+          {
+            label: t('pages.dashboard.lastCalledAt'),
+            value: formatWhen(sessionUser?.lastCalledAt),
+            note: t('pages.dashboard.createdAt'),
+          },
+        ];
+
   return (
     <section className="hub-page-stack" aria-labelledby="dashboardTitle">
       <div className="hub-page-head">
@@ -205,180 +276,96 @@ const DashboardPage: React.FC = () => {
         </p>
       )}
 
-      <div className="stat-grid">
-        {(showSkeleton ? Array.from({ length: 4 }) : [0]).map((_, i) =>
-          showSkeleton ? <div key={i} className="stat-card" style={{ minHeight: 88 }} /> : null,
-        )}
-        {!showSkeleton && (
-          <>
-            <article className="stat-card">
-              <div className="stat-num">
-                {stats.online}
-                <i>/{stats.total}</i>
-              </div>
-              <div className="stat-label">{t('pages.dashboard.onlineServers')}</div>
-              <p className="stat-note mono">
-                OFF {stats.offline} · CONN {stats.connecting} · OFFX {stats.disabled}
-              </p>
-            </article>
-            <article className="stat-card">
-              <div className="stat-num">{stats.tools}</div>
-              <div className="stat-label">{t('server.tools')}</div>
-              <p className="stat-note mono">EXPOSED TOOLS</p>
-            </article>
-            <article className="stat-card">
-              <div className="stat-num">{formatTokens(footprint)}</div>
-              <div className="stat-label">{t('cost.totalFootprint')}</div>
-              <p className="stat-note mono">CONTEXT TOKENS</p>
-            </article>
-            {!isDemo && (
-              <article className="stat-card">
-                <div className="stat-num">{users.length}</div>
-                <div className="stat-label">{t('pages.dashboard.usersStat')}</div>
-                <p className="stat-note mono">
-                  {t('pages.dashboard.usersStatNote', {
-                    admins: stats.admins,
-                    regulars: stats.regulars,
-                  })}
-                </p>
+      <div className="dash-summary-grid">
+        {showSkeleton
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <article key={index} className="dash-summary-card is-skeleton" />
+            ))
+          : summaryCards.map((card) => (
+              <article key={card.label} className="dash-summary-card">
+                <span className="dash-summary-label">{card.label}</span>
+                <b className="dash-summary-value hub-mono">{card.value}</b>
+                <span className="dash-summary-note">{card.note}</span>
               </article>
-            )}
-          </>
-        )}
+            ))}
       </div>
 
-      <div className="dash-hero">
-        {isAdmin ? (
-          <article className="dash-session">
-            <header className="dash-identity">
-              <div>
-                <p className="dash-identity-kicker">{t('pages.dashboard.snapshotTitle')}</p>
-                <h2>{t('pages.dashboard.snapshotHeading')}</h2>
-              </div>
-            </header>
-            <p className="ylune-help dash-identity-hint">{t('pages.dashboard.snapshotHint')}</p>
+      <div className="dash-overview-grid">
+        <article className="dash-card">
+          <header className="dash-card-head">
+            <h2>{isAdmin ? t('pages.dashboard.operationsTitle') : t('pages.dashboard.sessionTitle')}</h2>
+            {isAdmin ? (
+              <span className="hub-num hub-mono">
+                {stats.online}/{stats.total}
+              </span>
+            ) : (
+              <span className="hub-tag muted">{isDemo ? t('users.roleDemo') : t('users.user')}</span>
+            )}
+          </header>
+          <p className="ylune-help dash-card-hint">
+            {isAdmin
+              ? t('pages.dashboard.snapshotHint')
+              : isDemo
+                ? t('pages.dashboard.youAreDemo')
+                : t('pages.dashboard.youAreUser')}
+          </p>
 
-            <div className="dash-snapshot">
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.todayCalls')}</span>
-                <b className="hub-num">{todayUsage ? todayUsage.count : '—'}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.todayErrors')}</span>
-                <b className={`hub-num${todayUsage && todayUsage.errors > 0 ? ' is-warn' : ''}`}>
-                  {todayUsage ? todayUsage.errors : '—'}
-                </b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.weekCalls')}</span>
-                <b className="hub-num">{weekCalls ?? '—'}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.offlineServers')}</span>
-                <b className={`hub-num${stats.offline > 0 ? ' is-warn' : ''}`}>{stats.offline}</b>
-              </div>
-              <div className="dash-snapshot-item is-wide">
-                <span>{t('pages.dashboard.lastFailure')}</span>
-                {lastFailure ? (
-                  <b className="is-err" title={`${lastFailure.tool} · ${lastFailure.errorMessage || ''}`}>
-                    {lastFailure.tool}
-                    {lastFailure.errorMessage ? ` · ${lastFailure.errorMessage}` : ''}
+          <div className="dash-snapshot">
+            {isAdmin && (
+              <>
+                <div className="dash-snapshot-item">
+                  <span>{t('pages.dashboard.offlineServers')}</span>
+                  <b className={`hub-num${stats.offline > 0 ? ' is-warn' : ''}`}>{stats.offline}</b>
+                </div>
+                <div className="dash-snapshot-item">
+                  <span>{t('cost.totalFootprint')}</span>
+                  <b className="hub-num">{formatTokens(footprint)}</b>
+                </div>
+                <div className="dash-snapshot-item is-wide">
+                  <span>{t('pages.dashboard.lastFailure')}</span>
+                  {lastFailure ? (
+                    <b className="is-err" title={`${lastFailure.tool} · ${lastFailure.errorMessage || ''}`}>
+                      {lastFailure.tool}
+                      {lastFailure.errorMessage ? ` · ${lastFailure.errorMessage}` : ''}
+                    </b>
+                  ) : (
+                    <b>{usageNote || t('pages.dashboard.noFailure')}</b>
+                  )}
+                </div>
+              </>
+            )}
+            {!isAdmin && !isDemo && (
+              <>
+                <div className="dash-snapshot-item">
+                  <span>{t('pages.dashboard.tokenRemaining')}</span>
+                  <b className={sessionUser && isExpiredUser(sessionUser) ? 'is-err' : undefined}>
+                    {sessionUser ? tokenRemainingLabel(sessionUser, t) : '—'}
                   </b>
-                ) : (
-                  <b>{usageNote || t('pages.dashboard.noFailure')}</b>
-                )}
-              </div>
-            </div>
+                </div>
+                <div className="dash-snapshot-item">
+                  <span>{t('pages.dashboard.createdAt')}</span>
+                  <b>{formatWhen(sessionUser?.createdAt)}</b>
+                </div>
+              </>
+            )}
+          </div>
 
+          {!isDemo && (
             <div className="dash-endpoint">
               <span>{t('pages.dashboard.mcpEndpoint')}</span>
               <code>{mcpEndpoint}</code>
             </div>
-          </article>
-        ) : isDemo ? (
-          <article className="dash-session">
-            <header className="dash-identity">
-              <div>
-                <p className="dash-identity-kicker">{t('pages.dashboard.sessionTitle')}</p>
-                <h2 className="hub-mono">{username || 'demo'}</h2>
-              </div>
-              <span className="hub-tag muted">{t('users.roleDemo')}</span>
-            </header>
-            <p className="ylune-help dash-identity-hint">{t('pages.dashboard.youAreDemo')}</p>
-            <div className="dash-snapshot">
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.onlineServers')}</span>
-                <b className="hub-num">
-                  {stats.online}/{stats.total}
-                </b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('server.tools')}</span>
-                <b className="hub-num">{stats.tools}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.offlineServers')}</span>
-                <b className={`hub-num${stats.offline > 0 ? ' is-warn' : ''}`}>{stats.offline}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.disabledServers')}</span>
-                <b className="hub-num">{stats.disabled}</b>
-              </div>
-            </div>
-          </article>
-        ) : (
-          <article className="dash-session">
-            <header className="dash-identity">
-              <div>
-                <p className="dash-identity-kicker">{t('pages.dashboard.sessionTitle')}</p>
-                <h2 className="hub-mono">{username || 'user'}</h2>
-              </div>
-              <span className="hub-tag muted">{t('users.user')}</span>
-            </header>
-            <p className="ylune-help dash-identity-hint">{t('pages.dashboard.youAreUser')}</p>
+          )}
 
-            <div className="dash-snapshot">
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.myServers')}</span>
-                <b className="hub-num">{myGrants.length}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.grantedTools')}</span>
-                <b className="hub-num">{myGrants.length === 0 ? '—' : myToolCount}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.tokenRemaining')}</span>
-                <b className={sessionUser && isExpiredUser(sessionUser) ? 'is-err' : undefined}>
-                  {sessionUser ? tokenRemainingLabel(sessionUser, t) : '—'}
-                </b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.lastCalledAt')}</span>
-                <b>{formatWhen(sessionUser?.lastCalledAt)}</b>
-              </div>
-              <div className="dash-snapshot-item">
-                <span>{t('pages.dashboard.createdAt')}</span>
-                <b>{formatWhen(sessionUser?.createdAt)}</b>
-              </div>
+          <div className="dash-roster">
+            <div className="dash-roster-head">
+              <h3>{isAdmin || isDemo ? t('pages.dashboard.serversNow') : t('pages.dashboard.myServers')}</h3>
+              <span className="hub-num hub-mono">
+                {isAdmin || isDemo ? `${stats.online}/${stats.total}` : myGrants.length}
+              </span>
             </div>
-
-            <div className="dash-endpoint">
-              <span>{t('pages.dashboard.mcpEndpoint')}</span>
-              <code>{mcpEndpoint}</code>
-            </div>
-          </article>
-        )}
-
-        {isAdmin || isDemo ? (
-          <div className="dash-stack">
-            <article className="dash-roster">
-              <div className="dash-roster-head">
-                <h3>{t('pages.dashboard.serversNow')}</h3>
-                <span className="hub-num hub-mono">
-                  {stats.online}/{stats.total}
-                </span>
-              </div>
-              {allServers.length === 0 ? (
+            {isAdmin || isDemo ? (
+              allServers.length === 0 ? (
                 <div className="dash-empty">
                   <strong>{t('pages.dashboard.noServersYet')}</strong>
                 </div>
@@ -395,82 +382,15 @@ const DashboardPage: React.FC = () => {
                           <i className="hub-dot" />
                           {status.text}
                         </span>
-                        <span className="hub-num hub-mono" style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+                        <span className="dash-roster-count hub-mono">
                           {server.tools?.length || 0} {t('server.tools')}
                         </span>
                       </div>
                     </div>
                   );
                 })
-              )}
-            </article>
-
-            {isAdmin && (
-            <article className="dash-roster is-users">
-              <div className="dash-roster-head">
-                <h3>{t('pages.dashboard.usersNow')}</h3>
-                <span className="hub-num hub-mono">{users.length}</span>
-              </div>
-              {users.length === 0 ? (
-                <div className="dash-empty">
-                  <strong>{t('pages.dashboard.noOtherUsers')}</strong>
-                </div>
-              ) : (
-                users.map((user) => {
-                  const expired = isExpiredUser(user);
-                  return (
-                    <div key={user.username} className={`dash-roster-row is-user${expired ? ' is-expired' : ''}`}>
-                      <div className="dash-user-top">
-                        <span className="dash-roster-name hub-mono">
-                          {user.username}
-                          {user.username === username ? (
-                            <span className="hub-tag accent" style={{ fontSize: 10, marginLeft: 8 }}>
-                              {t('users.currentUser')}
-                            </span>
-                          ) : null}
-                          {user.isAdmin ? (
-                            <span className="hub-tag muted" style={{ fontSize: 10, marginLeft: 6 }}>
-                              {t('users.admin')}
-                            </span>
-                          ) : null}
-                          {expired ? (
-                            <span className="hub-tag muted" style={{ fontSize: 10, marginLeft: 6 }}>
-                              {t('users.tokenExpired')}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="hub-num hub-mono" style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-                          {user.isAdmin
-                            ? t('pages.dashboard.adminAccess')
-                            : t('pages.dashboard.grantCount', { count: user.grants?.length || 0 })}
-                        </span>
-                      </div>
-                      <div className="dash-user-times">
-                        <span>
-                          {t('pages.dashboard.tokenRemaining')} ·{' '}
-                          <b className={expired ? 'is-err' : undefined}>{tokenRemainingLabel(user, t)}</b>
-                        </span>
-                        <span>
-                          {t('pages.dashboard.lastCalledAt')} · {formatWhen(user.lastCalledAt)}
-                        </span>
-                        <span>
-                          {t('pages.dashboard.createdAt')} · {formatWhen(user.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </article>
-            )}
-          </div>
-        ) : (
-          <article className="dash-roster">
-            <div className="dash-roster-head">
-              <h3>{t('pages.dashboard.myServers')}</h3>
-              <span className="hub-num hub-mono">{myGrants.length}</span>
-            </div>
-            {myGrants.length === 0 ? (
+              )
+            ) : myGrants.length === 0 ? (
               <div className="dash-empty">
                 <strong>{t('pages.dashboard.noGrantsYet')}</strong>
               </div>
@@ -490,13 +410,33 @@ const DashboardPage: React.FC = () => {
                         <i className="hub-dot" />
                         {status.text}
                       </span>
-                      <span className="hub-num hub-mono" style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-                        {grantToolsLabel(grant)}
-                      </span>
+                      <span className="dash-roster-count hub-mono">{grantToolsLabel(grant)}</span>
                     </div>
                   </div>
                 );
               })
+            )}
+          </div>
+        </article>
+
+        {isAdmin && (
+          <article className="dash-card">
+            <header className="dash-card-head">
+              <h2>{t('pages.dashboard.trendTitle')}</h2>
+              <span className="hub-num hub-mono">{weekCalls ?? '—'}</span>
+            </header>
+            {usageNote && <p className="dash-muted">{usageNote}</p>}
+            {usage ? (
+              <UsageLineChart
+                days={usage.days}
+                ariaLabel={t('pages.dashboard.last7Days')}
+                callsLabel={t('pages.dashboard.usageCalls')}
+                errorsLabel={t('pages.dashboard.usageErrors')}
+              />
+            ) : (
+              <div className="dash-empty">
+                <strong>{t('pages.dashboard.noCalls')}</strong>
+              </div>
             )}
           </article>
         )}
@@ -504,97 +444,125 @@ const DashboardPage: React.FC = () => {
 
       {isAdmin && (
         <>
-          <div className="dash-section-head">
-            <h2 className="block-title mono">// {t('pages.dashboard.usageTitle')}</h2>
-          </div>
-          {usageNote && <p className="dash-muted">{usageNote}</p>}
-          {usage && (
-            <>
-              <div className="dash-days">
-                <UsageLineChart
-                  days={usage.days}
-                  ariaLabel={t('pages.dashboard.last7Days')}
-                  callsLabel={t('pages.dashboard.usageCalls')}
-                  errorsLabel={t('pages.dashboard.usageErrors')}
-                />
-              </div>
-              <div className="dash-charts">
-                <article className="dash-chart">
-                  <h3>{t('pages.dashboard.toolCalls')}</h3>
-                  {usage.tools.length === 0 ? (
-                    <div className="dash-empty">
-                      <strong>{t('pages.dashboard.noCalls')}</strong>
-                      {t('pages.dashboard.emptyUsageHint')}
-                    </div>
-                  ) : (
-                    usage.tools.map((item) => (
-                      <div key={item.name} className="dash-bar-row">
-                        <span className="dash-bar-label" title={item.name}>
-                          {item.name}
-                        </span>
-                        <div className="dash-bar-track">
-                          <div
-                            className="dash-bar-fill"
-                            style={{ width: `${(item.count / maxTool) * 100}%` }}
-                          />
-                        </div>
-                        <span className="dash-bar-num mono">
-                          {item.count}
-                          {item.errors > 0 ? <i> /{item.errors}</i> : null}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </article>
-                <article className="dash-chart">
-                  <h3>{t('pages.dashboard.userCalls')}</h3>
-                  {usage.users.length === 0 ? (
-                    <div className="dash-empty">
-                      <strong>{t('pages.dashboard.noCalls')}</strong>
-                      {t('pages.dashboard.emptyUsageHint')}
-                    </div>
-                  ) : (
-                    usage.users.map((item) => (
-                      <div key={item.name} className="dash-bar-row">
-                        <span className="dash-bar-label" title={item.name}>
-                          {item.name}
-                        </span>
-                        <div className="dash-bar-track">
-                          <div
-                            className="dash-bar-fill is-user"
-                            style={{ width: `${(item.count / maxUser) * 100}%` }}
-                          />
-                        </div>
-                        <span className="dash-bar-num mono">
-                          {item.count}
-                          {item.errors > 0 ? <i> /{item.errors}</i> : null}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </article>
-              </div>
-              <h2 className="block-title mono">// {t('pages.dashboard.recentErrors')}</h2>
-              {usage.recentErrors.length === 0 ? (
-                <div className="dash-errors is-empty">
-                  <p className="dash-muted" style={{ margin: 0 }}>
-                    {t('pages.dashboard.noRecentErrors')}
-                  </p>
+          <div className="dash-detail-grid">
+            <article className="dash-card">
+              <header className="dash-card-head">
+                <h2>{t('pages.dashboard.toolCalls')}</h2>
+              </header>
+              {!usage || usage.tools.length === 0 ? (
+                <div className="dash-empty">
+                  <strong>{t('pages.dashboard.noCalls')}</strong>
+                  {t('pages.dashboard.emptyUsageHint')}
                 </div>
               ) : (
-                <ul className="dash-errors">
-                  {usage.recentErrors.map((item) => (
-                    <li key={item.id}>
-                      <span className="mono">{new Date(item.timestamp).toLocaleString()}</span>
-                      <strong>{item.tool}</strong>
-                      <span>{item.username || '—'}</span>
-                      <span className="dash-error-msg">{item.errorMessage || t('activity.statusError')}</span>
-                    </li>
-                  ))}
-                </ul>
+                usage.tools.map((item) => (
+                  <div key={item.name} className="dash-bar-row">
+                    <span className="dash-bar-label" title={item.name}>
+                      {item.name}
+                    </span>
+                    <div className="dash-bar-track">
+                      <div className="dash-bar-fill" style={{ width: `${(item.count / maxTool) * 100}%` }} />
+                    </div>
+                    <span className="dash-bar-num hub-mono">
+                      {item.count}
+                      {item.errors > 0 ? <i> /{item.errors}</i> : null}
+                    </span>
+                  </div>
+                ))
               )}
-            </>
+            </article>
+            <article className="dash-card">
+              <header className="dash-card-head">
+                <h2>{t('pages.dashboard.userCalls')}</h2>
+              </header>
+              {!usage || usage.users.length === 0 ? (
+                <div className="dash-empty">
+                  <strong>{t('pages.dashboard.noCalls')}</strong>
+                  {t('pages.dashboard.emptyUsageHint')}
+                </div>
+              ) : (
+                usage.users.map((item) => (
+                  <div key={item.name} className="dash-bar-row">
+                    <span className="dash-bar-label" title={item.name}>
+                      {item.name}
+                    </span>
+                    <div className="dash-bar-track">
+                      <div
+                        className="dash-bar-fill is-user"
+                        style={{ width: `${(item.count / maxUser) * 100}%` }}
+                      />
+                    </div>
+                    <span className="dash-bar-num hub-mono">
+                      {item.count}
+                      {item.errors > 0 ? <i> /{item.errors}</i> : null}
+                    </span>
+                  </div>
+                ))
+              )}
+            </article>
+          </div>
+
+          {isAdmin && users.length > 0 && (
+            <article className="dash-card">
+              <header className="dash-card-head">
+                <h2>{t('pages.dashboard.usersNow')}</h2>
+                <span className="hub-num hub-mono">{users.length}</span>
+              </header>
+              {users.map((user) => {
+                const expired = isExpiredUser(user);
+                return (
+                  <div key={user.username} className={`dash-roster-row is-user${expired ? ' is-expired' : ''}`}>
+                    <div className="dash-user-top">
+                      <span className="dash-roster-name hub-mono">
+                        {user.username}
+                        {user.username === username ? (
+                          <span className="hub-tag accent">{t('users.currentUser')}</span>
+                        ) : null}
+                        {user.isAdmin ? <span className="hub-tag muted">{t('users.admin')}</span> : null}
+                        {expired ? <span className="hub-tag muted">{t('users.tokenExpired')}</span> : null}
+                      </span>
+                      <span className="dash-roster-count hub-mono">
+                        {user.isAdmin
+                          ? t('pages.dashboard.adminAccess')
+                          : t('pages.dashboard.grantCount', { count: user.grants?.length || 0 })}
+                      </span>
+                    </div>
+                    <div className="dash-user-times">
+                      <span>
+                        {t('pages.dashboard.tokenRemaining')} ·{' '}
+                        <b className={expired ? 'is-err' : undefined}>{tokenRemainingLabel(user, t)}</b>
+                      </span>
+                      <span>
+                        {t('pages.dashboard.lastCalledAt')} · {formatWhen(user.lastCalledAt)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </article>
           )}
+
+          <article className="dash-card dash-failures-card">
+            <header className="dash-card-head">
+              <h2>{t('pages.dashboard.recentErrors')}</h2>
+            </header>
+            {!usage || usage.recentErrors.length === 0 ? (
+              <div className="dash-empty">
+                <strong>{t('pages.dashboard.noRecentErrors')}</strong>
+              </div>
+            ) : (
+              <ul className="dash-errors">
+                {usage.recentErrors.map((item) => (
+                  <li key={item.id}>
+                    <span className="hub-mono">{new Date(item.timestamp).toLocaleString()}</span>
+                    <strong>{item.tool}</strong>
+                    <span>{item.username || '—'}</span>
+                    <span className="dash-error-msg">{item.errorMessage || t('activity.statusError')}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
         </>
       )}
     </section>

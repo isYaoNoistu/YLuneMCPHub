@@ -1,10 +1,13 @@
 import { getCredentialDao, getResourceDao, getServerDao } from '../dao/DaoFactory.js';
+import type { ServerConfigWithName } from '../dao/index.js';
 import {
   ICredentialContract,
   IUserServerCredential,
 } from '../types/index.js';
-import { collectCredentialNeeds } from '../utils/envPreflight.js';
-import { toPublicCredential } from './credentialService.js';
+import { collectCredentialNeeds, overlayCredentialFields } from '../utils/envPreflight.js';
+import { logger } from '../utils/logger.js';
+import { summarizeErrorForLogging } from '../utils/serialization.js';
+import { openCredentialFields, toPublicCredential } from './credentialService.js';
 
 const requireDao = () => {
   const dao = getResourceDao();
@@ -153,6 +156,61 @@ export const listBoundCredentialIds = async (serverName: string): Promise<string
   }
   const rows = await dao.findServerCredentialBindings(serverName);
   return rows.map((row) => row.credentialId);
+};
+
+const collectRedactionValues = (fields: Record<string, string>): string[] => [
+  ...new Set(
+    Object.values(fields).filter((value) => typeof value === 'string' && value.length >= 4),
+  ),
+];
+
+export const resolveBoundCredentialConfigs = async (
+  server: ServerConfigWithName,
+): Promise<
+  Array<{ credentialId: string; config: ServerConfigWithName; redactionValues: string[] }>
+> => {
+  const credentialDao = getCredentialDao();
+  if (!credentialDao) {
+    return [];
+  }
+  const ids = [...new Set(await listBoundCredentialIds(server.name))].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const candidates: Array<{
+    credentialId: string;
+    config: ServerConfigWithName;
+    redactionValues: string[];
+  }> = [];
+  for (const credentialId of ids) {
+    try {
+      const credential = await credentialDao.findById(credentialId);
+      if (!credential?.enabled) {
+        continue;
+      }
+      const fields = openCredentialFields(credential);
+      candidates.push({
+        credentialId,
+        config: {
+          ...overlayCredentialFields(server, fields),
+          name: server.name,
+        },
+        redactionValues: collectRedactionValues(fields),
+      });
+    } catch (error) {
+      const summary = summarizeErrorForLogging(error);
+      logger.warn('Skipping unusable bound credential', {
+        serverName: server.name,
+        credentialId,
+        error: {
+          name: summary.name,
+          code: summary.code,
+          status: summary.status,
+          message: 'Credential unavailable',
+        },
+      });
+    }
+  }
+  return candidates;
 };
 
 export const serverHasCredentialBindings = async (serverName: string): Promise<boolean> => {

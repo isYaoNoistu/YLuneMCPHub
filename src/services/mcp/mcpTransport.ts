@@ -320,10 +320,15 @@ const stripAuthorizationHeader = (
   );
 };
 
+export type CreateTransportOptions = {
+  redactValues?: string[];
+};
+
 export const createTransportFromConfig = async (
   name: string,
   conf: ServerConfig,
   dependencies: McpTransportDependencies,
+  options?: CreateTransportOptions,
 ): Promise<any> => {
   let transport;
   const envSource: Record<string, string> = {
@@ -440,15 +445,20 @@ export const createTransportFromConfig = async (
       stderr: 'pipe',
     });
     if (transport.stderr) {
-      observeStdioStderr(transport, transport.stderr, (message) => {
-        logger.log(
-          'Upstream server stderr',
-          JSON.stringify({
-            serverName: name,
-            message,
-          }),
-        );
-      });
+      observeStdioStderr(
+        transport,
+        transport.stderr,
+        (message) => {
+          logger.log(
+            'Upstream server stderr',
+            JSON.stringify({
+              serverName: name,
+              message,
+            }),
+          );
+        },
+        options?.redactValues || [],
+      );
     }
   } else {
     throw new Error(`Unable to create transport for server: ${name}`);

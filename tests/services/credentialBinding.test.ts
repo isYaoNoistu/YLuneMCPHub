@@ -9,6 +9,10 @@ const findAllCredentials = jest.fn();
 const findCredentialById = jest.fn();
 const replaceUserServerCredentials = jest.fn();
 const findUserServerCredentials = jest.fn();
+const mockOpenCredentialFields = jest.fn((row: { id: string }) => ({
+  JENKINS_URL: `https://${row.id}.example.com`,
+  JENKINS_API_TOKEN: `${row.id}-token`,
+}));
 
 jest.mock('../../src/dao/DaoFactory.js', () => ({
   getServerDao: () => ({
@@ -42,11 +46,13 @@ jest.mock('../../src/services/credentialService.js', () => ({
     updatedAt: null,
     rotatedAt: null,
   }),
+  openCredentialFields: mockOpenCredentialFields,
 }));
 
 import {
   listCredentialContracts,
   listBoundCredentialIds,
+  resolveBoundCredentialConfigs,
   saveUserServerCredentials,
   setServerCredentialBindings,
   validateUserServerCredentials,
@@ -77,6 +83,71 @@ describe('credentialBindingService', () => {
 
   it('lists bound credential ids for one MCP', async () => {
     await expect(listBoundCredentialIds('jenkins')).resolves.toEqual(['cred-1']);
+  });
+
+  it('resolves enabled bound credential overlays in stable credential-id order', async () => {
+    findServerCredentialBindings.mockResolvedValue([
+      { serverName: 'jenkins', credentialId: 'cred-b' },
+      { serverName: 'jenkins', credentialId: 'cred-disabled' },
+      { serverName: 'jenkins', credentialId: 'cred-a' },
+    ]);
+    findCredentialById.mockImplementation(async (id: string) => ({
+      id,
+      name: id,
+      enabled: id !== 'cred-disabled',
+    }));
+
+    const candidates = await resolveBoundCredentialConfigs({
+      name: 'jenkins',
+      type: 'stdio',
+      command: 'node',
+      env: {
+        JENKINS_URL: '${JENKINS_URL}',
+        JENKINS_API_TOKEN: '${JENKINS_API_TOKEN}',
+      },
+    });
+
+    expect(candidates.map(({ credentialId }) => credentialId)).toEqual(['cred-a', 'cred-b']);
+    expect(candidates.map(({ config }) => config.env)).toEqual([
+      expect.objectContaining({
+        JENKINS_URL: 'https://cred-a.example.com',
+        JENKINS_API_TOKEN: 'cred-a-token',
+      }),
+      expect.objectContaining({
+        JENKINS_URL: 'https://cred-b.example.com',
+        JENKINS_API_TOKEN: 'cred-b-token',
+      }),
+    ]);
+    expect(candidates.map(({ redactionValues }) => redactionValues)).toEqual([
+      expect.arrayContaining(['https://cred-a.example.com', 'cred-a-token']),
+      expect.arrayContaining(['https://cred-b.example.com', 'cred-b-token']),
+    ]);
+  });
+
+  it('continues after one unusable credential without logging its secret-bearing error', async () => {
+    findServerCredentialBindings.mockResolvedValue([
+      { serverName: 'jenkins', credentialId: 'cred-b' },
+      { serverName: 'jenkins', credentialId: 'cred-a' },
+    ]);
+    findCredentialById.mockImplementation(async (id: string) => ({
+      id,
+      name: id,
+      enabled: true,
+    }));
+    mockOpenCredentialFields.mockImplementationOnce(() => {
+      throw new Error('decrypt failed for actual-token-a');
+    });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const candidates = await resolveBoundCredentialConfigs({
+      name: 'jenkins',
+      type: 'stdio',
+      command: 'node',
+    });
+
+    expect(candidates.map(({ credentialId }) => credentialId)).toEqual(['cred-b']);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('actual-token-a');
+    warn.mockRestore();
   });
 
   it('lists needed keys and bound credentials without secrets', async () => {

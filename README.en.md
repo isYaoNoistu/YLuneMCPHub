@@ -51,7 +51,7 @@ Internal only. No public signup. **Only console accounts can sign in.** MCP user
 
 ### Dashboard
 
-Read-only gateway status: online servers, tool count, calls from agents and regular users, plus token time left, last call, and created time. Admins rarely call tools themselves. This page does not copy mcp.json, grant tools, or add servers.
+Read-only gateway status: a compact health summary, operations snapshot, and a straight seven-day calls/errors trend. Admins rarely call tools themselves. This page does not copy mcp.json, grant tools, or add servers.
 
 ![Dashboard](docs/images/dashboard.png)
 

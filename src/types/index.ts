@@ -694,6 +694,8 @@ export interface ServerInfo {
   enabled?: boolean; // Flag to indicate if the server is enabled
   keepAliveIntervalId?: NodeJS.Timeout; // Timer ID for keep-alive ping interval
   config?: ServerConfig; // Reference to the original server configuration for OpenAPI passthrough headers
+  /** Bound credential used for the shared discovery connection; never a secret value. */
+  discoveryCredentialId?: string;
   // On-demand spawning runtime state
   spawningPromise?: Promise<void>; // Singleton promise: concurrent callers await this instead of double-spawning
   idleTimeoutId?: NodeJS.Timeout; // Timer ID for idle-shutdown (cleared/reset on each tool call)

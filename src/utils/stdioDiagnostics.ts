@@ -10,6 +10,7 @@ type StderrStream = {
 type StdioDiagnosticState = {
   rawTail: string;
   pendingLine: string;
+  extraSecrets: string[];
 };
 
 type ErrorWithUpstreamStderr = Error & {
@@ -25,10 +26,12 @@ export const observeStdioStderr = (
   transport: object,
   stderr: StderrStream,
   logLine: (line: string) => void,
+  extraSecrets: Iterable<string> = [],
 ): void => {
   const state: StdioDiagnosticState = {
     rawTail: '',
     pendingLine: '',
+    extraSecrets: [...extraSecrets].filter((secret) => secret.length >= 4),
   };
   diagnostics.set(transport, state);
 
@@ -37,7 +40,7 @@ export const observeStdioStderr = (
     state.pendingLine = lines.pop() ?? '';
     for (const line of lines) {
       if (line.length > 0) {
-        logLine(sanitizeStringForLogging(line));
+        logLine(sanitizeStringForLogging(line, state.extraSecrets));
       }
     }
   };
@@ -51,15 +54,19 @@ export const observeStdioStderr = (
 
   stderr.on('end', () => {
     if (state.pendingLine.length > 0) {
-      logLine(sanitizeStringForLogging(state.pendingLine));
+      logLine(sanitizeStringForLogging(state.pendingLine, state.extraSecrets));
       state.pendingLine = '';
     }
   });
 };
 
 export const getStdioStderrTail = (transport: object): string | undefined => {
-  const tail = diagnostics.get(transport)?.rawTail.trim();
-  return tail ? sanitizeStringForLogging(tail) : undefined;
+  const state = diagnostics.get(transport);
+  if (!state) {
+    return undefined;
+  }
+  const tail = state.rawTail.trim();
+  return tail ? sanitizeStringForLogging(tail, state.extraSecrets) : undefined;
 };
 
 export const addStdioErrorContext = (error: unknown, transport: object): unknown => {

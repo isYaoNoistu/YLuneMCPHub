@@ -612,10 +612,13 @@ export interface ToolChangeRow {
   impactedUsers: Array<{ username: string; reason: 'grant' | 'admin' }>;
 }
 
+export type EnvPreflightSource = 'process_env' | 'credential' | 'missing';
+
 export interface EnvPreflightItem {
   name: string;
   referenced: boolean;
   resolved: boolean;
+  source: EnvPreflightSource;
 }
 
 export interface TemplateDryRunResult {

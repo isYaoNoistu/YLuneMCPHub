@@ -57,4 +57,17 @@ describe('stdio diagnostics', () => {
       }),
     );
   });
+
+  it('redacts extra secret literals in stderr lines and tails', () => {
+    const transport = {};
+    const stderr = new FakeStderr();
+    const logLine = jest.fn();
+
+    observeStdioStderr(transport, stderr, logLine, ['actual-token-a']);
+    stderr.emit('data', Buffer.from('authentication failed: actual-token-a\n'));
+
+    expect(logLine).toHaveBeenCalledWith('authentication failed: [REDACTED]');
+    expect(getStdioStderrTail(transport)).toBe('authentication failed: [REDACTED]');
+    expect(getStdioStderrTail(transport)).not.toContain('actual-token-a');
+  });
 });

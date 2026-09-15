@@ -61,8 +61,11 @@ import {
   ServerConfigWithName,
 } from '../dao/index.js';
 import { openCredentialFields } from './credentialService.js';
-import { overlayCredentialFields } from '../utils/envPreflight.js';
-import { findUserServerCredential, listBoundCredentialIds } from './credentialBindingService.js';
+import { buildEnvPreflight, overlayCredentialFields } from '../utils/envPreflight.js';
+import {
+  findUserServerCredential,
+  resolveBoundCredentialConfigs,
+} from './credentialBindingService.js';
 import { initializeAllOAuthClients } from './oauthService.js';
 import { createOAuthProvider } from './mcpOAuthProvider.js';
 import {
@@ -218,6 +221,64 @@ const closeIsolatedClient = (serverName: string, client: Client, transport: any)
   if (stdioPid) {
     killStdioProcessTree(serverName, stdioPid);
   }
+};
+
+class ConnectionAttemptCancelledError extends Error {
+  constructor(serverName: string) {
+    super(`Connection attempt cancelled for ${serverName}`);
+    this.name = 'ConnectionAttemptCancelledError';
+  }
+}
+
+const connectionGenerations = new Map<string, number>();
+const inFlightPersistent = new Map<
+  string,
+  { generation: number; client?: Client; transport?: any }
+>();
+
+const currentConnectionGeneration = (name: string): number =>
+  connectionGenerations.get(name) || 0;
+
+const bumpConnectionGeneration = (name: string): number => {
+  const next = currentConnectionGeneration(name) + 1;
+  connectionGenerations.set(name, next);
+  const inflight = inFlightPersistent.get(name);
+  if (inflight) {
+    if (inflight.client && inflight.transport) {
+      closeIsolatedClient(name, inflight.client, inflight.transport);
+    } else if (inflight.transport) {
+      try {
+        inflight.transport.close();
+      } catch {
+        // ignore
+      }
+    }
+    inFlightPersistent.delete(name);
+  }
+  return next;
+};
+
+const isStaleConnectionAttempt = (name: string, generation: number): boolean =>
+  currentConnectionGeneration(name) !== generation;
+
+const collectFieldRedactionValues = (fields: Record<string, string>): string[] => [
+  ...new Set(
+    Object.values(fields).filter((value) => typeof value === 'string' && value.length >= 4),
+  ),
+];
+
+const redactKnownSecrets = (error: unknown, extraSecrets: string[] = []): unknown => {
+  if (error instanceof Error) {
+    error.message = sanitizeStringForLogging(error.message, extraSecrets);
+    const withStderr = error as Error & { upstreamStderr?: string };
+    if (typeof withStderr.upstreamStderr === 'string') {
+      withStderr.upstreamStderr = sanitizeStringForLogging(
+        withStderr.upstreamStderr,
+        extraSecrets,
+      );
+    }
+  }
+  return error;
 };
 
 /**
@@ -583,6 +644,37 @@ export const invalidateCredentialClients = (filter?: {
     }
     credentialClientLocks.delete(lockKey);
   }
+
+  for (const info of serverInfos) {
+    if (info.enabled === false) {
+      continue;
+    }
+    if (filter?.serverName && info.name !== filter.serverName) {
+      continue;
+    }
+    if (
+      filter?.credentialId &&
+      !filter.serverName &&
+      info.discoveryCredentialId !== filter.credentialId
+    ) {
+      continue;
+    }
+    if (!filter?.serverName && !filter?.credentialId && !info.discoveryCredentialId) {
+      continue;
+    }
+    if (!filter?.serverName && !info.discoveryCredentialId) {
+      continue;
+    }
+    closeServerRuntime(info);
+    info.status = 'disconnected';
+    info.error = null;
+    void reconnectServer(info.name).catch((error) => {
+      logger.warn('Failed to rebuild persistent connection after credential invalidation', {
+        serverName: info.name,
+        error: summarizeErrorForLogging(error),
+      });
+    });
+  }
 };
 
 const getOrCreateCredentialClient = async (
@@ -629,7 +721,9 @@ const getOrCreateCredentialClient = async (
 
     const fields = openCredentialFields(credential);
     const overlayConfig = overlayCredentialFields(serverConfig, fields);
-    const transport = await createTransportFromConfig(serverInfo.name, overlayConfig);
+    const transport = await createTransportFromConfig(serverInfo.name, overlayConfig, {
+      redactValues: collectFieldRedactionValues(fields),
+    });
     const client = createUpstreamMcpClient(serverInfo.name, () => serverInfo);
     try {
       await connectClientWithDiagnostics(client, transport, serverInfo.options || {});
@@ -747,7 +841,9 @@ export const probeServerWithCredential = async (
     config: overlayConfig,
     options: live?.options || { timeout: 20_000 },
   };
-  const transport = await createTransportFromConfig(serverName, overlayConfig);
+  const transport = await createTransportFromConfig(serverName, overlayConfig, {
+    redactValues: collectFieldRedactionValues(fields),
+  });
   const client = createUpstreamMcpClient(serverName, () => stub);
   try {
     await connectClientWithDiagnostics(client, transport, stub.options || {});
@@ -774,28 +870,6 @@ export const probeServerWithCredential = async (
   } finally {
     closeIsolatedClient(serverName, client, transport);
   }
-};
-
-const recoverServerWithBoundCredential = async (serverName: string): Promise<boolean> => {
-  const live = getServerByName(serverName);
-  if (live?.status === 'connected' && (live.tools?.length || 0) > 0) {
-    return true;
-  }
-  try {
-    const ids = await listBoundCredentialIds(serverName);
-    for (const id of ids) {
-      const result = await probeServerWithCredential(serverName, id);
-      if (result.ok) {
-        return true;
-      }
-    }
-  } catch (error) {
-    logger.warn('Failed to recover server with bound credential', {
-      serverName,
-      error: summarizeErrorForLogging(error),
-    });
-  }
-  return getServerByName(serverName)?.status === 'connected';
 };
 
 export const connectClientWithDiagnostics = async (
@@ -1178,16 +1252,25 @@ const summarizePromptForLogging = (prompt: unknown): Record<string, unknown> => 
   return summary;
 };
 
-export const createTransportFromConfig = async (name: string, conf: ServerConfig): Promise<any> => {
-  return createMcpTransportFromConfig(name, conf, {
-    createOAuthProvider,
-    isOwnerAdmin: async (owner) => {
-      const ownerUser = await getUserDao().findByUsername(owner);
-      return !!ownerUser?.isAdmin;
+export const createTransportFromConfig = async (
+  name: string,
+  conf: ServerConfig,
+  options?: { redactValues?: string[] },
+): Promise<any> => {
+  return createMcpTransportFromConfig(
+    name,
+    conf,
+    {
+      createOAuthProvider,
+      isOwnerAdmin: async (owner) => {
+        const ownerUser = await getUserDao().findByUsername(owner);
+        return !!ownerUser?.isAdmin;
+      },
+      getSystemConfig: async () => getSystemConfigDao().get(),
+      consumePendingReinstall: (serverName) => pendingReinstalls.delete(serverName),
     },
-    getSystemConfig: async () => getSystemConfigDao().get(),
-    consumePendingReinstall: (serverName) => pendingReinstalls.delete(serverName),
-  });
+    options,
+  );
 };
 
 type IsolatedClientContext = ToolCallClientContext;
@@ -1356,6 +1439,223 @@ const setupServerKeepAlive = (serverInfo: ServerInfo, serverConfig: ServerConfig
   );
 };
 
+const isOAuthAuthorizationError = (error: unknown): boolean => {
+  const message =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message?: unknown }).message || '')
+      : '';
+  return (
+    message.includes('OAuth authorization required') || message.includes('Authorization required')
+  );
+};
+
+type PersistentConnectionOptions = {
+  connectOptions?: RequestOptions;
+  reportEmbeddingProgress?: boolean;
+  persistConfig?: ServerConfigWithName;
+  discoveryCredentialId?: string;
+  redactionValues?: string[];
+  generation?: number;
+};
+
+const connectPersistentServer = async (
+  serverInfo: ServerInfo,
+  spawnConfig: ServerConfigWithName,
+  options: PersistentConnectionOptions = {},
+  existingTransport?: any,
+): Promise<void> => {
+  const persistConfig = options.persistConfig ?? spawnConfig;
+  const generation = options.generation ?? currentConnectionGeneration(serverInfo.name);
+  const redactionValues = options.redactionValues || [];
+  const name = serverInfo.name;
+
+  if (isStaleConnectionAttempt(name, generation)) {
+    throw new ConnectionAttemptCancelledError(name);
+  }
+
+  const transport =
+    existingTransport ||
+    (await createTransportFromConfig(name, spawnConfig, {
+      redactValues: redactionValues,
+    }));
+  const client = createUpstreamMcpClient(name, () => serverInfo);
+  inFlightPersistent.set(name, { generation, client, transport });
+
+  const abortIfStale = (): boolean => {
+    if (!isStaleConnectionAttempt(name, generation)) {
+      return false;
+    }
+    closeIsolatedClient(name, client, transport);
+    const inflight = inFlightPersistent.get(name);
+    if (inflight?.generation === generation) {
+      inFlightPersistent.delete(name);
+    }
+    return true;
+  };
+
+  if (abortIfStale()) {
+    throw new ConnectionAttemptCancelledError(name);
+  }
+
+  try {
+    await connectClientWithDiagnostics(
+      client,
+      transport,
+      options.connectOptions || serverInfo.options || {},
+    );
+  } catch (error) {
+    const sanitized = redactKnownSecrets(error, redactionValues);
+    if (isOAuthAuthorizationError(sanitized)) {
+      if (abortIfStale()) {
+        throw new ConnectionAttemptCancelledError(name);
+      }
+      serverInfo.client = client;
+      serverInfo.transport = transport;
+      serverInfo.config = persistConfig;
+      inFlightPersistent.delete(name);
+      throw sanitized;
+    }
+    if (!isStaleConnectionAttempt(name, generation)) {
+      closeIsolatedClient(name, client, transport);
+      inFlightPersistent.delete(name);
+    }
+    throw isStaleConnectionAttempt(name, generation)
+      ? new ConnectionAttemptCancelledError(name)
+      : sanitized;
+  }
+
+  if (abortIfStale()) {
+    throw new ConnectionAttemptCancelledError(name);
+  }
+
+  const capabilities: ServerCapabilities | undefined = client.getServerCapabilities();
+  logger.log('Server capabilities', JSON.stringify(capabilities));
+  const requestOptions = options.connectOptions || serverInfo.options || {};
+  if (capabilities?.tools) {
+    try {
+      const tools = await client.listTools({}, requestOptions);
+      logger.log(`Successfully listed ${tools.tools.length} tools for server: ${name}`);
+      updateServerToolsCache(serverInfo, tools.tools, {
+        reportEmbeddingProgress: options.reportEmbeddingProgress === true,
+      });
+      broadcastToolListChanged();
+    } catch (error) {
+      logger.warn(`[${name}] Failed to list tools during connect`, {
+        error: summarizeErrorForLogging(redactKnownSecrets(error, redactionValues)),
+      });
+    }
+  }
+  if (capabilities?.prompts) {
+    try {
+      const prompts = await client.listPrompts({}, requestOptions);
+      logger.log(`Successfully listed ${prompts.prompts.length} prompts for server: ${name}`);
+      updateServerPromptsCache(serverInfo, prompts.prompts);
+      broadcastPromptListChanged();
+    } catch (error) {
+      logger.warn(`[${name}] Failed to list prompts during connect`, {
+        error: summarizeErrorForLogging(redactKnownSecrets(error, redactionValues)),
+      });
+    }
+  }
+  if (capabilities?.resources) {
+    try {
+      const resources = await client.listResources({}, requestOptions);
+      logger.log(`Successfully listed ${resources.resources.length} resources for server: ${name}`);
+      updateServerResourcesCache(serverInfo, resources.resources);
+      broadcastResourceListChanged();
+    } catch (error) {
+      logger.warn(`[${name}] Failed to list resources during connect`, {
+        error: summarizeErrorForLogging(redactKnownSecrets(error, redactionValues)),
+      });
+    }
+  }
+
+  if (abortIfStale()) {
+    throw new ConnectionAttemptCancelledError(name);
+  }
+
+  serverInfo.client = client;
+  serverInfo.transport = transport;
+  serverInfo.config = persistConfig;
+  serverInfo.discoveryCredentialId = options.discoveryCredentialId;
+  serverInfo.version = client.getServerVersion?.()?.version;
+  serverInfo.instructions = client.getInstructions?.();
+  serverInfo.status = 'connected';
+  serverInfo.error = null;
+  inFlightPersistent.delete(name);
+  setupServerKeepAlive(serverInfo, persistConfig);
+  logger.log(`Successfully connected client for server: ${name}`);
+};
+
+const connectServerWithBoundCredentialFallback = async (
+  serverInfo: ServerInfo,
+  rawConfig: ServerConfigWithName,
+  expandedConfig: ServerConfigWithName,
+  options: PersistentConnectionOptions,
+  baseTransport?: any,
+): Promise<void> => {
+  const generation = options.generation ?? currentConnectionGeneration(serverInfo.name);
+  const persistOptions: PersistentConnectionOptions = {
+    ...options,
+    persistConfig: expandedConfig,
+    generation,
+  };
+
+  if (!isStdioServer(rawConfig)) {
+    await connectPersistentServer(serverInfo, expandedConfig, persistOptions, baseTransport);
+    return;
+  }
+
+  const missingEnv = buildEnvPreflight(rawConfig).filter((item) => !item.resolved);
+  let lastError: unknown;
+  if (missingEnv.length === 0) {
+    try {
+      await connectPersistentServer(serverInfo, expandedConfig, persistOptions, baseTransport);
+      return;
+    } catch (error) {
+      if (error instanceof ConnectionAttemptCancelledError || isOAuthAuthorizationError(error)) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  const candidates = await resolveBoundCredentialConfigs(rawConfig);
+  for (const candidate of candidates) {
+    try {
+      await connectPersistentServer(serverInfo, candidate.config, {
+        ...persistOptions,
+        discoveryCredentialId: candidate.credentialId,
+        redactionValues: candidate.redactionValues,
+      });
+      return;
+    } catch (error) {
+      if (error instanceof ConnectionAttemptCancelledError || isOAuthAuthorizationError(error)) {
+        throw error;
+      }
+      lastError = redactKnownSecrets(error, candidate.redactionValues);
+      const summary = summarizeErrorForLogging(lastError);
+      logger.warn('Bound credential connection attempt failed', {
+        serverName: serverInfo.name,
+        credentialId: candidate.credentialId,
+        error: {
+          name: summary.name,
+          code: summary.code,
+          status: summary.status,
+          message: 'Credential connection failed',
+        },
+      });
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error(
+    `Missing required environment variables: ${missingEnv.map((item) => item.name).join(', ')}`,
+  );
+};
+
 // Initialize MCP server clients
 export const initializeClientsFromSettings = async (
   isInit: boolean,
@@ -1474,7 +1774,6 @@ export const initializeClientsFromSettings = async (
         continue;
       }
 
-      let transport;
       let openApiClient;
       if (expandedConf.type === 'openapi') {
         // Handle OpenAPI type servers
@@ -1589,12 +1888,7 @@ export const initializeClientsFromSettings = async (
           serverInfo.error = `Failed to initialize OpenAPI server: ${formatErrorForLogging(error)}`;
           continue;
         }
-      } else {
-        transport = await createTransportFromConfig(name, expandedConf);
       }
-
-      const serverInfoRef: { current?: ServerInfo } = {};
-      const client = createUpstreamMcpClient(name, () => serverInfoRef.current);
 
       // Get request options from server configuration, with fallbacks
       const serverRequestOptions = expandedConf.options || {};
@@ -1611,6 +1905,17 @@ export const initializeClientsFromSettings = async (
           }
         : undefined;
 
+      let baseTransport: any;
+      const skipBaseTransport =
+        isStdioServer(conf) && buildEnvPreflight(conf).some((item) => !item.resolved);
+      if (!skipBaseTransport) {
+        try {
+          baseTransport = await createTransportFromConfig(name, expandedConf);
+        } catch {
+          baseTransport = undefined;
+        }
+      }
+
       // Create server info first and keep reference to it
       const serverInfo: ServerInfo = {
         name,
@@ -1622,13 +1927,10 @@ export const initializeClientsFromSettings = async (
         tools: [],
         prompts: [],
         resources: [],
-        client,
-        transport,
         options: requestOptions,
         createTime: Date.now(),
         config: expandedConf, // Store reference to expanded config
       };
-      serverInfoRef.current = serverInfo;
 
       const pendingAuth = expandedConf.oauth?.pendingAuthorization;
       if (pendingAuth) {
@@ -1641,120 +1943,44 @@ export const initializeClientsFromSettings = async (
       }
       nextServerInfos.push(serverInfo);
 
-      connectClientWithDiagnostics(client, transport, initRequestOptions || requestOptions)
-        .then(() => {
-          logger.log(`Successfully connected client for server: ${name}`);
-          const serverVersion = client.getServerVersion?.();
-          serverInfo.version = serverVersion?.version;
-          serverInfo.instructions = client.getInstructions?.();
-          const capabilities: ServerCapabilities | undefined = client.getServerCapabilities();
-          logger.log('Server capabilities', JSON.stringify(capabilities));
-
-          let dataError: Error | null = null;
-          if (capabilities?.tools) {
-            client
-              .listTools({}, initRequestOptions || requestOptions)
-              .then((tools) => {
-                logger.log(`Successfully listed ${tools.tools.length} tools for server: ${name}`);
-                updateServerToolsCache(serverInfo, tools.tools, {
-                  reportEmbeddingProgress:
-                    options?.reportEmbeddingProgress === true && serverName === name,
-                });
-                // Broadcast only after tools are actually loaded into the cache.
-                // The connection completes asynchronously, so callers (e.g. enabling
-                // a server) cannot broadcast a correct tool list themselves — doing so
-                // would race ahead of this point and push a stale (empty) list.
-                broadcastToolListChanged();
-              })
-              .catch((error) => {
-                logger.error('Failed to list tools for server', {
-                  serverName: name,
-                  error: summarizeErrorForLogging(error),
-                });
-                dataError = error;
-              });
+      const connectionPromise = connectServerWithBoundCredentialFallback(
+        serverInfo,
+        conf,
+        expandedConf,
+        {
+          connectOptions: initRequestOptions || requestOptions,
+          reportEmbeddingProgress:
+            options?.reportEmbeddingProgress === true && serverName === name,
+        },
+        baseTransport,
+      ).catch((error) => {
+        if (error instanceof ConnectionAttemptCancelledError) {
+          return;
+        }
+        if (isOAuthAuthorizationError(error)) {
+          // OAuth provider should have already set the status to 'oauth_required'
+          // and stored the authorization URL in serverInfo.oauth
+          logger.log(
+            `OAuth authorization required for server ${name}. Status should be set to 'oauth_required'.`,
+          );
+          // Make sure status is set correctly
+          if (serverInfo.status !== 'oauth_required') {
+            serverInfo.status = 'oauth_required';
           }
-
-          if (capabilities?.prompts) {
-            client
-              .listPrompts({}, initRequestOptions || requestOptions)
-              .then((prompts) => {
-                logger.log(
-                  `Successfully listed ${prompts.prompts.length} prompts for server: ${name}`,
-                );
-                updateServerPromptsCache(serverInfo, prompts.prompts);
-                broadcastPromptListChanged();
-              })
-              .catch((error) => {
-                logger.error('Failed to list prompts for server', {
-                  serverName: name,
-                  error: summarizeErrorForLogging(error),
-                });
-                dataError = error;
-              });
-          }
-
-          if (capabilities?.resources) {
-            client
-              .listResources({}, initRequestOptions || requestOptions)
-              .then((resources) => {
-                logger.log(
-                  `Successfully listed ${resources.resources.length} resources for server: ${name}`,
-                );
-                updateServerResourcesCache(serverInfo, resources.resources);
-                broadcastResourceListChanged();
-              })
-              .catch((error) => {
-                logger.error('Failed to list resources for server', {
-                  serverName: name,
-                  error: summarizeErrorForLogging(error),
-                });
-                dataError = error;
-              });
-          }
-
-          if (!dataError) {
-            serverInfo.status = 'connected';
-            serverInfo.error = null;
-            // Set up keep-alive ping for SSE connections via shared service
-            setupServerKeepAlive(serverInfo, expandedConf);
-          } else {
-            serverInfo.status = 'disconnected';
-            serverInfo.error = `Failed to list data: ${formatErrorForLogging(dataError)}`;
-            setupServerKeepAlive(serverInfo, expandedConf);
-          }
-        })
-        .catch(async (error) => {
-          // Check if this is an OAuth authorization error
-          const isOAuthError =
-            error?.message?.includes('OAuth authorization required') ||
-            error?.message?.includes('Authorization required');
-
-          if (isOAuthError) {
-            // OAuth provider should have already set the status to 'oauth_required'
-            // and stored the authorization URL in serverInfo.oauth
-            logger.log(
-              `OAuth authorization required for server ${name}. Status should be set to 'oauth_required'.`,
-            );
-            // Make sure status is set correctly
-            if (serverInfo.status !== 'oauth_required') {
-              serverInfo.status = 'oauth_required';
-            }
-            serverInfo.error = null;
-          } else {
-            logger.error('Failed to connect client for server', {
-              serverName: name,
-              error: summarizeErrorForLogging(error),
-            });
-            const recovered = await recoverServerWithBoundCredential(name);
-            if (recovered || serverInfo.status === 'connected') {
-              return;
-            }
-            serverInfo.status = 'disconnected';
-            serverInfo.error = `Failed to connect: ${formatErrorForLogging(error)}`;
-            setupServerKeepAlive(serverInfo, expandedConf);
-          }
-        });
+          serverInfo.error = null;
+        } else {
+          logger.error('Failed to connect client for server', {
+            serverName: name,
+            error: summarizeErrorForLogging(error),
+          });
+          serverInfo.status = 'disconnected';
+          serverInfo.error = `Failed to connect: ${formatErrorForLogging(error)}`;
+          setupServerKeepAlive(serverInfo, expandedConf);
+        }
+      });
+      if (serverName === name) {
+        await connectionPromise;
+      }
       logger.log(`Initialized client for server: ${name}`);
     }
   } catch (error) {
@@ -1990,27 +2216,7 @@ export const reconnectServer = async (serverName: string): Promise<void> => {
     return;
   }
 
-  // Close existing connection if any
-  if (serverInfo.client) {
-    try {
-      serverInfo.client.close();
-    } catch (error) {
-      logger.warn('Error closing client for server', { serverName, error });
-    }
-  }
-
-  if (serverInfo.transport) {
-    try {
-      serverInfo.transport.close();
-    } catch (error) {
-      logger.warn('Error closing transport for server', { serverName, error });
-    }
-  }
-
-  if (serverInfo.keepAliveIntervalId) {
-    clearInterval(serverInfo.keepAliveIntervalId);
-    serverInfo.keepAliveIntervalId = undefined;
-  }
+  closeServerRuntime(serverInfo);
 
   // Reinitialize the server
   await initializeClientsFromSettings(false, serverName);
@@ -2226,6 +2432,9 @@ function checkAuthError(result: any) {
 }
 
 const closeServerRuntime = (serverInfo: ServerInfo): void => {
+  bumpConnectionGeneration(serverInfo.name);
+  serverInfo.discoveryCredentialId = undefined;
+
   if (serverInfo.keepAliveIntervalId) {
     clearInterval(serverInfo.keepAliveIntervalId);
     serverInfo.keepAliveIntervalId = undefined;

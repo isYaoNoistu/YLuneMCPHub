@@ -16,10 +16,39 @@ describe('envPreflight', () => {
       { FOO: 'super-secret', BAR: '' },
     );
     expect(items).toEqual([
-      { name: 'BAR', referenced: true, resolved: false },
-      { name: 'FOO', referenced: true, resolved: true },
+      { name: 'BAR', referenced: true, resolved: false, source: 'missing' },
+      { name: 'FOO', referenced: true, resolved: true, source: 'process_env' },
     ]);
     expect(JSON.stringify(items)).not.toMatch(/super-secret/);
+  });
+
+  it('resolves source from process_env, credential, or missing without returning secrets', () => {
+    const config = {
+      env: { A: '${FOO}', B: '${BAR}', C: '${BAZ}' },
+    };
+    const items = buildEnvPreflight(
+      config,
+      { FOO: 'env-secret', BAR: '' },
+      { BAR: 'credential-secret' },
+    );
+    expect(items).toEqual([
+      { name: 'BAR', referenced: true, resolved: true, source: 'credential' },
+      { name: 'BAZ', referenced: true, resolved: false, source: 'missing' },
+      { name: 'FOO', referenced: true, resolved: true, source: 'process_env' },
+    ]);
+    expect(JSON.stringify(items)).not.toMatch(/env-secret|credential-secret/);
+  });
+
+  it('prefers process_env over credential when both are present', () => {
+    const items = buildEnvPreflight(
+      { env: { A: '${TOKEN}' } },
+      { TOKEN: 'from-env' },
+      { TOKEN: 'from-credential' },
+    );
+    expect(items).toEqual([
+      { name: 'TOKEN', referenced: true, resolved: true, source: 'process_env' },
+    ]);
+    expect(JSON.stringify(items)).not.toMatch(/from-env|from-credential/);
   });
 
   it('collects env keys and ${VAR} refs, ignoring PATH-like names', () => {
