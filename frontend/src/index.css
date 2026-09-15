@@ -474,10 +474,10 @@ html.light {
   width: min(280px, 100%);
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--hub-field-border);
+  border: 1px solid var(--hub-line);
   border-radius: 8px;
-  background: var(--hub-field);
-  color: var(--hub-field-muted);
+  background: var(--hub-bg);
+  color: var(--hub-ink-3);
 }
 
 .logs-search input {
@@ -614,9 +614,9 @@ html.light {
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  border: 1px solid var(--hub-field-border);
+  border: 1px solid var(--hub-line);
   border-radius: 8px;
-  background: var(--hub-field);
+  background: var(--hub-bg);
   color: var(--hub-ink);
   font: inherit;
   text-align: left;
@@ -704,9 +704,9 @@ html.light {
 }
 
 .hub-multiselect-menu.is-portal .hub-input {
-  background: var(--hub-field);
+  background: var(--hub-bg);
   color: var(--hub-ink);
-  border-color: var(--hub-field-border);
+  border-color: var(--hub-line);
   color-scheme: inherit;
 }
 
@@ -758,10 +758,10 @@ html.light {
   font-family: var(--hub-mono);
   font-size: 11px;
   padding: 1px 5px;
-  border: 1px solid var(--hub-field-border);
+  border: 1px solid var(--hub-line);
   border-radius: 4px;
   color: var(--hub-ink-3);
-  background: var(--hub-field);
+  background: var(--hub-surface);
 }
 
 /* Linear-style table rows */
@@ -791,7 +791,7 @@ html.light {
   height: 30px;
   padding: 0 12px;
   border-radius: 7px;
-  border: 1px solid var(--hub-field-border);
+  border: 1px solid var(--hub-line);
   background: var(--hub-surface);
   color: var(--hub-ink);
   font-size: 13px;
@@ -846,7 +846,7 @@ html.light .hub-btn.primary:hover {
   padding: 0 10px;
   border-radius: 7px;
   border: 1px solid var(--hub-field-border);
-  background: var(--hub-field);
+  background: var(--hub-surface);
   color: var(--hub-ink);
   font-size: 13px;
   outline: 0;
@@ -1012,10 +1012,10 @@ html.light .hub-btn.primary:hover {
   min-width: 0;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--hub-field-border);
+  border: 1px solid var(--hub-line);
   border-radius: 8px;
-  background: var(--hub-field);
-  color: var(--hub-field-muted);
+  background: var(--hub-bg);
+  color: var(--hub-ink-3);
 }
 
 .servers-search input {
@@ -1029,7 +1029,7 @@ html.light .hub-btn.primary:hover {
 }
 
 .servers-search input::placeholder {
-  color: var(--hub-field-muted);
+  color: var(--hub-ink-3);
 }
 
 .servers-count {
@@ -1251,9 +1251,9 @@ html.light .hub-btn.primary:hover {
   display: flex;
   align-items: center;
   gap: 0;
-  border: 1px solid var(--hub-field-border);
+  border: 1px solid var(--hub-line);
   border-radius: 8px;
-  background: var(--hub-field);
+  background: var(--hub-bg-2);
   overflow: hidden;
   min-width: 0;
   height: 32px;
@@ -1526,8 +1526,8 @@ html.light .hub-btn.primary:hover {
 input.form-input,
 select.form-input,
 textarea.form-input {
-  background: var(--hub-field) !important;
-  border: 1px solid var(--hub-field-border) !important;
+  background: var(--hub-surface) !important;
+  border: 1px solid var(--hub-line) !important;
   border-radius: 7px !important;
   color: var(--hub-ink) !important;
   box-shadow: none !important;
@@ -1537,7 +1537,7 @@ textarea.form-input {
 input.form-input:focus,
 select.form-input:focus,
 textarea.form-input:focus {
-  border-color: var(--color-border-strong) !important;
+  border-color: var(--hub-ink-2) !important;
   box-shadow: none !important;
   outline: none !important;
 }
@@ -1545,11 +1545,11 @@ textarea.form-input:focus {
 .dark input.form-input,
 .dark select.form-input,
 .dark textarea.form-input {
-  background: var(--hub-field) !important;
-  border-color: var(--hub-field-border) !important;
+  background: var(--hub-surface) !important;
+  border-color: var(--hub-line) !important;
   color: var(--hub-ink) !important;
 }
-.dark .form-input::placeholder { color: var(--hub-field-muted) !important; }
+.dark .form-input::placeholder { color: var(--hub-ink-3) !important; }
 
 /* Status badges → dot + text style */
 .status-badge-online,

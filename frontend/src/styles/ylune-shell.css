@@ -15,7 +15,8 @@
 
 .side.is-collapsed .side-brand {
   justify-content: center;
-  padding-bottom: var(--space-3);
+  height: 56px;
+  padding: 0;
 }
 
 .side.is-collapsed .side-link {
@@ -417,9 +418,9 @@ body,
 .settings-page pre {
   margin: 0;
   padding: 14px;
-  border: 1px solid var(--color-field-border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-field);
+  background: var(--color-bg);
   color: var(--color-text);
   font-size: 12px;
   max-height: 360px;
@@ -812,9 +813,9 @@ body,
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1px solid var(--color-field-border);
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: var(--color-field);
+  background: var(--color-bg);
 }
 
 .ylune-seg label {
@@ -883,9 +884,9 @@ body,
   display: grid;
   place-items: center;
   padding: 28px 20px;
-  border: 1px dashed var(--color-field-border);
+  border: 1px dashed var(--color-border);
   border-radius: 10px;
-  background: var(--color-field);
+  background: var(--color-bg);
   text-align: center;
 }
 
@@ -1020,9 +1021,9 @@ body,
   justify-content: center;
   min-height: 220px;
   padding: 24px;
-  border: 1px dashed var(--color-field-border);
+  border: 1px dashed var(--color-border);
   border-radius: 10px;
-  background: var(--color-field);
+  background: transparent;
   color: var(--color-muted);
   cursor: pointer;
 }
@@ -1157,9 +1158,9 @@ body,
 
 .ylune-fold {
   overflow: hidden;
-  border: 1px solid var(--color-field-border);
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: var(--color-field);
+  background: var(--color-bg);
 }
 
 .ylune-fold.is-open > .ylune-disclosure {
@@ -1244,9 +1245,9 @@ body,
 
 .ylune-preview {
   padding: 12px 14px;
-  border: 1px solid var(--color-field-border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-field);
+  background: var(--color-bg);
 }
 
 .ylune-preview h3,
@@ -1310,9 +1311,9 @@ body,
   padding: 0 10px;
   height: 38px;
   line-height: 38px;
-  border: 1px solid var(--color-field-border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-field);
+  background: var(--color-bg);
   color: var(--color-text);
   font-size: 12px;
 }
@@ -1336,9 +1337,9 @@ body,
 .ylune-code {
   margin: 8px 0 0;
   padding: 12px 14px;
-  border: 1px solid var(--color-field-border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-field);
+  background: var(--color-bg);
   color: var(--color-text);
   font-size: 12px;
   line-height: 1.55;
@@ -2111,9 +2112,8 @@ html.light {
 .dash-endpoint {
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px dashed var(--color-field-border);
+  border: 1px dashed var(--color-border);
   border-radius: 8px;
-  background: var(--color-field);
 }
 
 .dash-endpoint span {

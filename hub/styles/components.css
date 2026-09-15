@@ -41,13 +41,15 @@ html.light .fx-noise { opacity: .025; mix-blend-mode: multiply; }
   display: flex; flex-direction: column;
   border-right: 1px solid var(--color-border);
   background: var(--color-chrome);
-  backdrop-filter: blur(10px);
-  padding: var(--space-3) var(--space-2);
+  padding: 0 var(--space-2) var(--space-3);
   z-index: 20;
 }
 .side-brand {
   display: flex; align-items: center; gap: 10px;
-  padding: 0 var(--space-2) var(--space-3);
+  flex: none;
+  height: 56px;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: 0 var(--space-3);
   border-bottom: 1px solid var(--color-border);
 }
 .side-brand img { width: 28px; height: 28px; border-radius: 50%; }
@@ -128,14 +130,29 @@ html.light .fx-noise { opacity: .025; mix-blend-mode: multiply; }
 .topbar {
   position: sticky; top: 0; z-index: 15;
   display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  height: 56px;
   min-height: 56px;
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-4);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-topbar);
-  backdrop-filter: blur(10px);
 }
-.crumb { color: var(--color-muted); text-transform: none; }
-.crumb b { color: var(--color-text); font-weight: 500; }
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.crumb {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .topbar-right { display: flex; align-items: center; gap: 10px; color: var(--color-muted); }
 .topbar-clock { font-variant-numeric: tabular-nums; }
 
@@ -379,10 +396,10 @@ html.light .fx-noise { opacity: .025; mix-blend-mode: multiply; }
 }
 @media (max-width: 860px) {
   .app { grid-template-columns: 60px minmax(0, 1fr); }
-  .side { padding: var(--space-3) var(--space-2); }
+  .side { padding: 0 var(--space-2) var(--space-3); }
   .side-name, .side-badge, .side-group, .side-count, .side-soon,
   .side-user-name, .side-logout { display: none; }
-  .side-brand { justify-content: center; padding-bottom: var(--space-3); }
+  .side-brand { justify-content: center; height: 56px; padding: 0; }
   .side-link { justify-content: center; padding: 0; }
   .side-link.is-active::before { display: none; }
   .side-user { justify-content: center; }
