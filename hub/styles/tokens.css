@@ -18,6 +18,9 @@ html.dark {
   --color-danger:    #ff7a7a;
   --color-border:    rgba(242, 240, 234, 0.14);
   --color-border-strong: rgba(94, 234, 212, 0.45);
+  --color-field:        #0a0a0b;
+  --color-field-border: rgba(242, 240, 234, 0.28);
+  --color-field-muted:  rgba(242, 240, 234, 0.42);
   --color-accent-soft: rgba(94, 234, 212, 0.12);
   --color-chrome:    rgba(18, 18, 20, 0.72);
   --color-topbar:    rgba(10, 10, 11, 0.82);
@@ -66,8 +69,11 @@ html.light {
   --color-accent-dim:#5eead4;
   --color-ink:       #04211c;
   --color-danger:    #c24141;
-  --color-border:    rgba(22, 21, 26, 0.12);
-  --color-border-strong: rgba(15, 118, 110, 0.35);
+  --color-border:    rgba(22, 21, 26, 0.22);
+  --color-border-strong: rgba(15, 118, 110, 0.45);
+  --color-field:        #eceae4;
+  --color-field-border: rgba(22, 21, 26, 0.38);
+  --color-field-muted:  #6b675f;
   --color-accent-soft: rgba(15, 118, 110, 0.1);
   --color-chrome:    rgba(255, 255, 255, 0.88);
   --color-topbar:    rgba(244, 243, 239, 0.9);

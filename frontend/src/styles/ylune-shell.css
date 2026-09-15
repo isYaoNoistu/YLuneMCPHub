@@ -345,8 +345,8 @@ body,
   min-height: 40px;
   max-width: 36rem;
   width: 100%;
-  background: var(--color-bg) !important;
-  border: 1px solid rgba(242, 240, 234, 0.18) !important;
+  background: var(--color-field) !important;
+  border: 1px solid var(--color-field-border) !important;
   color: var(--color-text) !important;
   border-radius: 8px;
 }
@@ -417,9 +417,9 @@ body,
 .settings-page pre {
   margin: 0;
   padding: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-field-border);
   border-radius: 8px;
-  background: var(--color-bg);
+  background: var(--color-field);
   color: var(--color-text);
   font-size: 12px;
   max-height: 360px;
@@ -779,9 +779,9 @@ body,
   height: 15px;
   margin: 0;
   flex: none;
-  border: 1px solid rgba(242, 240, 234, 0.28);
+  border: 1px solid var(--color-field-border);
   border-radius: 4px;
-  background: var(--color-bg);
+  background: var(--color-field);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -812,9 +812,9 @@ body,
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-field-border);
   border-radius: 10px;
-  background: var(--color-bg);
+  background: var(--color-field);
 }
 
 .ylune-seg label {
@@ -883,9 +883,9 @@ body,
   display: grid;
   place-items: center;
   padding: 28px 20px;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-field-border);
   border-radius: 10px;
-  background: var(--color-bg);
+  background: var(--color-field);
   text-align: center;
 }
 
@@ -1020,9 +1020,9 @@ body,
   justify-content: center;
   min-height: 220px;
   padding: 24px;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-field-border);
   border-radius: 10px;
-  background: transparent;
+  background: var(--color-field);
   color: var(--color-muted);
   cursor: pointer;
 }
@@ -1157,9 +1157,9 @@ body,
 
 .ylune-fold {
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-field-border);
   border-radius: 10px;
-  background: var(--color-bg);
+  background: var(--color-field);
 }
 
 .ylune-fold.is-open > .ylune-disclosure {
@@ -1235,17 +1235,18 @@ body,
 .ylune-kv-empty {
   margin-top: 8px;
   padding: 12px 14px;
-  border: 1px dashed rgba(242, 240, 234, 0.16);
+  border: 1px dashed var(--color-field-border);
   border-radius: 8px;
-  color: rgba(242, 240, 234, 0.42);
+  background: var(--color-field);
+  color: var(--color-field-muted);
   font-size: 12px;
 }
 
 .ylune-preview {
   padding: 12px 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-field-border);
   border-radius: 8px;
-  background: var(--color-bg);
+  background: var(--color-field);
 }
 
 .ylune-preview h3,
@@ -1309,9 +1310,9 @@ body,
   padding: 0 10px;
   height: 38px;
   line-height: 38px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-field-border);
   border-radius: 8px;
-  background: var(--color-bg);
+  background: var(--color-field);
   color: var(--color-text);
   font-size: 12px;
 }
@@ -1335,9 +1336,9 @@ body,
 .ylune-code {
   margin: 8px 0 0;
   padding: 12px 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-field-border);
   border-radius: 8px;
-  background: var(--color-bg);
+  background: var(--color-field);
   color: var(--color-text);
   font-size: 12px;
   line-height: 1.55;
@@ -1611,18 +1612,18 @@ textarea.hub-cap-edit-input {
   color: var(--color-muted) !important;
 }
 
-.ylune-dialog input:not([type='checkbox']):not([type='radio']),
+.ylune-dialog input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='file']),
 .ylune-dialog textarea,
 .ylune-dialog select {
-  background: var(--color-bg) !important;
-  border-color: var(--color-border) !important;
+  background: var(--color-field) !important;
+  border: 1px solid var(--color-field-border) !important;
   color: var(--color-text) !important;
   border-radius: 8px;
 }
 
 .ylune-dialog input::placeholder,
 .ylune-dialog textarea::placeholder {
-  color: var(--color-muted) !important;
+  color: var(--color-field-muted) !important;
 }
 
 .ylune-dialog .bg-white,
@@ -2110,8 +2111,9 @@ html.light {
 .dash-endpoint {
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-field-border);
   border-radius: 8px;
+  background: var(--color-field);
 }
 
 .dash-endpoint span {
