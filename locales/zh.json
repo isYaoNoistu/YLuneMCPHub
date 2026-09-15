@@ -444,6 +444,8 @@
       "trendTitle": "近 7 天趋势",
       "healthSummary": "服务健康",
       "attentionHint": "展开查看待处理项和对应入口",
+      "keyReminder": "Key 到期提醒",
+      "keyReminderHint": "查看已过期或 7 天内到期的 Key",
       "totalToolsNote": "已发现的工具总数",
       "dataUnavailableShort": "统计暂不可用",
       "moreServers": "还有 {{count}} 个服务未显示",

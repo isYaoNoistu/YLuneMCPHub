@@ -21,6 +21,8 @@ import ConfigBackupButton from '@/components/ConfigBackupButton';
 import DashboardAttentionPanel from '@/components/DashboardAttentionPanel';
 import UsageLineChart from '@/components/UsageLineChart';
 
+const DASHBOARD_STACK_QUERY = '(max-width: 1120px)';
+
 const formatWhen = (iso?: string | null): string => {
   if (!iso) return '—';
   const date = new Date(iso);
@@ -99,6 +101,17 @@ const DashboardPage: React.FC = () => {
   const [usageStatus, setUsageStatus] = useState<DashboardUsageStatus>(
     isAdmin ? 'loading' : 'unavailable',
   );
+  const [isStackedLayout, setIsStackedLayout] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(DASHBOARD_STACK_QUERY).matches,
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(DASHBOARD_STACK_QUERY);
+    const syncLayout = (event: MediaQueryListEvent) => setIsStackedLayout(event.matches);
+    setIsStackedLayout(mediaQuery.matches);
+    mediaQuery.addEventListener('change', syncLayout);
+    return () => mediaQuery.removeEventListener('change', syncLayout);
+  }, []);
 
   const loadUsage = React.useCallback(async () => {
     if (!isAdmin) {
@@ -262,6 +275,35 @@ const DashboardPage: React.FC = () => {
           },
         ];
 
+  const trendCard = (
+    <article className="dash-card dash-trend-card">
+      <header className="dash-card-head">
+        <h2>{t('pages.dashboard.trendTitle')}</h2>
+        <span className="hub-num hub-mono">
+          {usageSurface === 'ready' ? (weekCalls ?? '—') : '—'}
+        </span>
+      </header>
+      {usageSurface === 'loading' ? (
+        <div className="dash-empty" aria-busy="true">
+          <strong>{t('common.loading')}</strong>
+        </div>
+      ) : usageSurface === 'ready' && usage ? (
+        <UsageLineChart
+          days={usage.days}
+          ariaLabel={t('pages.dashboard.last7Days')}
+          callsLabel={t('pages.dashboard.usageCalls')}
+          errorsLabel={t('pages.dashboard.usageErrors')}
+          interactionHint={t('pages.dashboard.trendInteractionHint')}
+        />
+      ) : (
+        <div className="dash-empty is-unavailable" role="status">
+          <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
+          <span>{usageNote}</span>
+        </div>
+      )}
+    </article>
+  );
+
   return (
     <section className="hub-page-stack" aria-labelledby="dashboardTitle">
       <div className="hub-page-head">
@@ -315,200 +357,174 @@ const DashboardPage: React.FC = () => {
         </p>
       )}
 
-      <div className="dash-overview-grid">
-        <article className="dash-card">
-          <header className="dash-card-head">
-            <h2>
-              {isAdmin ? t('pages.dashboard.operationsTitle') : t('pages.dashboard.sessionTitle')}
-            </h2>
-            {isAdmin ? (
-              <span className="hub-num hub-mono">
-                {stats.online}/{stats.total}
-              </span>
-            ) : (
-              <span className="hub-tag muted">
-                {isDemo ? t('users.roleDemo') : t('users.user')}
-              </span>
-            )}
-          </header>
-          <p className="ylune-help dash-card-hint">
-            {isAdmin
-              ? t('pages.dashboard.snapshotHint')
-              : isDemo
-                ? t('pages.dashboard.youAreDemo')
-                : t('pages.dashboard.youAreUser')}
-          </p>
+      <div className="dash-flow-grid">
+        <div className="dash-flow-column">
+          <article className="dash-card dash-operations-card">
+            <header className="dash-card-head">
+              <h2>
+                {isAdmin ? t('pages.dashboard.operationsTitle') : t('pages.dashboard.sessionTitle')}
+              </h2>
+              {isAdmin ? (
+                <span className="hub-num hub-mono">
+                  {stats.online}/{stats.total}
+                </span>
+              ) : (
+                <span className="hub-tag muted">
+                  {isDemo ? t('users.roleDemo') : t('users.user')}
+                </span>
+              )}
+            </header>
+            <p className="ylune-help dash-card-hint">
+              {isAdmin
+                ? t('pages.dashboard.snapshotHint')
+                : isDemo
+                  ? t('pages.dashboard.youAreDemo')
+                  : t('pages.dashboard.youAreUser')}
+            </p>
 
-          <div className="dash-snapshot">
-            {isAdmin && (
-              <>
-                <div className="dash-snapshot-item">
-                  <span>{t('pages.dashboard.offlineServers')}</span>
-                  <b className={`hub-num${stats.offline > 0 ? ' is-warn' : ''}`}>{stats.offline}</b>
-                </div>
-                <div className="dash-snapshot-item">
-                  <span>{t('cost.totalFootprint')}</span>
-                  <b className="hub-num">{formatTokens(footprint)}</b>
-                </div>
-                <div className="dash-snapshot-item is-wide">
-                  <span>{t('pages.dashboard.lastFailure')}</span>
-                  {lastFailure ? (
-                    <a className="dash-latest-failure" href="#dashboard-failures">
-                      <b className="is-err">{lastFailure.tool}</b>
-                      <small>{new Date(lastFailure.timestamp).toLocaleString()}</small>
-                    </a>
-                  ) : (
-                    <b>
-                      {usageSurface === 'loading'
-                        ? t('common.loading')
-                        : usageSurface === 'unavailable'
-                          ? usageNote
-                          : t('pages.dashboard.noFailure')}
+            <div className="dash-snapshot">
+              {isAdmin && (
+                <>
+                  <div className="dash-snapshot-item">
+                    <span>{t('pages.dashboard.offlineServers')}</span>
+                    <b className={`hub-num${stats.offline > 0 ? ' is-warn' : ''}`}>
+                      {stats.offline}
                     </b>
-                  )}
-                </div>
-              </>
-            )}
-            {!isAdmin && !isDemo && (
-              <>
-                <div className="dash-snapshot-item">
-                  <span>{t('pages.dashboard.tokenRemaining')}</span>
-                  <b className={sessionUser && isExpiredUser(sessionUser) ? 'is-err' : undefined}>
-                    {sessionUser ? tokenRemainingLabel(sessionUser, t) : '—'}
-                  </b>
-                </div>
-                <div className="dash-snapshot-item">
-                  <span>{t('pages.dashboard.createdAt')}</span>
-                  <b>{formatWhen(sessionUser?.createdAt)}</b>
-                </div>
-              </>
-            )}
-          </div>
-
-          {!isDemo && (
-            <div className="dash-endpoint">
-              <span>{t('pages.dashboard.mcpEndpoint')}</span>
-              <code>{mcpEndpoint}</code>
+                  </div>
+                  <div className="dash-snapshot-item">
+                    <span>{t('cost.totalFootprint')}</span>
+                    <b className="hub-num">{formatTokens(footprint)}</b>
+                  </div>
+                  <div className="dash-snapshot-item is-wide">
+                    <span>{t('pages.dashboard.lastFailure')}</span>
+                    {lastFailure ? (
+                      <a className="dash-latest-failure" href="#dashboard-failures">
+                        <b className="is-err">{lastFailure.tool}</b>
+                        <small>{new Date(lastFailure.timestamp).toLocaleString()}</small>
+                      </a>
+                    ) : (
+                      <b>
+                        {usageSurface === 'loading'
+                          ? t('common.loading')
+                          : usageSurface === 'unavailable'
+                            ? usageNote
+                            : t('pages.dashboard.noFailure')}
+                      </b>
+                    )}
+                  </div>
+                </>
+              )}
+              {!isAdmin && !isDemo && (
+                <>
+                  <div className="dash-snapshot-item">
+                    <span>{t('pages.dashboard.tokenRemaining')}</span>
+                    <b className={sessionUser && isExpiredUser(sessionUser) ? 'is-err' : undefined}>
+                      {sessionUser ? tokenRemainingLabel(sessionUser, t) : '—'}
+                    </b>
+                  </div>
+                  <div className="dash-snapshot-item">
+                    <span>{t('pages.dashboard.createdAt')}</span>
+                    <b>{formatWhen(sessionUser?.createdAt)}</b>
+                  </div>
+                </>
+              )}
             </div>
-          )}
 
-          <div className="dash-roster">
-            <div className="dash-roster-head">
-              <h3>
-                {isAdmin || isDemo
-                  ? t('pages.dashboard.serversNow')
-                  : t('pages.dashboard.myServers')}
-              </h3>
-              <span className="hub-num hub-mono">
-                {isAdmin || isDemo ? `${stats.online}/${stats.total}` : myGrants.length}
-              </span>
-            </div>
-            {isAdmin || isDemo ? (
-              allServers.length === 0 ? (
+            {!isDemo && (
+              <div className="dash-endpoint">
+                <span>{t('pages.dashboard.mcpEndpoint')}</span>
+                <code>{mcpEndpoint}</code>
+              </div>
+            )}
+
+            <div className="dash-roster">
+              <div className="dash-roster-head">
+                <h3>
+                  {isAdmin || isDemo
+                    ? t('pages.dashboard.serversNow')
+                    : t('pages.dashboard.myServers')}
+                </h3>
+                <span className="hub-num hub-mono">
+                  {isAdmin || isDemo ? `${stats.online}/${stats.total}` : myGrants.length}
+                </span>
+              </div>
+              {isAdmin || isDemo ? (
+                allServers.length === 0 ? (
+                  <div className="dash-empty">
+                    <strong>{t('pages.dashboard.noServersYet')}</strong>
+                    {isAdmin && (
+                      <Link className="cfg-link" to="/servers">
+                        {t('pages.dashboard.addServer')}
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  serverPreview.visible.map((server) => {
+                    const status = serverStatus(server);
+                    return (
+                      <div key={server.name} className="dash-roster-row">
+                        <span className="dash-roster-name hub-mono" title={server.name}>
+                          {server.name}
+                        </span>
+                        <div className="dash-roster-meta">
+                          <span className={`hub-status ${status.tone}`}>
+                            <i className="hub-dot" />
+                            {status.text}
+                          </span>
+                          <span className="dash-roster-count hub-mono">
+                            {server.tools?.length || 0} {t('server.tools')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              ) : myGrants.length === 0 ? (
                 <div className="dash-empty">
-                  <strong>{t('pages.dashboard.noServersYet')}</strong>
-                  {isAdmin && (
-                    <Link className="cfg-link" to="/servers">
-                      {t('pages.dashboard.addServer')}
-                    </Link>
-                  )}
+                  <strong>{t('pages.dashboard.noGrantsYet')}</strong>
                 </div>
               ) : (
-                serverPreview.visible.map((server) => {
-                  const status = serverStatus(server);
+                grantPreview.visible.map((grant) => {
+                  const server = allServers.find((item) => item.name === grant.name);
+                  const status = server
+                    ? serverStatus(server)
+                    : { text: t('status.offline'), tone: 'muted' as const };
                   return (
-                    <div key={server.name} className="dash-roster-row">
-                      <span className="dash-roster-name hub-mono" title={server.name}>
-                        {server.name}
+                    <div key={grant.name} className="dash-roster-row">
+                      <span className="dash-roster-name hub-mono" title={grant.name}>
+                        {grant.name}
                       </span>
                       <div className="dash-roster-meta">
                         <span className={`hub-status ${status.tone}`}>
                           <i className="hub-dot" />
                           {status.text}
                         </span>
-                        <span className="dash-roster-count hub-mono">
-                          {server.tools?.length || 0} {t('server.tools')}
-                        </span>
+                        <span className="dash-roster-count hub-mono">{grantToolsLabel(grant)}</span>
                       </div>
                     </div>
                   );
                 })
-              )
-            ) : myGrants.length === 0 ? (
-              <div className="dash-empty">
-                <strong>{t('pages.dashboard.noGrantsYet')}</strong>
-              </div>
-            ) : (
-              grantPreview.visible.map((grant) => {
-                const server = allServers.find((item) => item.name === grant.name);
-                const status = server
-                  ? serverStatus(server)
-                  : { text: t('status.offline'), tone: 'muted' as const };
-                return (
-                  <div key={grant.name} className="dash-roster-row">
-                    <span className="dash-roster-name hub-mono" title={grant.name}>
-                      {grant.name}
-                    </span>
-                    <div className="dash-roster-meta">
-                      <span className={`hub-status ${status.tone}`}>
-                        <i className="hub-dot" />
-                        {status.text}
-                      </span>
-                      <span className="dash-roster-count hub-mono">{grantToolsLabel(grant)}</span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            {(isAdmin || isDemo ? serverPreview.hiddenCount : grantPreview.hiddenCount) > 0 && (
-              <div className="dash-roster-foot">
-                <span>
-                  {t('pages.dashboard.moreServers', {
-                    count: isAdmin || isDemo ? serverPreview.hiddenCount : grantPreview.hiddenCount,
-                  })}
-                </span>
-                <Link className="cfg-link" to="/servers">
-                  {t('common.view')} {t('nav.servers')}
-                </Link>
-              </div>
-            )}
-          </div>
-        </article>
-
-        {isAdmin && (
-          <article className="dash-card">
-            <header className="dash-card-head">
-              <h2>{t('pages.dashboard.trendTitle')}</h2>
-              <span className="hub-num hub-mono">
-                {usageSurface === 'ready' ? (weekCalls ?? '—') : '—'}
-              </span>
-            </header>
-            {usageSurface === 'loading' ? (
-              <div className="dash-empty" aria-busy="true">
-                <strong>{t('common.loading')}</strong>
-              </div>
-            ) : usageSurface === 'ready' && usage ? (
-              <UsageLineChart
-                days={usage.days}
-                ariaLabel={t('pages.dashboard.last7Days')}
-                callsLabel={t('pages.dashboard.usageCalls')}
-                errorsLabel={t('pages.dashboard.usageErrors')}
-                interactionHint={t('pages.dashboard.trendInteractionHint')}
-              />
-            ) : (
-              <div className="dash-empty is-unavailable" role="status">
-                <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
-                <span>{usageNote}</span>
-              </div>
-            )}
+              )}
+              {(isAdmin || isDemo ? serverPreview.hiddenCount : grantPreview.hiddenCount) > 0 && (
+                <div className="dash-roster-foot">
+                  <span>
+                    {t('pages.dashboard.moreServers', {
+                      count:
+                        isAdmin || isDemo ? serverPreview.hiddenCount : grantPreview.hiddenCount,
+                    })}
+                  </span>
+                  <Link className="cfg-link" to="/servers">
+                    {t('common.view')} {t('nav.servers')}
+                  </Link>
+                </div>
+              )}
+            </div>
           </article>
-        )}
-      </div>
 
-      {isAdmin && (
-        <>
-          <div className="dash-detail-grid">
-            <article className="dash-card">
+          {isAdmin && isStackedLayout && trendCard}
+
+          {isAdmin && (
+            <article className="dash-card dash-tools-card">
               <header className="dash-card-head">
                 <h2>{t('pages.dashboard.toolCalls')}</h2>
               </header>
@@ -563,7 +579,13 @@ const DashboardPage: React.FC = () => {
                 </div>
               )}
             </article>
-            <article className="dash-card">
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="dash-flow-column">
+            {!isStackedLayout && trendCard}
+            <article className="dash-card dash-users-card">
               <header className="dash-card-head">
                 <h2>{t('pages.dashboard.userCalls')}</h2>
               </header>
@@ -618,55 +640,55 @@ const DashboardPage: React.FC = () => {
                 </div>
               )}
             </article>
-          </div>
 
-          <article className="dash-card dash-failures-card" id="dashboard-failures">
-            <header className="dash-card-head">
-              <h2>{t('pages.dashboard.recentErrors')}</h2>
-              <Link className="cfg-link" to="/activity">
-                {t('common.view')} {t('nav.activity')}
-              </Link>
-            </header>
-            {usageSurface === 'loading' ? (
-              <div className="dash-empty" aria-busy="true">
-                <strong>{t('common.loading')}</strong>
-              </div>
-            ) : usageSurface === 'unavailable' ? (
-              <div className="dash-empty is-unavailable" role="status">
-                <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
-                <span>{usageNote}</span>
-              </div>
-            ) : !usage || usage.recentErrors.length === 0 ? (
-              <div className="dash-empty">
-                <strong>{t('pages.dashboard.noRecentErrors')}</strong>
-              </div>
-            ) : (
-              <ul className="dash-errors" aria-label={t('pages.dashboard.recentErrors')}>
-                {usage.recentErrors.map((item) => (
-                  <li key={item.id}>
-                    <span className="dash-error-cell hub-mono">
-                      <small>{t('activity.timestamp')}</small>
-                      {new Date(item.timestamp).toLocaleString()}
-                    </span>
-                    <strong className="dash-error-cell">
-                      <small>{t('activity.tool')}</small>
-                      {item.tool}
-                    </strong>
-                    <span className="dash-error-cell">
-                      <small>{t('activity.user')}</small>
-                      {item.username || '—'}
-                    </span>
-                    <span className="dash-error-cell dash-error-msg">
-                      <small>{t('activity.errorMessage')}</small>
-                      {item.errorMessage || t('activity.statusError')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </article>
-        </>
-      )}
+            <article className="dash-card dash-failures-card" id="dashboard-failures">
+              <header className="dash-card-head">
+                <h2>{t('pages.dashboard.recentErrors')}</h2>
+                <Link className="cfg-link" to="/activity">
+                  {t('common.view')} {t('nav.activity')}
+                </Link>
+              </header>
+              {usageSurface === 'loading' ? (
+                <div className="dash-empty" aria-busy="true">
+                  <strong>{t('common.loading')}</strong>
+                </div>
+              ) : usageSurface === 'unavailable' ? (
+                <div className="dash-empty is-unavailable" role="status">
+                  <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
+                  <span>{usageNote}</span>
+                </div>
+              ) : !usage || usage.recentErrors.length === 0 ? (
+                <div className="dash-empty">
+                  <strong>{t('pages.dashboard.noRecentErrors')}</strong>
+                </div>
+              ) : (
+                <ul className="dash-errors" aria-label={t('pages.dashboard.recentErrors')}>
+                  {usage.recentErrors.map((item) => (
+                    <li key={item.id}>
+                      <span className="dash-error-cell hub-mono">
+                        <small>{t('activity.timestamp')}</small>
+                        {new Date(item.timestamp).toLocaleString()}
+                      </span>
+                      <strong className="dash-error-cell">
+                        <small>{t('activity.tool')}</small>
+                        {item.tool}
+                      </strong>
+                      <span className="dash-error-cell">
+                        <small>{t('activity.user')}</small>
+                        {item.username || '—'}
+                      </span>
+                      <span className="dash-error-cell dash-error-msg">
+                        <small>{t('activity.errorMessage')}</small>
+                        {item.errorMessage || t('activity.statusError')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          </div>
+        )}
+      </div>
     </section>
   );
 };

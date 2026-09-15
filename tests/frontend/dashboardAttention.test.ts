@@ -1,4 +1,7 @@
-import { buildDashboardAttention } from '../../frontend/src/utils/dashboardAttention';
+import {
+  buildDashboardAttention,
+  buildDashboardLifecycleNotices,
+} from '../../frontend/src/utils/dashboardAttention';
 import type { Server, User } from '../../frontend/src/types';
 
 const server = (name: string, status: Server['status'], enabled = true): Server =>
@@ -21,7 +24,6 @@ describe('dashboard attention', () => {
     expect(result.map((item) => ({ kind: item.kind, names: item.names }))).toEqual([
       { kind: 'disconnected', names: ['offline'] },
       { kind: 'empty_grants', names: ['empty'] },
-      { kind: 'expired_users', names: ['expired'] },
     ]);
   });
 
@@ -34,17 +36,15 @@ describe('dashboard attention', () => {
     ).toEqual([]);
   });
 
-  it('keeps expired and soon-expiring keys in separate messages', () => {
+  it('keeps expired and soon-expiring keys out of fault attention', () => {
     const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
-    const result = buildDashboardAttention(
-      [],
-      [
-        user({ username: 'expired', tokenExpiresAt: '2020-01-01T00:00:00.000Z' }),
-        user({ username: 'soon', tokenExpiresAt: tomorrow }),
-      ],
-    );
+    const users = [
+      user({ username: 'expired', tokenExpiresAt: '2020-01-01T00:00:00.000Z' }),
+      user({ username: 'soon', tokenExpiresAt: tomorrow }),
+    ];
 
-    expect(result).toEqual([
+    expect(buildDashboardAttention([], users)).toEqual([]);
+    expect(buildDashboardLifecycleNotices(users)).toEqual([
       { kind: 'expired_users', names: ['expired'] },
       { kind: 'expiring_users', names: ['soon'] },
     ]);

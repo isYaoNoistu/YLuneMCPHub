@@ -444,6 +444,8 @@
       "trendTitle": "7-day trend",
       "healthSummary": "Server health",
       "attentionHint": "Expand for action items and their destinations",
+      "keyReminder": "Key expiry reminders",
+      "keyReminderHint": "Review keys that have expired or expire within 7 days",
       "totalToolsNote": "Total discovered tools",
       "dataUnavailableShort": "Statistics unavailable",
       "moreServers": "{{count}} more server(s) not shown",

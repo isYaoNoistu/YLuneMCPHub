@@ -1670,8 +1670,15 @@ button.cfg-link {
   color: var(--color-text);
 }
 
-.dash-overview-grid,
-.dash-detail-grid {
+:root {
+  --dash-warning-text: #e7c27a;
+}
+
+html.light {
+  --dash-warning-text: #6f4b00;
+}
+
+.dash-flow-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   align-items: start;
@@ -1679,14 +1686,42 @@ button.cfg-link {
   margin-bottom: 12px;
 }
 
-.dash-attention {
+.dash-flow-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-flow-column:only-child {
+  grid-column: 1 / -1;
+}
+
+.dash-notice-stack {
+  display: grid;
+  gap: 8px;
   margin: -4px 0 12px;
-  border: 1px solid color-mix(in srgb, var(--color-danger) 34%, var(--color-border));
+}
+
+.dash-attention,
+.dash-lifecycle {
+  border: 1px solid var(--color-border);
   border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.dash-attention {
+  border-color: color-mix(in srgb, var(--color-danger) 34%, var(--color-border));
   background: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface));
 }
 
-.dash-attention summary {
+.dash-lifecycle {
+  border-color: color-mix(in srgb, var(--hub-warn) 44%, var(--color-border));
+  background: color-mix(in srgb, var(--hub-warn) 7%, var(--color-surface));
+}
+
+.dash-attention summary,
+.dash-lifecycle summary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1698,11 +1733,13 @@ button.cfg-link {
   list-style: none;
 }
 
-.dash-attention summary::-webkit-details-marker {
+.dash-attention summary::-webkit-details-marker,
+.dash-lifecycle summary::-webkit-details-marker {
   display: none;
 }
 
-.dash-attention summary:focus-visible {
+.dash-attention summary:focus-visible,
+.dash-lifecycle summary:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -1713,6 +1750,26 @@ button.cfg-link {
   flex: 0 0 7px;
   border-radius: 50%;
   background: var(--color-danger);
+}
+
+.dash-lifecycle-mark {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--hub-warn);
+}
+
+.dash-attention .hub-tag {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+
+.dash-lifecycle .hub-tag {
+  color: var(--dash-warning-text);
+  border-color: color-mix(in srgb, var(--hub-warn) 40%, transparent);
+  background: color-mix(in srgb, var(--hub-warn) 11%, transparent);
 }
 
 .dash-attention-summary {
@@ -1770,7 +1827,6 @@ button.cfg-link {
 }
 
 .dash-failures-card {
-  margin-bottom: 8px;
   scroll-margin-top: 72px;
 }
 
@@ -2585,7 +2641,7 @@ button.cfg-link {
 
 .dash-errors li {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1.2fr) 120px minmax(0, 2fr);
+  grid-template-columns: 150px minmax(0, 1fr) 110px;
   gap: 10px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--color-border);
@@ -2612,6 +2668,7 @@ button.cfg-link {
 }
 
 .dash-error-msg {
+  grid-column: 1 / -1;
   color: var(--color-danger);
   display: -webkit-box;
   overflow: hidden;
@@ -2620,10 +2677,18 @@ button.cfg-link {
   -webkit-line-clamp: 2;
 }
 
+@media (max-width: 1120px) {
+  .dash-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-flow-column {
+    display: contents;
+  }
+}
+
 @media (max-width: 900px) {
-  .dash-hero,
-  .dash-overview-grid,
-  .dash-detail-grid {
+  .dash-hero {
     grid-template-columns: 1fr;
   }
 
@@ -2637,6 +2702,7 @@ button.cfg-link {
   }
 
   .dash-error-msg {
+    grid-column: auto;
     display: block;
   }
 }
@@ -2644,6 +2710,10 @@ button.cfg-link {
 @media (max-width: 640px) {
   .dash-summary-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dash-attention-summary {
+    display: none;
   }
 
   .dash-line-axis.is-mid {
