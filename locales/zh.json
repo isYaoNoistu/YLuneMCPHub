@@ -443,6 +443,13 @@
       "operationsTitle": "运行快照",
       "trendTitle": "近 7 天趋势",
       "healthSummary": "服务健康",
+      "attentionHint": "展开查看待处理项和对应入口",
+      "totalToolsNote": "已发现的工具总数",
+      "dataUnavailableShort": "统计暂不可用",
+      "moreServers": "还有 {{count}} 个服务未显示",
+      "trendInteractionHint": "使用鼠标、触摸或左右方向键查看每日数据",
+      "rankingAria": "{{name}}：{{calls}} 次调用，{{errors}} 次失败",
+      "errorShort": "{{count}} 失败",
       "snapshotHeading": "智能体 / 普通用户",
       "snapshotHint": "管理员账号一般不调工具。这里是网关上的调用，不是当前登录管理员自己的。",
       "youAreUser": "智能体用当前账号的授权连接 /mcp。本页只读。",
@@ -1616,7 +1623,8 @@
     "noServers": "还没有接入任何 MCP 服务器",
     "disconnected": "这些服务未连上：{{names}}",
     "emptyGrants": "这些用户没有勾任何工具，Key 调 /mcp 是空的：{{names}}",
-    "expiredUsers": "这些用户的 Key 已过期：{{names}}"
+    "expiredUsers": "这些用户的 Key 已过期：{{names}}",
+    "expiringUsers": "这些用户的 Key 将在 7 天内到期：{{names}}"
   },
   "backup": {
     "download": "导出配置",

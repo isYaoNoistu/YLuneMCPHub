@@ -443,6 +443,13 @@
       "operationsTitle": "Operations snapshot",
       "trendTitle": "7-day trend",
       "healthSummary": "Server health",
+      "attentionHint": "Expand for action items and their destinations",
+      "totalToolsNote": "Total discovered tools",
+      "dataUnavailableShort": "Statistics unavailable",
+      "moreServers": "{{count}} more server(s) not shown",
+      "trendInteractionHint": "Use a pointer, touch, or the left and right arrow keys to read each day",
+      "rankingAria": "{{name}}: {{calls}} calls, {{errors}} failures",
+      "errorShort": "{{count}} failed",
       "snapshotHeading": "Agents / regular users",
       "snapshotHint": "Admins rarely call tools. These numbers are gateway traffic, not this admin account.",
       "youAreUser": "Agents use this account's grants on /mcp. This page is read-only.",
@@ -1616,7 +1623,8 @@
     "noServers": "No MCP servers are connected yet",
     "disconnected": "These servers are not connected: {{names}}",
     "emptyGrants": "These users have no tools granted, so /mcp is empty: {{names}}",
-    "expiredUsers": "These users have expired keys: {{names}}"
+    "expiredUsers": "These users have expired keys: {{names}}",
+    "expiringUsers": "These users have keys expiring within 7 days: {{names}}"
   },
   "backup": {
     "download": "Export config",

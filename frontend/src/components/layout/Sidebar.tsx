@@ -64,12 +64,16 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       ]
     : [
         ...(userCanManageUsers ? [{ path: '/users', label: t('nav.users'), ico: '◉' }] : []),
-        ...(auth.user?.isAdmin ? [{ path: '/credentials', label: t('nav.credentials'), ico: '▣' }] : []),
+        ...(auth.user?.isAdmin
+          ? [{ path: '/credentials', label: t('nav.credentials'), ico: '▣' }]
+          : []),
         ...(activityAvailable && auth.user?.isAdmin
           ? [{ path: '/activity', label: t('nav.activity'), ico: '◎' }]
           : []),
         ...(auth.user?.isAdmin ? [{ path: '/audit', label: t('nav.audit'), ico: '▣' }] : []),
-        ...(canViewSystemLogs(auth.user) ? [{ path: '/logs', label: t('nav.logs'), ico: '≣' }] : []),
+        ...(canViewSystemLogs(auth.user)
+          ? [{ path: '/logs', label: t('nav.logs'), ico: '≣' }]
+          : []),
         { path: '/settings', label: t('nav.settings'), ico: '⚙' },
       ];
 
@@ -79,12 +83,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         key={item.path}
         className="side-link is-soon"
         aria-disabled="true"
+        aria-label={item.label}
         title={t('nav.demoLocked')}
       >
         <span className="side-ico" aria-hidden="true">
           {item.ico}
         </span>
-        {item.label}
+        <span className="side-link-label">{item.label}</span>
       </span>
     ) : (
       <NavLink
@@ -92,12 +97,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         to={item.path}
         end={item.end}
         className={({ isActive }) => `side-link${isActive ? ' is-active' : ''}`}
+        aria-label={item.label}
         title={item.label}
       >
         <span className="side-ico" aria-hidden="true">
           {item.ico}
         </span>
-        {item.label}
+        <span className="side-link-label">{item.label}</span>
         {item.badge != null && <span className="side-count mono">{item.badge}</span>}
       </NavLink>
     );
@@ -105,7 +111,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   return (
     <aside className={`side${collapsed ? ' is-collapsed' : ''}`} aria-label="主导航">
       <NavLink className="side-brand" to="/" end>
-        <img src={resolvedTheme === 'light' ? logoDarkMarkUrl : logoUrl} alt="" width={28} height={28} />
+        <img
+          src={resolvedTheme === 'light' ? logoDarkMarkUrl : logoUrl}
+          alt=""
+          width={28}
+          height={28}
+        />
         <span className="side-name">
           Y<b>LUNE</b>
         </span>

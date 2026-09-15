@@ -1,4 +1,4 @@
-import { apiGet, apiDelete } from '@/utils/fetchInterceptor';
+import { apiGet, apiDelete } from '../utils/fetchInterceptor';
 import {
   Activity,
   ActivityStats,
@@ -11,15 +11,20 @@ import {
 /**
  * Check if activity feature is available (database mode only)
  */
-export const checkActivityAvailable = async (): Promise<boolean> => {
+export type ActivityAvailability = 'available' | 'needs_db' | 'unavailable';
+
+export const getActivityAvailability = async (): Promise<ActivityAvailability> => {
   try {
     const response = await apiGet('/activities/available');
-    return response?.data?.available || false;
+    return response?.data?.available === true ? 'available' : 'needs_db';
   } catch (error) {
     console.error('Error checking activity availability:', error);
-    return false;
+    return 'unavailable';
   }
 };
+
+export const checkActivityAvailable = async (): Promise<boolean> =>
+  (await getActivityAvailability()) === 'available';
 
 /**
  * Build query string from filter object

@@ -31,19 +31,33 @@ export type UsageChartModel = {
 const DEFAULTS = {
   width: 720,
   height: 132,
-  left: 24,
-  right: 10,
+  left: 32,
+  right: 32,
   top: 12,
   bottom: 24,
+};
+
+export const resolveUsageChartDimensions = (
+  containerWidth: number,
+): Pick<UsageChartOptions, 'width' | 'height'> => {
+  if (!Number.isFinite(containerWidth) || containerWidth <= 0) {
+    return { width: DEFAULTS.width, height: DEFAULTS.height };
+  }
+  const width = Math.min(DEFAULTS.width, Math.max(280, Math.round(containerWidth)));
+  return { width, height: width <= 400 ? 112 : DEFAULTS.height };
+};
+
+export const moveUsageIndex = (current: number, delta: number, length: number): number => {
+  if (length <= 0) return 0;
+  const clamped = Math.min(Math.max(current, 0), length - 1);
+  return Math.min(Math.max(clamped + delta, 0), length - 1);
 };
 
 export const linePath = (points: ChartPoint[]): string => {
   if (points.length === 0) {
     return '';
   }
-  return points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ');
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
 };
 
 const niceMax = (value: number): number => {

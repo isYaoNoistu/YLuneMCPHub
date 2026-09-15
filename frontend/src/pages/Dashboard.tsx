@@ -1,19 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { useUserData } from '@/hooks/useUserData';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { formatTokens } from '@/utils/contextCost';
-import { checkActivityAvailable, getActivityUsage } from '@/services/activityService';
+import { getActivityAvailability, getActivityUsage } from '@/services/activityService';
 import { ActivityUsage, IGroupServerConfig, IUser, Server, User } from '@/types';
 import { getMcpEndpointUrl } from '@/utils/userMcpConfig';
 import { isDemoUser } from '@/utils/navigationPermissions';
 import { isExpiredUser } from '@/utils/expiryCenter';
-import DiagnosticsBanner from '@/components/DiagnosticsBanner';
+import {
+  DashboardUsageStatus,
+  resolveUsageSurfaceState,
+  takeDashboardPreview,
+} from '@/utils/dashboardPresentation';
 import ConfigBackupButton from '@/components/ConfigBackupButton';
-import ExpiryCenter from '@/components/ExpiryCenter';
+import DashboardAttentionPanel from '@/components/DashboardAttentionPanel';
 import UsageLineChart from '@/components/UsageLineChart';
 
 const formatWhen = (iso?: string | null): string => {
@@ -23,7 +28,7 @@ const formatWhen = (iso?: string | null): string => {
 };
 
 const tokenRemainingLabel = (
-  user: User,
+  user: IUser,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string => {
   if (user.mcpEnabled === false) {
@@ -52,7 +57,6 @@ const DashboardPage: React.FC = () => {
   const { auth } = useAuth();
   const isAdmin = auth.user?.isAdmin === true;
   const isDemo = isDemoUser(auth.user);
-  const username = auth.user?.username || '';
   const { allServers, error, setError, isLoading, triggerRefresh } = useServerData();
   const { serverCosts } = useCostData();
   const { users, triggerRefresh: refreshUsers } = useUserData();
@@ -92,48 +96,60 @@ const DashboardPage: React.FC = () => {
   );
 
   const [usage, setUsage] = useState<ActivityUsage | null>(null);
-  const [usageNote, setUsageNote] = useState<string | null>(null);
+  const [usageStatus, setUsageStatus] = useState<DashboardUsageStatus>(
+    isAdmin ? 'loading' : 'unavailable',
+  );
 
   const loadUsage = React.useCallback(async () => {
     if (!isAdmin) {
       setUsage(null);
-      setUsageNote(null);
+      setUsageStatus('unavailable');
       return;
     }
-    const available = await checkActivityAvailable();
-    if (!available) {
+    setUsageStatus('loading');
+    const availability = await getActivityAvailability();
+    if (availability !== 'available') {
       setUsage(null);
-      setUsageNote(t('pages.dashboard.usageNeedsDb'));
+      setUsageStatus(availability);
       return;
     }
     try {
       const response = await getActivityUsage(7, 10);
       if (response?.success && response.data) {
         setUsage(response.data);
-        setUsageNote(null);
+        setUsageStatus('ready');
       } else {
         setUsage(null);
-        setUsageNote(t('pages.dashboard.usageUnavailable'));
+        setUsageStatus('unavailable');
       }
     } catch {
       setUsage(null);
-      setUsageNote(t('pages.dashboard.usageUnavailable'));
+      setUsageStatus('unavailable');
     }
-  }, [isAdmin, t]);
+  }, [isAdmin]);
 
   useEffect(() => {
     void loadUsage();
   }, [loadUsage]);
 
   const showSkeleton = !hasLoaded;
+  const usageSurface = resolveUsageSurfaceState(usageStatus, usage !== null);
+  const usageNote =
+    usageStatus === 'needs_db'
+      ? t('pages.dashboard.usageNeedsDb')
+      : usageStatus === 'unavailable'
+        ? t('pages.dashboard.usageUnavailable')
+        : null;
   const maxTool = Math.max(1, ...(usage?.tools.map((item) => item.count) || [0]));
   const maxUser = Math.max(1, ...(usage?.users.map((item) => item.count) || [0]));
   const todayUsage = usage?.days[usage.days.length - 1];
   const weekCalls = usage?.days.reduce((sum, day) => sum + day.count, 0) ?? null;
-  const lastFailure = usage?.recentErrors[0];
+  const lastFailure = usageSurface === 'ready' ? usage?.recentErrors[0] : undefined;
   const mcpEndpoint = getMcpEndpointUrl(installConfig?.baseUrl);
   const sessionUser = auth.user as IUser | null;
   const myGrants = sessionUser?.grants || [];
+  const serverPreview = takeDashboardPreview(allServers, 6);
+  const grantPreview = takeDashboardPreview(myGrants, 6);
   const myToolCount = myGrants.reduce((sum, grant) => {
     if (!grant.tools || grant.tools === 'all') {
       const server = allServers.find((item) => item.name === grant.name);
@@ -175,19 +191,29 @@ const DashboardPage: React.FC = () => {
         {
           label: t('server.tools'),
           value: String(stats.tools),
-          note: t('cost.totalFootprint'),
+          note: t('pages.dashboard.totalToolsNote'),
         },
         {
           label: t('pages.dashboard.todayCalls'),
-          value: todayUsage ? String(todayUsage.count) : '—',
-          note: todayUsage
-            ? `${t('pages.dashboard.todayErrors')} ${todayUsage.errors}`
-            : t('pages.dashboard.noCalls'),
+          value: usageSurface === 'ready' && todayUsage ? String(todayUsage.count) : '—',
+          note:
+            usageSurface === 'loading'
+              ? t('common.loading')
+              : usageSurface === 'unavailable'
+                ? usageNote || t('pages.dashboard.usageUnavailable')
+                : todayUsage
+                  ? `${t('pages.dashboard.todayErrors')} ${todayUsage.errors}`
+                  : t('pages.dashboard.noCalls'),
         },
         {
           label: t('pages.dashboard.weekCalls'),
-          value: weekCalls == null ? '—' : String(weekCalls),
-          note: t('pages.dashboard.last7Days'),
+          value: usageSurface === 'ready' && weekCalls != null ? String(weekCalls) : '—',
+          note:
+            usageSurface === 'loading'
+              ? t('common.loading')
+              : usageSurface === 'unavailable'
+                ? t('pages.dashboard.dataUnavailableShort')
+                : t('pages.dashboard.last7Days'),
         },
       ]
     : isDemo
@@ -264,18 +290,6 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {isAdmin && <DiagnosticsBanner servers={allServers} users={users} />}
-      {isAdmin && <ExpiryCenter users={users} />}
-
-      {error && (
-        <p className="form-msg">
-          {error}{' '}
-          <button type="button" className="cfg-link" onClick={() => setError(null)}>
-            {t('app.closeButton')}
-          </button>
-        </p>
-      )}
-
       <div className="dash-summary-grid">
         {showSkeleton
           ? Array.from({ length: 4 }).map((_, index) => (
@@ -290,16 +304,31 @@ const DashboardPage: React.FC = () => {
             ))}
       </div>
 
+      {isAdmin && <DashboardAttentionPanel servers={allServers} users={users} />}
+
+      {error && (
+        <p className="form-msg">
+          {error}{' '}
+          <button type="button" className="cfg-link" onClick={() => setError(null)}>
+            {t('app.closeButton')}
+          </button>
+        </p>
+      )}
+
       <div className="dash-overview-grid">
         <article className="dash-card">
           <header className="dash-card-head">
-            <h2>{isAdmin ? t('pages.dashboard.operationsTitle') : t('pages.dashboard.sessionTitle')}</h2>
+            <h2>
+              {isAdmin ? t('pages.dashboard.operationsTitle') : t('pages.dashboard.sessionTitle')}
+            </h2>
             {isAdmin ? (
               <span className="hub-num hub-mono">
                 {stats.online}/{stats.total}
               </span>
             ) : (
-              <span className="hub-tag muted">{isDemo ? t('users.roleDemo') : t('users.user')}</span>
+              <span className="hub-tag muted">
+                {isDemo ? t('users.roleDemo') : t('users.user')}
+              </span>
             )}
           </header>
           <p className="ylune-help dash-card-hint">
@@ -324,12 +353,18 @@ const DashboardPage: React.FC = () => {
                 <div className="dash-snapshot-item is-wide">
                   <span>{t('pages.dashboard.lastFailure')}</span>
                   {lastFailure ? (
-                    <b className="is-err" title={`${lastFailure.tool} · ${lastFailure.errorMessage || ''}`}>
-                      {lastFailure.tool}
-                      {lastFailure.errorMessage ? ` · ${lastFailure.errorMessage}` : ''}
-                    </b>
+                    <a className="dash-latest-failure" href="#dashboard-failures">
+                      <b className="is-err">{lastFailure.tool}</b>
+                      <small>{new Date(lastFailure.timestamp).toLocaleString()}</small>
+                    </a>
                   ) : (
-                    <b>{usageNote || t('pages.dashboard.noFailure')}</b>
+                    <b>
+                      {usageSurface === 'loading'
+                        ? t('common.loading')
+                        : usageSurface === 'unavailable'
+                          ? usageNote
+                          : t('pages.dashboard.noFailure')}
+                    </b>
                   )}
                 </div>
               </>
@@ -359,7 +394,11 @@ const DashboardPage: React.FC = () => {
 
           <div className="dash-roster">
             <div className="dash-roster-head">
-              <h3>{isAdmin || isDemo ? t('pages.dashboard.serversNow') : t('pages.dashboard.myServers')}</h3>
+              <h3>
+                {isAdmin || isDemo
+                  ? t('pages.dashboard.serversNow')
+                  : t('pages.dashboard.myServers')}
+              </h3>
               <span className="hub-num hub-mono">
                 {isAdmin || isDemo ? `${stats.online}/${stats.total}` : myGrants.length}
               </span>
@@ -368,9 +407,14 @@ const DashboardPage: React.FC = () => {
               allServers.length === 0 ? (
                 <div className="dash-empty">
                   <strong>{t('pages.dashboard.noServersYet')}</strong>
+                  {isAdmin && (
+                    <Link className="cfg-link" to="/servers">
+                      {t('pages.dashboard.addServer')}
+                    </Link>
+                  )}
                 </div>
               ) : (
-                allServers.slice(0, 8).map((server) => {
+                serverPreview.visible.map((server) => {
                   const status = serverStatus(server);
                   return (
                     <div key={server.name} className="dash-roster-row">
@@ -395,7 +439,7 @@ const DashboardPage: React.FC = () => {
                 <strong>{t('pages.dashboard.noGrantsYet')}</strong>
               </div>
             ) : (
-              myGrants.map((grant) => {
+              grantPreview.visible.map((grant) => {
                 const server = allServers.find((item) => item.name === grant.name);
                 const status = server
                   ? serverStatus(server)
@@ -416,6 +460,18 @@ const DashboardPage: React.FC = () => {
                 );
               })
             )}
+            {(isAdmin || isDemo ? serverPreview.hiddenCount : grantPreview.hiddenCount) > 0 && (
+              <div className="dash-roster-foot">
+                <span>
+                  {t('pages.dashboard.moreServers', {
+                    count: isAdmin || isDemo ? serverPreview.hiddenCount : grantPreview.hiddenCount,
+                  })}
+                </span>
+                <Link className="cfg-link" to="/servers">
+                  {t('common.view')} {t('nav.servers')}
+                </Link>
+              </div>
+            )}
           </div>
         </article>
 
@@ -423,19 +479,26 @@ const DashboardPage: React.FC = () => {
           <article className="dash-card">
             <header className="dash-card-head">
               <h2>{t('pages.dashboard.trendTitle')}</h2>
-              <span className="hub-num hub-mono">{weekCalls ?? '—'}</span>
+              <span className="hub-num hub-mono">
+                {usageSurface === 'ready' ? (weekCalls ?? '—') : '—'}
+              </span>
             </header>
-            {usageNote && <p className="dash-muted">{usageNote}</p>}
-            {usage ? (
+            {usageSurface === 'loading' ? (
+              <div className="dash-empty" aria-busy="true">
+                <strong>{t('common.loading')}</strong>
+              </div>
+            ) : usageSurface === 'ready' && usage ? (
               <UsageLineChart
                 days={usage.days}
                 ariaLabel={t('pages.dashboard.last7Days')}
                 callsLabel={t('pages.dashboard.usageCalls')}
                 errorsLabel={t('pages.dashboard.usageErrors')}
+                interactionHint={t('pages.dashboard.trendInteractionHint')}
               />
             ) : (
-              <div className="dash-empty">
-                <strong>{t('pages.dashboard.noCalls')}</strong>
+              <div className="dash-empty is-unavailable" role="status">
+                <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
+                <span>{usageNote}</span>
               </div>
             )}
           </article>
@@ -449,115 +512,154 @@ const DashboardPage: React.FC = () => {
               <header className="dash-card-head">
                 <h2>{t('pages.dashboard.toolCalls')}</h2>
               </header>
-              {!usage || usage.tools.length === 0 ? (
+              {usageSurface === 'loading' ? (
+                <div className="dash-empty" aria-busy="true">
+                  <strong>{t('common.loading')}</strong>
+                </div>
+              ) : usageSurface === 'unavailable' ? (
+                <div className="dash-empty is-unavailable" role="status">
+                  <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
+                  <span>{usageNote}</span>
+                </div>
+              ) : !usage || usage.tools.length === 0 ? (
                 <div className="dash-empty">
                   <strong>{t('pages.dashboard.noCalls')}</strong>
                   {t('pages.dashboard.emptyUsageHint')}
                 </div>
               ) : (
-                usage.tools.map((item) => (
-                  <div key={item.name} className="dash-bar-row">
-                    <span className="dash-bar-label" title={item.name}>
-                      {item.name}
-                    </span>
-                    <div className="dash-bar-track">
-                      <div className="dash-bar-fill" style={{ width: `${(item.count / maxTool) * 100}%` }} />
+                <div
+                  className="dash-bar-list"
+                  role="list"
+                  aria-label={t('pages.dashboard.toolCalls')}
+                >
+                  {usage.tools.map((item) => (
+                    <div
+                      key={item.name}
+                      className="dash-bar-row"
+                      role="listitem"
+                      aria-label={t('pages.dashboard.rankingAria', {
+                        name: item.name,
+                        calls: item.count,
+                        errors: item.errors,
+                      })}
+                    >
+                      <span className="dash-bar-label" title={item.name}>
+                        {item.name}
+                      </span>
+                      <div className="dash-bar-track" aria-hidden="true">
+                        <div
+                          className="dash-bar-fill"
+                          style={{ width: `${(item.count / maxTool) * 100}%` }}
+                        />
+                      </div>
+                      <span className="dash-bar-num hub-mono">
+                        {item.count}
+                        {item.errors > 0 ? (
+                          <i>{t('pages.dashboard.errorShort', { count: item.errors })}</i>
+                        ) : null}
+                      </span>
                     </div>
-                    <span className="dash-bar-num hub-mono">
-                      {item.count}
-                      {item.errors > 0 ? <i> /{item.errors}</i> : null}
-                    </span>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </article>
             <article className="dash-card">
               <header className="dash-card-head">
                 <h2>{t('pages.dashboard.userCalls')}</h2>
               </header>
-              {!usage || usage.users.length === 0 ? (
+              {usageSurface === 'loading' ? (
+                <div className="dash-empty" aria-busy="true">
+                  <strong>{t('common.loading')}</strong>
+                </div>
+              ) : usageSurface === 'unavailable' ? (
+                <div className="dash-empty is-unavailable" role="status">
+                  <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
+                  <span>{usageNote}</span>
+                </div>
+              ) : !usage || usage.users.length === 0 ? (
                 <div className="dash-empty">
                   <strong>{t('pages.dashboard.noCalls')}</strong>
                   {t('pages.dashboard.emptyUsageHint')}
                 </div>
               ) : (
-                usage.users.map((item) => (
-                  <div key={item.name} className="dash-bar-row">
-                    <span className="dash-bar-label" title={item.name}>
-                      {item.name}
-                    </span>
-                    <div className="dash-bar-track">
-                      <div
-                        className="dash-bar-fill is-user"
-                        style={{ width: `${(item.count / maxUser) * 100}%` }}
-                      />
+                <div
+                  className="dash-bar-list"
+                  role="list"
+                  aria-label={t('pages.dashboard.userCalls')}
+                >
+                  {usage.users.map((item) => (
+                    <div
+                      key={item.name}
+                      className="dash-bar-row"
+                      role="listitem"
+                      aria-label={t('pages.dashboard.rankingAria', {
+                        name: item.name,
+                        calls: item.count,
+                        errors: item.errors,
+                      })}
+                    >
+                      <span className="dash-bar-label" title={item.name}>
+                        {item.name}
+                      </span>
+                      <div className="dash-bar-track" aria-hidden="true">
+                        <div
+                          className="dash-bar-fill is-user"
+                          style={{ width: `${(item.count / maxUser) * 100}%` }}
+                        />
+                      </div>
+                      <span className="dash-bar-num hub-mono">
+                        {item.count}
+                        {item.errors > 0 ? (
+                          <i>{t('pages.dashboard.errorShort', { count: item.errors })}</i>
+                        ) : null}
+                      </span>
                     </div>
-                    <span className="dash-bar-num hub-mono">
-                      {item.count}
-                      {item.errors > 0 ? <i> /{item.errors}</i> : null}
-                    </span>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </article>
           </div>
 
-          {isAdmin && users.length > 0 && (
-            <article className="dash-card">
-              <header className="dash-card-head">
-                <h2>{t('pages.dashboard.usersNow')}</h2>
-                <span className="hub-num hub-mono">{users.length}</span>
-              </header>
-              {users.map((user) => {
-                const expired = isExpiredUser(user);
-                return (
-                  <div key={user.username} className={`dash-roster-row is-user${expired ? ' is-expired' : ''}`}>
-                    <div className="dash-user-top">
-                      <span className="dash-roster-name hub-mono">
-                        {user.username}
-                        {user.username === username ? (
-                          <span className="hub-tag accent">{t('users.currentUser')}</span>
-                        ) : null}
-                        {user.isAdmin ? <span className="hub-tag muted">{t('users.admin')}</span> : null}
-                        {expired ? <span className="hub-tag muted">{t('users.tokenExpired')}</span> : null}
-                      </span>
-                      <span className="dash-roster-count hub-mono">
-                        {user.isAdmin
-                          ? t('pages.dashboard.adminAccess')
-                          : t('pages.dashboard.grantCount', { count: user.grants?.length || 0 })}
-                      </span>
-                    </div>
-                    <div className="dash-user-times">
-                      <span>
-                        {t('pages.dashboard.tokenRemaining')} ·{' '}
-                        <b className={expired ? 'is-err' : undefined}>{tokenRemainingLabel(user, t)}</b>
-                      </span>
-                      <span>
-                        {t('pages.dashboard.lastCalledAt')} · {formatWhen(user.lastCalledAt)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </article>
-          )}
-
-          <article className="dash-card dash-failures-card">
+          <article className="dash-card dash-failures-card" id="dashboard-failures">
             <header className="dash-card-head">
               <h2>{t('pages.dashboard.recentErrors')}</h2>
+              <Link className="cfg-link" to="/activity">
+                {t('common.view')} {t('nav.activity')}
+              </Link>
             </header>
-            {!usage || usage.recentErrors.length === 0 ? (
+            {usageSurface === 'loading' ? (
+              <div className="dash-empty" aria-busy="true">
+                <strong>{t('common.loading')}</strong>
+              </div>
+            ) : usageSurface === 'unavailable' ? (
+              <div className="dash-empty is-unavailable" role="status">
+                <strong>{t('pages.dashboard.dataUnavailableShort')}</strong>
+                <span>{usageNote}</span>
+              </div>
+            ) : !usage || usage.recentErrors.length === 0 ? (
               <div className="dash-empty">
                 <strong>{t('pages.dashboard.noRecentErrors')}</strong>
               </div>
             ) : (
-              <ul className="dash-errors">
+              <ul className="dash-errors" aria-label={t('pages.dashboard.recentErrors')}>
                 {usage.recentErrors.map((item) => (
                   <li key={item.id}>
-                    <span className="hub-mono">{new Date(item.timestamp).toLocaleString()}</span>
-                    <strong>{item.tool}</strong>
-                    <span>{item.username || '—'}</span>
-                    <span className="dash-error-msg">{item.errorMessage || t('activity.statusError')}</span>
+                    <span className="dash-error-cell hub-mono">
+                      <small>{t('activity.timestamp')}</small>
+                      {new Date(item.timestamp).toLocaleString()}
+                    </span>
+                    <strong className="dash-error-cell">
+                      <small>{t('activity.tool')}</small>
+                      {item.tool}
+                    </strong>
+                    <span className="dash-error-cell">
+                      <small>{t('activity.user')}</small>
+                      {item.username || '—'}
+                    </span>
+                    <span className="dash-error-cell dash-error-msg">
+                      <small>{t('activity.errorMessage')}</small>
+                      {item.errorMessage || t('activity.statusError')}
+                    </span>
                   </li>
                 ))}
               </ul>

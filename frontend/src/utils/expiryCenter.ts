@@ -2,14 +2,16 @@ import { User } from '@/types';
 
 const DAY_MS = 86_400_000;
 
-export const isExpiredUser = (user: User): boolean => {
+type ExpirySubject = Pick<User, 'mcpEnabled' | 'tokenExpiresAt' | 'expired'>;
+
+export const isExpiredUser = (user: ExpirySubject): boolean => {
   if (user.mcpEnabled === false || !user.tokenExpiresAt) return false;
   if (user.expired) return true;
   const expires = new Date(user.tokenExpiresAt).getTime();
   return !Number.isNaN(expires) && expires <= Date.now();
 };
 
-export const isExpiringSoon = (user: User, withinDays = 7): boolean => {
+export const isExpiringSoon = (user: ExpirySubject, withinDays = 7): boolean => {
   if (user.mcpEnabled === false || !user.tokenExpiresAt || isExpiredUser(user)) return false;
   const expires = new Date(user.tokenExpiresAt).getTime();
   if (Number.isNaN(expires)) return false;
