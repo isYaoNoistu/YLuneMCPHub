@@ -636,6 +636,7 @@ export interface TemplateDryRunResult {
 }
 
 export interface CredentialFormData {
+  formats?: Record<string, 'text' | 'multiline' | 'json'>;
   name: string;
   fields: Record<string, string>;
   enabled?: boolean;

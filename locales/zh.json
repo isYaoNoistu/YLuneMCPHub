@@ -1317,7 +1317,27 @@
     "boundCount": "已绑 {{count}} 条",
     "boundItem": "凭据",
     "serverDisabled": "已停用",
-    "needCount": "扫到 {{count}} 个变量"
+    "needCount": "扫到 {{count}} 个变量",
+    "editor": {
+      "mode": "值格式",
+      "text": "文本",
+      "multiline": "多行",
+      "json": "JSON",
+      "show": "显示内容",
+      "hide": "隐藏内容",
+      "format": "格式化 JSON",
+      "jsonPosition": "JSON 格式有误 · 第 {{line}} 行，第 {{column}} 列",
+      "validJson": "JSON 格式正确 · 以文本保存并注入",
+      "preserve": "保留空格与换行，保存时加密存储。",
+      "errors": {
+        "incomplete": "请为每一行填写字段名和值。",
+        "key": "字段名使用字母、数字和下划线，以字母或下划线开头。",
+        "duplicate": "字段名不能重复。",
+        "size": "单个字段值不能超过 64 KiB（UTF-8）。",
+        "total": "最多 64 个字段，键值总大小不能超过 256 KiB。",
+        "json": "JSON 格式有误，请检查引号、逗号和括号。"
+      }
+    }
   },
   "targets": {
     "add": "创建 Target",

@@ -1,3 +1,4 @@
+import { collectCredentialPairs } from '@/utils/credentialEditor';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
@@ -19,7 +20,6 @@ import {
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import YluneDialog from '@/components/ui/YluneDialog';
 import KeyValueEditor, {
-  collectFilledPairs,
   emptyPairs,
   keysToEmptyPairs,
   KvPair,
@@ -136,6 +136,7 @@ const CredentialCenterPage = () => {
 
   const closeCreate = () => {
     setCreating(false);
+    setCreatePairs(defaultCredentialPairs());
     setCreateBindTo('');
   };
 
@@ -144,15 +145,16 @@ const CredentialCenterPage = () => {
       setError(t('credentials.nameRequired'));
       return;
     }
-    const collected = collectFilledPairs(createPairs);
+    const collected = collectCredentialPairs(createPairs);
     if ('error' in collected) {
-      setError(t('credentials.fieldsRequired'));
+      setError(t(`credentials.editor.errors.${collected.error}`));
       return;
     }
     setBusy(true);
     const result = await createCredential({
       name: createName.trim(),
       fields: collected.fields,
+      formats: collected.formats,
     });
     if (!result?.success || !result.data) {
       setBusy(false);
@@ -203,13 +205,13 @@ const CredentialCenterPage = () => {
 
   const submitReplace = async () => {
     if (!replacing) return;
-    const collected = collectFilledPairs(replacePairs);
+    const collected = collectCredentialPairs(replacePairs);
     if ('error' in collected) {
-      setError(t('credentials.fieldsRequired'));
+      setError(t(`credentials.editor.errors.${collected.error}`));
       return;
     }
     setBusy(true);
-    const result = await replaceCredentialSecret(replacing.id, { fields: collected.fields });
+    const result = await replaceCredentialSecret(replacing.id, { fields: collected.fields, formats: collected.formats });
     setBusy(false);
     if (result?.success) {
       closeReplace();
@@ -590,6 +592,7 @@ const CredentialCenterPage = () => {
             </select>
           </div>
           <KeyValueEditor
+            structured
             pairs={createPairs}
             onChange={setCreatePairs}
             label={t('credentials.fields')}
@@ -626,6 +629,7 @@ const CredentialCenterPage = () => {
         >
           {error ? <p className="ylune-error">{error}</p> : null}
           <KeyValueEditor
+            structured
             pairs={replacePairs}
             onChange={setReplacePairs}
             disabled={replaceLoading}

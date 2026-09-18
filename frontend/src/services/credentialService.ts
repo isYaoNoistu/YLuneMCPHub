@@ -15,8 +15,12 @@ export const getCredentials = async (): Promise<ApiResponse<Credential[]>> =>
 
 export const getCredentialValues = async (
   id: string,
-): Promise<ApiResponse<{ name: string; pairs: Array<{ key: string; value: string }> }>> =>
-  apiGet(`/credentials/${id}/values`);
+): Promise<
+  ApiResponse<{
+    name: string;
+    pairs: Array<{ key: string; value: string; format?: 'text' | 'multiline' | 'json' }>;
+  }>
+> => apiGet(`/credentials/${id}/values`);
 
 export const createCredential = async (
   data: CredentialFormData,
@@ -29,7 +33,7 @@ export const updateCredential = async (
 
 export const replaceCredentialSecret = async (
   id: string,
-  data: { fields: Record<string, string> },
+  data: { fields: Record<string, string>; formats?: Record<string, 'text' | 'multiline' | 'json'> },
 ): Promise<ApiResponse<Credential>> => apiPost(`/credentials/${id}/secret`, data);
 
 export const deleteCredential = async (id: string): Promise<ApiResponse<void>> =>

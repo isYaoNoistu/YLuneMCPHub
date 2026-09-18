@@ -1317,7 +1317,27 @@
     "boundCount": "{{count}} bound",
     "boundItem": "Credential",
     "serverDisabled": "Disabled",
-    "needCount": "{{count}} scanned"
+    "needCount": "{{count}} scanned",
+    "editor": {
+      "mode": "Value format",
+      "text": "Text",
+      "multiline": "Multiline",
+      "json": "JSON",
+      "show": "Show value",
+      "hide": "Hide value",
+      "format": "Format JSON",
+      "jsonPosition": "Invalid JSON · line {{line}}, column {{column}}",
+      "validJson": "Valid JSON · stored and injected as text",
+      "preserve": "Whitespace and line breaks are preserved. Values are encrypted when saved.",
+      "errors": {
+        "incomplete": "Enter a field name and value for each row.",
+        "key": "Use letters, digits and underscores; start with a letter or underscore.",
+        "duplicate": "Field names must be unique.",
+        "size": "Each value must be at most 64 KiB (UTF-8).",
+        "total": "Use at most 64 fields and 256 KiB in total.",
+        "json": "Invalid JSON. Check quotes, commas and closing brackets."
+      }
+    }
   },
   "targets": {
     "add": "Create target",

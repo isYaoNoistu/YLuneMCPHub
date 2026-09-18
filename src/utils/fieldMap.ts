@@ -3,9 +3,10 @@
  * Callers choose the keys; the hub does not ship per-product schemas.
  */
 
+import { FIELD_VALUE_BYTES, FIELD_TOTAL_BYTES, utf8Length } from './credentialFormats.js';
 export const FIELD_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export const MAX_FIELD_COUNT = 64;
-export const MAX_FIELD_VALUE_LENGTH = 8192;
+export const MAX_FIELD_VALUE_LENGTH = FIELD_VALUE_BYTES;
 
 export class FieldMapError extends Error {
   constructor(message: string) {
@@ -109,7 +110,7 @@ export const sanitizeFieldMap = (
     if (!allowEmptyValues && value === '') {
       throw new FieldMapError(`Field ${key} cannot be empty`);
     }
-    if (value.length > MAX_FIELD_VALUE_LENGTH) {
+    if (utf8Length(value) > MAX_FIELD_VALUE_LENGTH) {
       throw new FieldMapError(`Field ${key} is too long`);
     }
     if (key in out) {
@@ -119,6 +120,14 @@ export const sanitizeFieldMap = (
   }
 
   const count = Object.keys(out).length;
+  if (
+    Object.entries(out).reduce(
+      (total, [key, value]) => total + utf8Length(key) + utf8Length(value),
+      0,
+    ) > FIELD_TOTAL_BYTES
+  ) {
+    throw new FieldMapError('Credential fields exceed 256 KiB');
+  }
   if (count === 0) {
     throw new FieldMapError('At least one field is required');
   }

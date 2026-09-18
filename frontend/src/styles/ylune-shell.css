@@ -2888,3 +2888,18 @@ html.light {
 .grant-preview-list strong {
   color: var(--hub-ink);
 }
+
+/* Credential values reuse the dialog's surfaces and controls. */
+.ylune-credential-field { margin-top: 14px; padding: 14px; border: 1px solid var(--color-border); border-radius: 12px; }
+.ylune-credential-field-header { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; align-items: center; margin-bottom: 10px; }
+.ylune-credential-value { display: block; width: 100%; min-height: 64px; max-height: 360px; resize: vertical; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ylune-credential-value.is-json { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; }
+.ylune-credential-value[rows="8"] { min-height: 200px; }
+.ylune-credential-field-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ylune-credential-field-actions { display: flex; gap: 6px; }
+.ylune-credential-field > .ylune-help, .ylune-credential-field > .ylune-error { margin: 8px 0 0; }
+@media (max-width: 520px) {
+ .ylune-credential-field { padding: 10px; }
+ .ylune-credential-field-header { grid-template-columns: minmax(0, 1fr) auto; }
+ .ylune-credential-field-header > input { grid-column: 1 / -1; }
+}

@@ -1,9 +1,7 @@
+import { validateCredentialFormats, type CredentialFormat } from '../utils/credentialFormats.js';
 import { getCredentialDao, getResourceDao } from '../dao/DaoFactory.js';
 import { ICredential, ICredentialPublic } from '../types/index.js';
-import {
-  payloadToCredentialFields,
-  sanitizeFieldMap,
-} from '../utils/fieldMap.js';
+import { payloadToCredentialFields, sanitizeFieldMap } from '../utils/fieldMap.js';
 import {
   decryptJson,
   encryptJson,
@@ -12,7 +10,13 @@ import {
 } from '../utils/secretBox.js';
 import { serializeTokenExpiresAt } from '../utils/userTokenExpiry.js';
 
-const SECRET_KEYS = ['password', 'token', 'encryptedPayload', 'encrypted_payload', 'secret'] as const;
+const SECRET_KEYS = [
+  'password',
+  'token',
+  'encryptedPayload',
+  'encrypted_payload',
+  'secret',
+] as const;
 const CREDENTIAL_KIND = 'fields';
 
 export const isCredentialStoreEnabled = (): boolean => typeof getCredentialDao() !== 'undefined';
@@ -74,11 +78,11 @@ export const assertNoSecrets = (value: unknown): void => {
   }
 };
 
-const sealFields = (fields: Record<string, string>) => {
+const sealFields = (fields: Record<string, string>, formats: Record<string, CredentialFormat>) => {
   if (!hasMasterKey()) {
     throw new MasterKeyMissingError();
   }
-  return encryptJson({ fields });
+  return encryptJson({ fields, formats });
 };
 
 const readInputFields = (input: { fields?: unknown }): Record<string, string> =>
@@ -92,6 +96,7 @@ export const listCredentials = async (): Promise<ICredentialPublic[]> => {
 export const createCredential = async (input: {
   name?: string;
   fields?: unknown;
+  formats?: unknown;
   enabled?: boolean;
 }): Promise<ICredentialPublic> => {
   const name = typeof input.name === 'string' ? input.name.trim() : '';
@@ -103,7 +108,8 @@ export const createCredential = async (input: {
   if (await dao.findByName(name)) {
     throw new Error('A credential with this name already exists');
   }
-  const sealed = sealFields(fields);
+  const formats = validateCredentialFormats(fields, input.formats);
+  const sealed = sealFields(fields, formats);
   const created = await dao.create({
     name,
     type: CREDENTIAL_KIND,
@@ -150,7 +156,7 @@ export const updateCredential = async (
 
 export const replaceCredentialSecret = async (
   id: string,
-  input: { fields?: unknown },
+  input: { fields?: unknown; formats?: unknown },
 ): Promise<ICredentialPublic | null> => {
   const dao = requireCredentialDao();
   const existing = await dao.findById(id);
@@ -158,7 +164,8 @@ export const replaceCredentialSecret = async (
     return null;
   }
   const fields = readInputFields(input);
-  const sealed = sealFields(fields);
+  const formats = validateCredentialFormats(fields, input.formats);
+  const sealed = sealFields(fields, formats);
   const updated = await dao.update(id, {
     type: CREDENTIAL_KIND,
     encryptedPayload: sealed.payload,
@@ -191,15 +198,27 @@ export const openCredentialFields = (credential: ICredential): Record<string, st
 /** Admin console edit only. List endpoints must keep using toPublicCredential. */
 export const listCredentialEditPairs = async (
   id: string,
-): Promise<{ name: string; pairs: Array<{ key: string; value: string }> } | null> => {
+): Promise<{
+  name: string;
+  pairs: Array<{ key: string; value: string; format?: CredentialFormat }>;
+} | null> => {
   const credential = await requireCredentialDao().findById(id);
   if (!credential) {
     return null;
   }
   const fields = openCredentialFields(credential);
+  const payload = decryptJson<{ formats?: unknown }>(
+    credential.encryptedPayload,
+    credential.keyVersion,
+  );
+  const formats = validateCredentialFormats(fields, payload.formats);
   return {
     name: credential.name,
-    pairs: Object.entries(fields).map(([key, value]) => ({ key, value })),
+    pairs: Object.entries(fields).map(([key, value]) => ({
+      key,
+      value,
+      ...(formats[key] ? { format: formats[key] } : {}),
+    })),
   };
 };
 

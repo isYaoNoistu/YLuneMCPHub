@@ -46,6 +46,38 @@ describe('credentialService', () => {
     }
   });
 
+  it('encrypts editor formats, restores them on edit and injects only unchanged strings', async () => {
+    findByName.mockResolvedValue(null);
+    let stored: any;
+    create.mockImplementation(async (input: Record<string, unknown>) => {
+      stored = { id: 'structured', ...input, createdAt: new Date(), updatedAt: new Date() };
+      return stored;
+    });
+    const value = '{"password":" secret ","id":9007199254740993}';
+    const publicView = await createCredential({
+      name: 'structured',
+      fields: { CONFIG: value },
+      formats: { CONFIG: 'json' },
+    });
+    expect(stored.encryptedPayload).not.toContain(' secret ');
+    expect(JSON.stringify(publicView)).not.toContain('formats');
+    expect(openCredentialFields(stored)).toEqual({ CONFIG: value });
+    findById.mockResolvedValue(stored);
+    expect(await listCredentialEditPairs('structured')).toEqual({
+      name: 'structured',
+      pairs: [{ key: 'CONFIG', value, format: 'json' }],
+    });
+    update.mockImplementation(async (_id: string, patch: object) => ({ ...stored, ...patch }));
+    await replaceCredentialSecret('structured', {
+      fields: { PEM: 'line1\nline2\n' },
+      formats: { PEM: 'multiline' },
+    });
+    const rotated = { ...stored, ...(update.mock.calls[0][1] as object) };
+    expect(openCredentialFields(rotated)).toEqual({ PEM: 'line1\nline2\n' });
+    findById.mockResolvedValue(rotated);
+    expect((await listCredentialEditPairs('structured'))?.pairs[0].format).toBe('multiline');
+  });
+
   it('never puts field values on the public view', () => {
     const publicView = toPublicCredential({
       id: 'c1',
@@ -88,7 +120,9 @@ describe('credentialService', () => {
     ]);
     const rows = await listCredentials();
     expect(rows[0]?.keys).toEqual(['PGUSER', 'PGPASSWORD']);
-    expect(JSON.stringify(rows)).not.toMatch(/"password"\s*:|"token"\s*:|"encryptedPayload"|"fields"\s*:/);
+    expect(JSON.stringify(rows)).not.toMatch(
+      /"password"\s*:|"token"\s*:|"encryptedPayload"|"fields"\s*:/,
+    );
   });
 
   it('refuses to write when the master key is missing', async () => {
@@ -130,10 +164,12 @@ describe('credentialService', () => {
 
   it('rejects empty or illegal field names', async () => {
     findByName.mockResolvedValue(null);
-    await expect(createCredential({ name: 'x', fields: {} })).rejects.toThrow(/at least one field/i);
-    await expect(
-      createCredential({ name: 'x', fields: { 'pg-user': 'ro' } }),
-    ).rejects.toThrow(/Invalid field name/);
+    await expect(createCredential({ name: 'x', fields: {} })).rejects.toThrow(
+      /at least one field/i,
+    );
+    await expect(createCredential({ name: 'x', fields: { 'pg-user': 'ro' } })).rejects.toThrow(
+      /Invalid field name/,
+    );
     expect(create).not.toHaveBeenCalled();
   });
 
